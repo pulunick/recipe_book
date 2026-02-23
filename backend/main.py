@@ -145,14 +145,24 @@ async def extract_recipe(request: ExtractRecipeRequest):
                     audio_path=None, subtitle_text=subtitle_text
                 )
             else:
-                # 자막 없음: 오디오 fallback
+                # 자막 없음: 오디오 fallback 시도
                 logger.info("빠른 분석: 자막 없음 → 오디오 fallback")
-                temp_filename = f"temp_{int(time.time())}.mp3"
-                audio_path = download_audio(youtube_url, temp_filename)
-                recipe = await extract_recipe_with_gemini(
-                    youtube_url, video_id, metadata,
-                    audio_path=audio_path, subtitle_text=None
-                )
+                try:
+                    temp_filename = f"temp_{int(time.time())}.mp3"
+                    audio_path = download_audio(youtube_url, temp_filename)
+                    recipe = await extract_recipe_with_gemini(
+                        youtube_url, video_id, metadata,
+                        audio_path=audio_path, subtitle_text=None
+                    )
+                except Exception as audio_err:
+                    logger.warning("오디오 다운로드도 실패: %s", audio_err)
+                    raise HTTPException(
+                        status_code=400,
+                        detail=ErrorResponse(
+                            error_code="NO_DATA_AVAILABLE",
+                            message="이 영상에서 자막과 오디오를 모두 가져올 수 없습니다. 자막이 있는 영상으로 다시 시도해주세요.",
+                        ).model_dump(),
+                    )
         else:
             # 정밀 분석: 오디오 다운로드 시도, 실패 시 자막 모드로 자동 전환
             logger.info("정밀 분석: 오디오 + 자막 교차 검증 시도")

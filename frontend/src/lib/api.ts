@@ -7,6 +7,7 @@ const ERROR_MESSAGES: Record<string, string> = {
 	NOT_RECIPE: '이 영상은 요리 레시피가 아닙니다.',
 	ACCESS_DENIED: '비공개 또는 멤버십 전용 영상입니다.',
 	EXTRACTION_FAILED: '레시피 추출 중 오류가 발생했습니다.',
+	NO_DATA_AVAILABLE: '이 영상에서 자막과 오디오를 모두 가져올 수 없습니다. 자막이 있는 영상으로 다시 시도해주세요.',
 	INTERNAL_ERROR: '서버 내부 오류가 발생했습니다.'
 };
 

@@ -152,40 +152,56 @@ def download_subtitles(url: str, output_path: str = "subtitle") -> str | None:
     # 1차: youtube-transcript-api (데이터센터에서도 동작)
     try:
         from youtube_transcript_api import YouTubeTranscriptApi
+        logger.info("Transcript API 시도 (video_id: %s)", video_id)
 
         api = YouTubeTranscriptApi()
-        transcript_text = None
 
-        # 한국어 우선, 영어 fallback
+        # 방법 1: 사용 가능한 자막 목록 먼저 확인
+        try:
+            transcript_list = api.list(video_id)
+            available = [(t.language, t.language_code, t.is_generated) for t in transcript_list]
+            logger.info("사용 가능한 자막: %s", available)
+        except Exception as list_err:
+            logger.warning("Transcript API 목록 조회 실패: %s", list_err)
+            transcript_list = None
+
+        # 방법 2: 직접 fetch 시도 (한국어/영어)
+        transcript_text = None
         for lang in ["ko", "en"]:
             try:
                 transcript = api.fetch(video_id, languages=[lang])
-                lines = [snippet.text for snippet in transcript.snippets]
+                lines = []
+                for snippet in transcript.snippets:
+                    lines.append(snippet.text)
                 transcript_text = "\n".join(lines)
-                logger.info("Transcript API 성공 (%d자, 언어: %s)", len(transcript_text), lang)
+                logger.info("Transcript API fetch 성공 (%d자, 언어: %s)", len(transcript_text), lang)
                 break
-            except Exception:
+            except Exception as fetch_err:
+                logger.info("Transcript API fetch 실패 (언어: %s): %s", lang, fetch_err)
                 continue
 
-        # 언어 지정 실패 시 아무 자막이나 시도
+        # 방법 3: 언어 미지정으로 시도
         if not transcript_text:
             try:
-                transcript_list = api.list(video_id)
-                transcript = transcript_list.find_transcript(["ko", "en"])
-                fetched = transcript.fetch()
-                lines = [snippet.text for snippet in fetched.snippets]
+                logger.info("Transcript API 언어 미지정 fetch 시도")
+                transcript = api.fetch(video_id)
+                lines = []
+                for snippet in transcript.snippets:
+                    lines.append(snippet.text)
                 transcript_text = "\n".join(lines)
-                logger.info("Transcript API 대체 언어 성공 (%d자)", len(transcript_text))
-            except Exception:
-                pass
+                logger.info("Transcript API 언어 미지정 성공 (%d자)", len(transcript_text))
+            except Exception as any_err:
+                logger.warning("Transcript API 언어 미지정도 실패: %s", any_err)
 
         if transcript_text:
             return transcript_text
+        else:
+            logger.warning("Transcript API: 이 영상에 사용 가능한 자막 없음")
 
     except ImportError:
-        logger.warning("youtube-transcript-api 미설치")
+        logger.error("youtube-transcript-api 미설치! pip install youtube-transcript-api 필요")
     except Exception as e:
-        logger.warning("Transcript API 실패: %s", e)
+        logger.warning("Transcript API 전체 실패: %s (type: %s)", e, type(e).__name__)
 
     # 2차: yt-dlp fallback
     logger.info("yt-dlp 자막 추출 fallback 시도")
