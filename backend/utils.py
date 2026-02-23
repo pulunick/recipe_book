@@ -1,14 +1,18 @@
 import yt_dlp
 import os
 import re
+import json
 import base64
 import tempfile
+import urllib.request
+import urllib.error
 from logger import get_logger
 
 logger = get_logger(__name__)
 
 # YouTube 쿠키 파일 경로 (환경변수 YOUTUBE_COOKIES_B64에서 디코딩)
 _COOKIES_PATH: str | None = None
+
 
 def _init_cookies() -> str | None:
     """환경변수 YOUTUBE_COOKIES_B64(Base64)를 파일로 디코딩하여 경로 반환"""
@@ -32,10 +36,16 @@ def _init_cookies() -> str | None:
         logger.warning("YouTube 쿠키 디코딩 실패: %s", e)
         return None
 
+
 def _get_common_opts() -> dict:
     """yt-dlp 공통 옵션 반환 (쿠키 포함)"""
     opts: dict = {
-        "extractor_args": {"youtube": {"remote_components": ["ejs:github"]}},
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["mweb", "android"],
+                "remote_components": ["ejs:github"],
+            }
+        },
     }
     cookies_path = _init_cookies()
     if cookies_path:
@@ -61,17 +71,20 @@ def get_video_id_fallback(url: str) -> str | None:
 def extract_video_id(url: str) -> tuple[str | None, str | None]:
     """
     YouTube URL에서 video_id를 추출합니다.
-    Returns: (video_id, error_detail) — error_detail은 접근 불가 사유
+    정규식 우선, yt-dlp는 사용하지 않음 (봇 차단 회피).
+    Returns: (video_id, error_detail)
     """
-    video_id = None
-    error_detail = None
+    video_id = get_video_id_fallback(url)
+    if video_id:
+        return video_id, None
 
+    # 정규식 실패 시 yt-dlp fallback
+    error_detail = None
     try:
         ydl_opts = {
             **_get_common_opts(),
             "quiet": True,
             "no_warnings": True,
-            "force_generic_extractor": True,
             "extract_flat": True,
         }
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -79,7 +92,7 @@ def extract_video_id(url: str) -> tuple[str | None, str | None]:
             video_id = info_dict.get("id")
     except Exception as e:
         error_str = str(e)
-        logger.warning("yt-dlp 메타데이터 추출 실패: %s", error_str)
+        logger.warning("yt-dlp video ID 추출 실패: %s", error_str)
 
         if "members-only" in error_str.lower() or "membership" in error_str.lower():
             error_detail = "이 영상은 멤버십 전용 영상입니다. 공개된 영상만 분석할 수 있습니다."
@@ -88,10 +101,192 @@ def extract_video_id(url: str) -> tuple[str | None, str | None]:
         elif "login" in error_str.lower():
             error_detail = "로그인이 필요한 영상입니다. (성인 인증 등)"
 
-        video_id = get_video_id_fallback(url)
-
     return video_id, error_detail
 
+
+# ============================================================
+# YouTube oEmbed API — 메타데이터 (yt-dlp 불필요)
+# ============================================================
+
+def get_video_metadata(url: str) -> dict:
+    """YouTube oEmbed API로 메타데이터 추출 (봇 차단 없음)"""
+    video_id = get_video_id_fallback(url)
+    metadata: dict = {"title": "", "description": "", "uploader": ""}
+
+    # oEmbed API (API 키 불필요, 데이터센터에서도 동작)
+    oembed_url = f"https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v={video_id}&format=json"
+    try:
+        req = urllib.request.Request(oembed_url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode())
+            metadata["title"] = data.get("title", "")
+            metadata["uploader"] = data.get("author_name", "")
+            logger.info("oEmbed 메타데이터 성공: %s", metadata["title"])
+    except Exception as e:
+        logger.warning("oEmbed 메타데이터 실패: %s", e)
+
+    # yt-dlp fallback (실패해도 진행)
+    if not metadata["title"]:
+        try:
+            ydl_opts = {**_get_common_opts(), "quiet": True, "skip_download": True}
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=False)
+                metadata = info
+                logger.info("yt-dlp 메타데이터 fallback 성공")
+        except Exception as e:
+            logger.warning("yt-dlp 메타데이터도 실패 (진행 계속): %s", e)
+
+    return metadata
+
+
+# ============================================================
+# youtube-transcript-api — 자막 (yt-dlp 불필요)
+# ============================================================
+
+def download_subtitles(url: str, output_path: str = "subtitle") -> str | None:
+    """youtube-transcript-api로 자막 추출 (봇 차단 없음)"""
+    video_id = get_video_id_fallback(url)
+    if not video_id:
+        return None
+
+    # 1차: youtube-transcript-api (데이터센터에서도 동작)
+    try:
+        from youtube_transcript_api import YouTubeTranscriptApi
+
+        api = YouTubeTranscriptApi()
+        transcript_text = None
+
+        # 한국어 우선, 영어 fallback
+        for lang in ["ko", "en"]:
+            try:
+                transcript = api.fetch(video_id, languages=[lang])
+                lines = [snippet.text for snippet in transcript.snippets]
+                transcript_text = "\n".join(lines)
+                logger.info("Transcript API 성공 (%d자, 언어: %s)", len(transcript_text), lang)
+                break
+            except Exception:
+                continue
+
+        # 언어 지정 실패 시 아무 자막이나 시도
+        if not transcript_text:
+            try:
+                transcript_list = api.list(video_id)
+                transcript = transcript_list.find_transcript(["ko", "en"])
+                fetched = transcript.fetch()
+                lines = [snippet.text for snippet in fetched.snippets]
+                transcript_text = "\n".join(lines)
+                logger.info("Transcript API 대체 언어 성공 (%d자)", len(transcript_text))
+            except Exception:
+                pass
+
+        if transcript_text:
+            return transcript_text
+
+    except ImportError:
+        logger.warning("youtube-transcript-api 미설치")
+    except Exception as e:
+        logger.warning("Transcript API 실패: %s", e)
+
+    # 2차: yt-dlp fallback
+    logger.info("yt-dlp 자막 추출 fallback 시도")
+    return _download_subtitles_ytdlp(url, output_path)
+
+
+def _download_subtitles_ytdlp(url: str, output_path: str) -> str | None:
+    """yt-dlp로 자막 추출 (fallback)"""
+    ydl_opts = {
+        **_get_common_opts(),
+        "quiet": True,
+        "no_warnings": True,
+        "skip_download": True,
+        "writesubtitles": True,
+        "writeautomaticsub": True,
+        "subtitleslangs": ["ko", "en"],
+        "subtitlesformat": "vtt",
+        "outtmpl": output_path,
+    }
+
+    subtitle_files = []
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            subs = info.get("subtitles", {})
+            auto_subs = info.get("automatic_captions", {})
+
+            target_lang = None
+            is_auto = False
+            for lang in ["ko", "en"]:
+                if lang in subs:
+                    target_lang = lang
+                    break
+            if not target_lang:
+                for lang in ["ko", "en"]:
+                    if lang in auto_subs:
+                        target_lang = lang
+                        is_auto = True
+                        break
+
+            if not target_lang:
+                logger.info("자막 없음: 사용 가능한 자막이 없습니다.")
+                return None
+
+            if is_auto:
+                ydl_opts["writesubtitles"] = False
+            else:
+                ydl_opts["writeautomaticsub"] = False
+            ydl_opts["subtitleslangs"] = [target_lang]
+
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl2:
+                ydl2.download([url])
+
+        for ext in [f".{target_lang}.vtt", ".vtt"]:
+            candidate = output_path + ext
+            if os.path.exists(candidate):
+                subtitle_files.append(candidate)
+                break
+
+        if not subtitle_files:
+            return None
+
+        vtt_path = subtitle_files[0]
+        with open(vtt_path, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+
+        text_lines = []
+        seen = set()
+        for line in lines:
+            line = line.strip()
+            if not line or line.startswith("WEBVTT") or line.startswith("Kind:") or line.startswith("Language:"):
+                continue
+            if re.match(r"\d{2}:\d{2}:\d{2}\.\d{3}\s*-->", line):
+                continue
+            if re.match(r"^\d+$", line):
+                continue
+            clean = re.sub(r"<[^>]+>", "", line)
+            clean = clean.strip()
+            if clean and clean not in seen:
+                seen.add(clean)
+                text_lines.append(clean)
+
+        subtitle_text = "\n".join(text_lines)
+        logger.info("yt-dlp 자막 추출 완료 (%d자)", len(subtitle_text))
+        return subtitle_text if subtitle_text else None
+
+    except Exception as e:
+        logger.warning("yt-dlp 자막 추출 실패: %s", e)
+        return None
+    finally:
+        for f in subtitle_files:
+            try:
+                if os.path.exists(f):
+                    os.remove(f)
+            except Exception:
+                pass
+
+
+# ============================================================
+# 오디오 다운로드 (yt-dlp — precise 모드 전용)
+# ============================================================
 
 def download_audio(url: str, output_path: str = "audio.mp3") -> str:
     """유튜브 영상에서 오디오 추출하여 저장"""
@@ -115,111 +310,3 @@ def download_audio(url: str, output_path: str = "audio.mp3") -> str:
         final_path = final_path + ".mp3"
 
     return final_path
-
-
-def get_video_metadata(url: str) -> dict:
-    """유튜브 영상 메타데이터만 추출"""
-    ydl_opts = {**_get_common_opts(), "quiet": True, "skip_download": True}
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        return ydl.extract_info(url, download=False)
-
-
-def download_subtitles(url: str, output_path: str = "subtitle") -> str | None:
-    """유튜브 영상에서 자막을 추출하여 순수 텍스트로 반환"""
-    ydl_opts = {
-        **_get_common_opts(),
-        "quiet": True,
-        "no_warnings": True,
-        "skip_download": True,
-        "writesubtitles": True,
-        "writeautomaticsub": True,
-        "subtitleslangs": ["ko", "en"],
-        "subtitlesformat": "vtt",
-        "outtmpl": output_path,
-    }
-
-    subtitle_files = []
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            # 공식 자막 확인
-            subs = info.get("subtitles", {})
-            auto_subs = info.get("automatic_captions", {})
-
-            # 공식 자막 우선, 없으면 자동생성 자막
-            target_lang = None
-            is_auto = False
-            for lang in ["ko", "en"]:
-                if lang in subs:
-                    target_lang = lang
-                    break
-            if not target_lang:
-                for lang in ["ko", "en"]:
-                    if lang in auto_subs:
-                        target_lang = lang
-                        is_auto = True
-                        break
-
-            if not target_lang:
-                logger.info("자막 없음: 사용 가능한 자막이 없습니다.")
-                return None
-
-            # 자막 다운로드
-            if is_auto:
-                ydl_opts["writesubtitles"] = False
-            else:
-                ydl_opts["writeautomaticsub"] = False
-            ydl_opts["subtitleslangs"] = [target_lang]
-
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl2:
-                ydl2.download([url])
-
-        # VTT 파일 찾기
-        for ext in [f".{target_lang}.vtt", ".vtt"]:
-            candidate = output_path + ext
-            if os.path.exists(candidate):
-                subtitle_files.append(candidate)
-                break
-
-        if not subtitle_files:
-            logger.warning("자막 파일을 찾을 수 없습니다.")
-            return None
-
-        # VTT → 순수 텍스트 변환 (타임스탬프, 헤더 제거)
-        vtt_path = subtitle_files[0]
-        with open(vtt_path, "r", encoding="utf-8") as f:
-            lines = f.readlines()
-
-        text_lines = []
-        seen = set()
-        for line in lines:
-            line = line.strip()
-            # WEBVTT 헤더, 빈 줄, 타임스탬프 라인 건너뛰기
-            if not line or line.startswith("WEBVTT") or line.startswith("Kind:") or line.startswith("Language:"):
-                continue
-            if re.match(r"\d{2}:\d{2}:\d{2}\.\d{3}\s*-->", line):
-                continue
-            if re.match(r"^\d+$", line):
-                continue
-            # HTML 태그 제거
-            clean = re.sub(r"<[^>]+>", "", line)
-            clean = clean.strip()
-            if clean and clean not in seen:
-                seen.add(clean)
-                text_lines.append(clean)
-
-        subtitle_text = "\n".join(text_lines)
-        logger.info("자막 추출 완료 (%d자, 언어: %s, 자동생성: %s)", len(subtitle_text), target_lang, is_auto)
-        return subtitle_text if subtitle_text else None
-
-    except Exception as e:
-        logger.warning("자막 추출 실패: %s", e)
-        return None
-    finally:
-        # 임시 자막 파일 정리
-        for f in subtitle_files:
-            try:
-                if os.path.exists(f):
-                    os.remove(f)
-            except Exception:
-                pass

@@ -130,7 +130,7 @@ async def extract_recipe(request: ExtractRecipeRequest):
                 ).model_dump(),
             )
 
-        # 3. 메타데이터 + 자막 추출 (항상 시도)
+        # 3. 메타데이터 + 자막 추출 (yt-dlp 없이 동작)
         logger.info("AI 추출 시작 (video_id: %s, 모드: %s)", video_id, mode)
 
         metadata = get_video_metadata(youtube_url)
@@ -139,7 +139,6 @@ async def extract_recipe(request: ExtractRecipeRequest):
         # 4. 모드 분기
         if mode == "fast":
             if subtitle_text:
-                # 빠른 분석: 자막만으로 분석
                 logger.info("빠른 분석: 자막 텍스트 기반 분석")
                 recipe = await extract_recipe_with_gemini(
                     youtube_url, video_id, metadata,
@@ -155,14 +154,24 @@ async def extract_recipe(request: ExtractRecipeRequest):
                     audio_path=audio_path, subtitle_text=None
                 )
         else:
-            # 정밀 분석: 오디오 다운로드 + 자막 모두 전달
-            logger.info("정밀 분석: 오디오 + 자막 교차 검증")
-            temp_filename = f"temp_{int(time.time())}.mp3"
-            audio_path = download_audio(youtube_url, temp_filename)
-            recipe = await extract_recipe_with_gemini(
-                youtube_url, video_id, metadata,
-                audio_path=audio_path, subtitle_text=subtitle_text
-            )
+            # 정밀 분석: 오디오 다운로드 시도, 실패 시 자막 모드로 자동 전환
+            logger.info("정밀 분석: 오디오 + 자막 교차 검증 시도")
+            try:
+                temp_filename = f"temp_{int(time.time())}.mp3"
+                audio_path = download_audio(youtube_url, temp_filename)
+                recipe = await extract_recipe_with_gemini(
+                    youtube_url, video_id, metadata,
+                    audio_path=audio_path, subtitle_text=subtitle_text
+                )
+            except Exception as audio_err:
+                logger.warning("오디오 다운로드 실패, 자막 모드로 전환: %s", audio_err)
+                if subtitle_text:
+                    recipe = await extract_recipe_with_gemini(
+                        youtube_url, video_id, metadata,
+                        audio_path=None, subtitle_text=subtitle_text
+                    )
+                else:
+                    raise
 
         if not recipe.is_recipe:
             logger.info("레시피 영상 아님: %s", recipe.non_recipe_reason)

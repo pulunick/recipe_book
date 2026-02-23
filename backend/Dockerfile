@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y \
 
 # 종속성 파일 복사 및 설치
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt && pip install --no-cache-dir --upgrade yt-dlp
 
 # 소스 코드 복사
 COPY . .
