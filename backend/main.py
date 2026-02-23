@@ -24,7 +24,7 @@ app = FastAPI(
 )
 
 # --- CORS 설정 (환경변수 기반) ---
-allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:80")
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:80,https://recipe-book-gray-five.vercel.app")
 origins = [o.strip() for o in allowed_origins.split(",") if o.strip()]
 
 app.add_middleware(
