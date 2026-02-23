@@ -1,0 +1,26 @@
+services:
+  backend:
+    build: ./backend
+    container_name: recipe-ai-backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./backend:/app
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    restart: always
+
+  frontend:
+    image: nginx:alpine
+    container_name: recipe-ai-frontend
+    ports:
+      - "80:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html
+    depends_on:
+      - backend
+
+# 향후 데이터베이스(Supabase 로컬 등)가 추가될 경우 여기에 정의할 수 있습니다.

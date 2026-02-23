@@ -1,0 +1,118 @@
+/* === 나만의 레시피 북 디자인 시스템 === */
+
+/* Pretendard 웹폰트 */
+@font-face {
+  font-family: "Pretendard";
+  src: url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/woff2/Pretendard-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Pretendard";
+  src: url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/woff2/Pretendard-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Pretendard";
+  src: url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/woff2/Pretendard-SemiBold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Pretendard";
+  src: url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/woff2/Pretendard-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* 기본 색상 — 따뜻한 종이 톤 */
+  --color-paper: #FAF8F5;
+  --color-cream: #F5F0E8;
+  --color-warm-brown: #8B7355;
+  --color-soft-brown: #A89580;
+  --color-light-line: #E0D8CC;
+
+  /* 포인트 색상 */
+  --color-terracotta: #C4704B;
+  --color-sage: #8FA880;
+  --color-dusty-blue: #7B9DB7;
+  --color-warm-yellow: #E8D5A3;
+  --color-muted-red: #C47070;
+
+  /* 맛 프로필 색상 */
+  --flavor-salty: #7B9DB7;
+  --flavor-sweet: #D4A574;
+  --flavor-spicy: #C4704B;
+  --flavor-sour: #A8B86A;
+  --flavor-oily: #C9B896;
+
+  /* 폰트 */
+  --font-main: "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-number: "Nunito", var(--font-main);
+  --font-memo: "Nanum Myeongjo", serif;
+
+  /* 트랜지션 */
+  --transition: all 0.25s ease;
+
+  /* 레이아웃 */
+  --recipe-max-width: 720px;
+  --page-padding-desktop: 2rem;
+  --page-padding-mobile: 1rem;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--color-paper);
+  color: var(--color-warm-brown);
+  font-family: var(--font-main);
+  font-size: 17px;
+  line-height: 1.7;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-main);
+  color: var(--color-warm-brown);
+  line-height: 1.3;
+}
+
+h1 { font-size: 2rem; font-weight: 700; }
+h2 { font-size: 1.6rem; font-weight: 700; }
+h3 { font-size: 1.2rem; font-weight: 600; }
+
+a {
+  color: var(--color-dusty-blue);
+  text-decoration: none;
+  transition: var(--transition);
+}
+a:hover {
+  color: var(--color-terracotta);
+}
+
+button {
+  cursor: pointer;
+  font-family: inherit;
+  transition: var(--transition);
+}
+button:active {
+  transform: scale(0.98);
+}
+
+/* 반응형 유틸리티 */
+@media (max-width: 767px) {
+  body { font-size: 16px; }
+  h1 { font-size: 1.6rem; }
+  h2 { font-size: 1.4rem; }
+}
