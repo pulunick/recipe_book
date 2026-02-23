@@ -68,6 +68,24 @@ async def root():
     return {"message": "Recipe AI Extraction API is running!"}
 
 
+@app.get("/health")
+async def health_check():
+    """서버 상태 및 쿠키 설정 진단"""
+    from utils import _init_cookies
+    cookies_b64 = os.getenv("YOUTUBE_COOKIES_B64")
+    cookies_path = _init_cookies()
+    cookies_file_exists = os.path.exists(cookies_path) if cookies_path else False
+    cookies_file_size = os.path.getsize(cookies_path) if cookies_file_exists else 0
+    return {
+        "status": "ok",
+        "cookies_env_set": cookies_b64 is not None,
+        "cookies_env_length": len(cookies_b64) if cookies_b64 else 0,
+        "cookies_file_path": cookies_path,
+        "cookies_file_exists": cookies_file_exists,
+        "cookies_file_size": cookies_file_size,
+    }
+
+
 @app.post("/extract-recipe", response_model=Recipe)
 async def extract_recipe(request: ExtractRecipeRequest):
     audio_path = None
