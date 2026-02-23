@@ -1,14 +1,46 @@
 import yt_dlp
 import os
 import re
+import base64
+import tempfile
 from logger import get_logger
 
 logger = get_logger(__name__)
 
-# yt-dlp 공통 옵션: JS challenge solver를 위한 remote-components 활성화
-_YDL_COMMON_OPTS = {
-    "extractor_args": {"youtube": {"remote_components": ["ejs:github"]}},
-}
+# YouTube 쿠키 파일 경로 (환경변수 YOUTUBE_COOKIES_B64에서 디코딩)
+_COOKIES_PATH: str | None = None
+
+def _init_cookies() -> str | None:
+    """환경변수 YOUTUBE_COOKIES_B64(Base64)를 파일로 디코딩하여 경로 반환"""
+    global _COOKIES_PATH
+    if _COOKIES_PATH and os.path.exists(_COOKIES_PATH):
+        return _COOKIES_PATH
+
+    cookies_b64 = os.getenv("YOUTUBE_COOKIES_B64")
+    if not cookies_b64:
+        return None
+
+    try:
+        cookies_data = base64.b64decode(cookies_b64)
+        fd, path = tempfile.mkstemp(suffix=".txt", prefix="yt_cookies_")
+        with os.fdopen(fd, "wb") as f:
+            f.write(cookies_data)
+        _COOKIES_PATH = path
+        logger.info("YouTube 쿠키 파일 생성: %s", path)
+        return path
+    except Exception as e:
+        logger.warning("YouTube 쿠키 디코딩 실패: %s", e)
+        return None
+
+def _get_common_opts() -> dict:
+    """yt-dlp 공통 옵션 반환 (쿠키 포함)"""
+    opts: dict = {
+        "extractor_args": {"youtube": {"remote_components": ["ejs:github"]}},
+    }
+    cookies_path = _init_cookies()
+    if cookies_path:
+        opts["cookiefile"] = cookies_path
+    return opts
 
 
 def get_video_id_fallback(url: str) -> str | None:
@@ -36,7 +68,7 @@ def extract_video_id(url: str) -> tuple[str | None, str | None]:
 
     try:
         ydl_opts = {
-            **_YDL_COMMON_OPTS,
+            **_get_common_opts(),
             "quiet": True,
             "no_warnings": True,
             "force_generic_extractor": True,
@@ -64,7 +96,7 @@ def extract_video_id(url: str) -> tuple[str | None, str | None]:
 def download_audio(url: str, output_path: str = "audio.mp3") -> str:
     """유튜브 영상에서 오디오 추출하여 저장"""
     ydl_opts = {
-        **_YDL_COMMON_OPTS,
+        **_get_common_opts(),
         "format": "bestaudio/best",
         "postprocessors": [{
             "key": "FFmpegExtractAudio",
@@ -87,7 +119,7 @@ def download_audio(url: str, output_path: str = "audio.mp3") -> str:
 
 def get_video_metadata(url: str) -> dict:
     """유튜브 영상 메타데이터만 추출"""
-    ydl_opts = {**_YDL_COMMON_OPTS, "quiet": True, "skip_download": True}
+    ydl_opts = {**_get_common_opts(), "quiet": True, "skip_download": True}
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         return ydl.extract_info(url, download=False)
 
@@ -95,7 +127,7 @@ def get_video_metadata(url: str) -> dict:
 def download_subtitles(url: str, output_path: str = "subtitle") -> str | None:
     """유튜브 영상에서 자막을 추출하여 순수 텍스트로 반환"""
     ydl_opts = {
-        **_YDL_COMMON_OPTS,
+        **_get_common_opts(),
         "quiet": True,
         "no_warnings": True,
         "skip_download": True,
