@@ -149,12 +149,19 @@ def download_subtitles(url: str, output_path: str = "subtitle") -> str | None:
     if not video_id:
         return None
 
-    # 1차: youtube-transcript-api (데이터센터에서도 동작)
+    # 1차: youtube-transcript-api (쿠키 인증으로 클라우드 IP 차단 우회)
     try:
         from youtube_transcript_api import YouTubeTranscriptApi
         logger.info("Transcript API 시도 (video_id: %s)", video_id)
 
-        api = YouTubeTranscriptApi()
+        # 쿠키 파일이 있으면 인증 모드로 생성
+        cookies_path = _init_cookies()
+        if cookies_path:
+            logger.info("Transcript API 쿠키 인증 모드 (cookie_path: %s)", cookies_path)
+            api = YouTubeTranscriptApi(cookie_path=cookies_path)
+        else:
+            logger.info("Transcript API 비인증 모드")
+            api = YouTubeTranscriptApi()
 
         # 방법 1: 사용 가능한 자막 목록 먼저 확인
         try:
