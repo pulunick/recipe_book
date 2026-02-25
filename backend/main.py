@@ -135,6 +135,7 @@ async def extract_recipe(request: ExtractRecipeRequest):
         # 4. Gemini YouTube URL 직접 분석 (다운로드 없음, 봇 차단 없음)
         logger.info("Gemini 분석 시작 (video_id: %s)", video_id)
         recipe = await extract_recipe_with_gemini(youtube_url, video_id, metadata)
+        recipe.video_url = youtube_url
 
         if not recipe.is_recipe:
             logger.info("레시피 영상 아님: %s", recipe.non_recipe_reason)

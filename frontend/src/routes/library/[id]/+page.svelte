@@ -9,6 +9,10 @@
 	const recipe = $derived(data.item.recipe);
 </script>
 
+<svelte:head>
+	<title>{recipe.title} | 내 레시피북</title>
+</svelte:head>
+
 <main class="page-wrap">
 	<section class="recipe-page">
 		<div class="recipe-top-bar">

@@ -1,4 +1,4 @@
-import type { Recipe, AnalysisMode, CollectionItem } from './types';
+import type { Recipe, CollectionItem } from './types';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -21,11 +21,11 @@ async function handleResponse<T>(response: Response): Promise<T> {
 	return response.json();
 }
 
-export async function extractRecipe(url: string, mode: AnalysisMode): Promise<Recipe> {
+export async function extractRecipe(url: string, forceRefresh = false): Promise<Recipe> {
 	const response = await fetch(`${API_BASE}/extract-recipe`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ youtube_url: url, mode })
+		body: JSON.stringify({ youtube_url: url, mode: 'fast', force_refresh: forceRefresh })
 	});
 	return handleResponse<Recipe>(response);
 }

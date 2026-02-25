@@ -1,44 +1,50 @@
 <script lang="ts">
-	import type { AnalysisMode } from '$lib/types';
 	import { onMount } from 'svelte';
 
 	interface Props {
-		mode: AnalysisMode;
+		videoId: string | null;
 	}
-	let { mode }: Props = $props();
+	let { videoId }: Props = $props();
 
-	const steps = $derived(
-		mode === 'fast'
-			? [
-				'영상 정보를 확인했어요',
-				'자막을 읽고 있어요',
-				'재료와 순서를 정리하는 중...',
-				'거의 다 됐어요!'
-			]
-			: [
-				'영상 정보를 확인했어요',
-				'영상을 듣고 있어요',
-				'자막과 교차 검증하는 중...',
-				'재료와 순서를 정리하는 중...',
-				'거의 다 됐어요!'
-			]
-	);
+	const steps = [
+		'영상 정보를 확인했어요',
+		'AI가 영상을 살펴보는 중이에요',
+		'재료와 조리법을 정리하는 중이에요',
+		'거의 다 됐어요!'
+	];
 
 	let currentStep = $state(0);
+	let thumbnailError = $state(false);
+
+	const thumbnailUrl = $derived(
+		videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : null
+	);
 
 	onMount(() => {
 		const interval = setInterval(() => {
-			if (currentStep < steps.length - 1) {
-				currentStep++;
-			}
-		}, mode === 'fast' ? 3000 : 5000);
-
+			if (currentStep < steps.length - 1) currentStep++;
+		}, 7000);
 		return () => clearInterval(interval);
 	});
 </script>
 
 <div class="progress-area">
-	<h2>레시피를 정리하고 있어요...</h2>
+	{#if thumbnailUrl && !thumbnailError}
+		<div class="thumbnail-wrap">
+			<img
+				src={thumbnailUrl}
+				alt="분석 중인 영상"
+				class="thumbnail"
+				onerror={() => (thumbnailError = true)}
+			/>
+			<div class="thumbnail-overlay">
+				<div class="analyzing-badge">AI 분석 중...</div>
+			</div>
+		</div>
+	{/if}
+
+	<h2>레시피를 정리하고 있어요</h2>
+
 	<ul class="step-list">
 		{#each steps as step, i}
 			<li class:done={i < currentStep} class:active={i === currentStep} class:pending={i > currentStep}>
@@ -55,13 +61,49 @@
 <style>
 	.progress-area {
 		text-align: center;
-		padding: 3rem 0;
+		padding: 2rem 0 3rem;
 	}
+
+	.thumbnail-wrap {
+		position: relative;
+		width: 100%;
+		max-width: 360px;
+		margin: 0 auto 2rem;
+		border-radius: 12px;
+		overflow: hidden;
+		box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+		aspect-ratio: 16/9;
+	}
+	.thumbnail {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		display: block;
+	}
+	.thumbnail-overlay {
+		position: absolute;
+		inset: 0;
+		background: rgba(0,0,0,0.25);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+	.analyzing-badge {
+		background: var(--color-terracotta);
+		color: white;
+		padding: 0.4rem 1rem;
+		border-radius: 20px;
+		font-size: 0.9rem;
+		font-weight: 600;
+		animation: pulse 1.8s infinite;
+	}
+
 	h2 {
 		font-size: 1.4rem;
 		margin-bottom: 2rem;
 		color: var(--color-warm-brown);
 	}
+
 	.step-list {
 		list-style: none;
 		display: inline-flex;
@@ -88,33 +130,22 @@
 		border-radius: 50%;
 		flex-shrink: 0;
 	}
-	.done .indicator {
-		background: var(--color-sage);
-		color: white;
-	}
-	.done .text {
-		color: var(--color-soft-brown);
-	}
+	.done .indicator { background: var(--color-sage); color: white; }
+	.done .text { color: var(--color-soft-brown); }
 	.active .indicator {
 		background: var(--color-terracotta);
 		color: white;
 		animation: pulse 1.5s infinite;
 	}
-	.active .text {
-		color: var(--color-warm-brown);
-		font-weight: 600;
-	}
-	.pending .indicator {
-		background: var(--color-light-line);
-		color: var(--color-soft-brown);
-	}
-	.pending .text {
-		color: var(--color-light-line);
-	}
+	.active .text { color: var(--color-warm-brown); font-weight: 600; }
+	.pending .indicator { background: var(--color-light-line); color: var(--color-soft-brown); }
+	.pending .text { color: var(--color-light-line); }
+
 	@keyframes pulse {
 		0%, 100% { transform: scale(1); }
-		50% { transform: scale(1.1); }
+		50% { transform: scale(1.08); }
 	}
+
 	.hint {
 		font-size: 0.9rem;
 		color: var(--color-soft-brown);

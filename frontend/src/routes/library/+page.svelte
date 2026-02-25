@@ -20,7 +20,9 @@
 	});
 </script>
 
-<!-- svelte:head 없음 — Navbar는 layout에서 처리 -->
+<svelte:head>
+	<title>내 레시피북 | 입맛 저격 레시피 AI</title>
+</svelte:head>
 
 <main class="page-wrap">
 	<header class="library-header">

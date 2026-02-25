@@ -1,19 +1,16 @@
 <script lang="ts">
-	import type { AnalysisMode } from '$lib/types';
-
 	interface Props {
-		onsubmit: (url: string, mode: AnalysisMode) => void;
+		onsubmit: (url: string) => void;
 		errorMessage?: string;
 		disabled?: boolean;
 	}
 	let { onsubmit, errorMessage = '', disabled = false }: Props = $props();
 
 	let url = $state('');
-	let mode: AnalysisMode = $state('fast');
 
 	function handleSubmit() {
 		if (!url.trim() || disabled) return;
-		onsubmit(url.trim(), mode);
+		onsubmit(url.trim());
 	}
 </script>
 
@@ -29,16 +26,6 @@
 		<button class="submit-btn" onclick={handleSubmit} {disabled}>
 			레시피 정리하기
 		</button>
-	</div>
-	<div class="mode-select">
-		<label class:active={mode === 'fast'}>
-			<input type="radio" bind:group={mode} value="fast" />
-			빠른 정리
-		</label>
-		<label class:active={mode === 'precise'}>
-			<input type="radio" bind:group={mode} value="precise" />
-			꼼꼼한 정리
-		</label>
 	</div>
 	{#if errorMessage}
 		<div class="error-notice">
@@ -90,37 +77,10 @@
 		font-weight: 600;
 		white-space: nowrap;
 	}
-	.submit-btn:hover:not(:disabled) {
-		background: #b5633f;
-	}
+	.submit-btn:hover:not(:disabled) { background: #b5633f; }
 	.submit-btn:disabled {
 		opacity: 0.5;
 		cursor: not-allowed;
-	}
-
-	.mode-select {
-		display: flex;
-		justify-content: center;
-		gap: 1rem;
-		margin-top: 0.8rem;
-	}
-	.mode-select label {
-		display: flex;
-		align-items: center;
-		gap: 0.3rem;
-		font-size: 0.9rem;
-		color: var(--color-soft-brown);
-		cursor: pointer;
-		padding: 0.3rem 0.6rem;
-		border-radius: 6px;
-		transition: var(--transition);
-	}
-	.mode-select label.active {
-		color: var(--color-terracotta);
-		font-weight: 600;
-	}
-	.mode-select input[type="radio"] {
-		accent-color: var(--color-terracotta);
 	}
 
 	.error-notice {
@@ -142,11 +102,7 @@
 	}
 
 	@media (max-width: 767px) {
-		.input-wrap {
-			flex-direction: column;
-		}
-		.submit-btn {
-			width: 100%;
-		}
+		.input-wrap { flex-direction: column; }
+		.submit-btn { width: 100%; }
 	}
 </style>

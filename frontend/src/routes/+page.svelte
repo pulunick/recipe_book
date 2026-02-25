@@ -1,26 +1,48 @@
 <script lang="ts">
 	import { fade } from 'svelte/transition';
-	import type { Recipe, AnalysisMode, PageStatus } from '$lib/types';
+	import type { Recipe, PageStatus } from '$lib/types';
 	import { extractRecipe, saveToCollection } from '$lib/api';
 	import SearchBox from '$lib/components/SearchBox.svelte';
 	import LoadingScreen from '$lib/components/LoadingScreen.svelte';
 	import FlavorProfile from '$lib/components/FlavorProfile.svelte';
 	import IngredientList from '$lib/components/IngredientList.svelte';
 	import StepTimeline from '$lib/components/StepTimeline.svelte';
+	import Toast from '$lib/components/Toast.svelte';
 
 	let status: PageStatus = $state('IDLE');
 	let recipe: Recipe | null = $state(null);
 	let errorMessage = $state('');
 	let saveStatus: '' | 'saving' | 'saved' | 'error' = $state('');
-	let currentMode: AnalysisMode = $state('fast');
+	let currentUrl = $state('');
+	let currentVideoId: string | null = $state(null);
+	let showToast = $state(false);
 
-	async function handleAnalyze(url: string, mode: AnalysisMode) {
+	function getVideoId(url: string): string | null {
+		const m = url.match(/(?:v=|\/|youtu\.be\/|embed\/|shorts\/)([0-9A-Za-z_-]{11})/);
+		return m ? m[1] : null;
+	}
+
+	async function handleAnalyze(url: string) {
 		status = 'LOADING';
-		currentMode = mode;
 		errorMessage = '';
 		saveStatus = '';
+		currentUrl = url;
+		currentVideoId = getVideoId(url);
 		try {
-			recipe = await extractRecipe(url, mode);
+			recipe = await extractRecipe(url);
+			status = 'RESULT';
+		} catch (e: unknown) {
+			status = 'ERROR';
+			errorMessage = e instanceof Error ? e.message : '알 수 없는 오류가 발생했습니다.';
+		}
+	}
+
+	async function handleReanalyze() {
+		if (!currentUrl) return;
+		status = 'LOADING';
+		saveStatus = '';
+		try {
+			recipe = await extractRecipe(currentUrl, true);
 			status = 'RESULT';
 		} catch (e: unknown) {
 			status = 'ERROR';
@@ -34,6 +56,7 @@
 		try {
 			await saveToCollection(recipe.id);
 			saveStatus = 'saved';
+			showToast = true;
 		} catch {
 			saveStatus = 'error';
 		}
@@ -44,51 +67,57 @@
 		recipe = null;
 		saveStatus = '';
 		errorMessage = '';
+		currentUrl = '';
+		currentVideoId = null;
 	}
 </script>
 
+<svelte:head>
+	<title>입맛 저격 레시피 AI</title>
+</svelte:head>
+
 <main class="page-wrap">
 	{#if status === 'IDLE' || status === 'ERROR'}
-		<!-- 홈: URL 입력 중심 -->
 		<section class="home" in:fade>
 			<div class="hero-text">
 				<h1>유튜브 요리 영상의 레시피를<br />깔끔하게 정리해드려요</h1>
 			</div>
-
 			<SearchBox
 				onsubmit={handleAnalyze}
 				errorMessage={status === 'ERROR' ? errorMessage : ''}
 			/>
-
 			<p class="how-to">
-				사용법: 링크 붙여넣기 → 버튼 누르기<br />
-				그러면 재료와 만드는 법이 정리돼요
+				링크 붙여넣기 → 버튼 누르기<br />
+				재료와 만드는 법이 한 페이지로 정리돼요
 			</p>
 		</section>
 
 	{:else if status === 'LOADING'}
-		<!-- 인라인 로딩: 같은 페이지 내 진행 표시 -->
 		<section class="home" in:fade>
 			<SearchBox onsubmit={handleAnalyze} disabled={true} />
-			<LoadingScreen mode={currentMode} />
+			<LoadingScreen videoId={currentVideoId} />
 		</section>
 
 	{:else if status === 'RESULT' && recipe}
-		<!-- 결과: 요리책 한 페이지 -->
 		<section class="recipe-page" in:fade>
 			<div class="recipe-top-bar">
 				<button class="back-link" onclick={goHome}>← 새 레시피 정리</button>
-				<button
-					class="save-btn"
-					onclick={handleSave}
-					disabled={saveStatus === 'saving' || saveStatus === 'saved'}
-				>
-					{#if saveStatus === 'saved'}레시피북에 추가됨
-					{:else if saveStatus === 'saving'}추가하는 중...
-					{:else if saveStatus === 'error'}다시 시도
-					{:else}내 레시피북에 추가
-					{/if}
-				</button>
+				<div class="top-actions">
+					<button class="reanalyze-btn" onclick={handleReanalyze}>
+						다시 분석
+					</button>
+					<button
+						class="save-btn"
+						onclick={handleSave}
+						disabled={saveStatus === 'saving' || saveStatus === 'saved'}
+					>
+						{#if saveStatus === 'saved'}추가됨 ✓
+						{:else if saveStatus === 'saving'}추가 중...
+						{:else if saveStatus === 'error'}다시 시도
+						{:else}레시피북에 추가
+						{/if}
+					</button>
+				</div>
 			</div>
 
 			<article class="recipe-card">
@@ -99,9 +128,7 @@
 				{/if}
 
 				<FlavorProfile flavor={recipe.flavor} />
-
 				<IngredientList ingredients={recipe.ingredients} />
-
 				<StepTimeline steps={recipe.steps} />
 
 				{#if recipe.tip}
@@ -148,6 +175,12 @@
 	{/if}
 </main>
 
+<Toast
+	message="레시피북에 추가됐어요!"
+	show={showToast}
+	ondismiss={() => (showToast = false)}
+/>
+
 <style>
 	.page-wrap {
 		max-width: 960px;
@@ -156,7 +189,6 @@
 		min-height: calc(100vh - 80px);
 	}
 
-	/* 홈 */
 	.home {
 		display: flex;
 		flex-direction: column;
@@ -179,7 +211,6 @@
 		line-height: 1.8;
 	}
 
-	/* 결과: 요리책 페이지 */
 	.recipe-page {
 		max-width: var(--recipe-max-width);
 		margin: 0 auto;
@@ -190,6 +221,7 @@
 		justify-content: space-between;
 		align-items: center;
 		padding: 1.5rem 0;
+		gap: 0.5rem;
 	}
 	.back-link {
 		background: none;
@@ -198,16 +230,36 @@
 		font-size: 0.9rem;
 		font-weight: 500;
 		padding: 0.5rem 0;
+		flex-shrink: 0;
 	}
 	.back-link:hover { color: var(--color-terracotta); }
+
+	.top-actions {
+		display: flex;
+		gap: 0.6rem;
+		align-items: center;
+	}
+	.reanalyze-btn {
+		background: none;
+		border: 1.5px solid var(--color-light-line);
+		color: var(--color-soft-brown);
+		padding: 0.5rem 1rem;
+		border-radius: 8px;
+		font-size: 0.85rem;
+		font-weight: 500;
+	}
+	.reanalyze-btn:hover {
+		border-color: var(--color-soft-brown);
+		color: var(--color-warm-brown);
+	}
 
 	.save-btn, .save-btn-bottom {
 		background: var(--color-terracotta);
 		color: white;
 		border: none;
-		padding: 0.6rem 1.4rem;
+		padding: 0.6rem 1.2rem;
 		border-radius: 8px;
-		font-size: 0.95rem;
+		font-size: 0.9rem;
 		font-weight: 600;
 	}
 	.save-btn:hover:not(:disabled), .save-btn-bottom:hover:not(:disabled) {
@@ -236,7 +288,6 @@
 		line-height: 1.7;
 	}
 
-	/* 꿀팁 */
 	.tip-section { margin-top: 1.5rem; }
 	.section-divider {
 		display: flex;
@@ -244,11 +295,7 @@
 		gap: 1rem;
 		margin-bottom: 1.2rem;
 	}
-	.divider-line {
-		flex: 1;
-		height: 1px;
-		background: var(--color-light-line);
-	}
+	.divider-line { flex: 1; height: 1px; background: var(--color-light-line); }
 	.divider-text {
 		font-size: 0.85rem;
 		font-weight: 600;
@@ -264,23 +311,15 @@
 		color: var(--color-warm-brown);
 	}
 
-	/* 원본 영상 링크 */
 	.video-link-area {
 		margin-top: 2rem;
 		text-align: center;
 		padding-top: 1.5rem;
 		border-top: 1px solid var(--color-light-line);
 	}
-	.video-link {
-		font-size: 0.9rem;
-		color: var(--color-dusty-blue);
-	}
+	.video-link { font-size: 0.9rem; color: var(--color-dusty-blue); }
 
-	/* 하단 저장 버튼 */
-	.recipe-bottom-bar {
-		text-align: center;
-		padding: 2rem 0;
-	}
+	.recipe-bottom-bar { text-align: center; padding: 2rem 0; }
 	.save-btn-bottom {
 		padding: 0.9rem 2.5rem;
 		font-size: 1.05rem;
@@ -292,6 +331,6 @@
 		.hero-text h1 { font-size: 1.4rem; }
 		.recipe-card { padding: 1.5rem; }
 		.recipe-title { font-size: 1.4rem; }
-		.recipe-top-bar { flex-wrap: wrap; gap: 0.5rem; }
+		.recipe-top-bar { flex-wrap: wrap; }
 	}
 </style>
