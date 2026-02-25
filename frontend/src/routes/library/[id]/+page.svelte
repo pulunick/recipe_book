@@ -95,7 +95,10 @@
 
 			<FlavorProfile flavor={recipe.flavor} />
 
-			<IngredientList ingredients={recipe.ingredients} />
+			<IngredientList
+				ingredients={recipe.ingredients}
+				storageKey={recipe.video_id ?? String(recipe.id ?? '')}
+			/>
 
 			<StepTimeline steps={recipe.steps} />
 
@@ -383,5 +386,10 @@
 		.page-wrap { padding: 0 var(--page-padding-mobile); }
 		.recipe-card { padding: 1.5rem; }
 		.recipe-title { font-size: 1.4rem; }
+		.back-link { min-height: 44px; display: flex; align-items: center; }
+		.btn-delete { min-height: 40px; padding: 0.4rem 0.9rem; }
+		.btn-confirm { min-height: 40px; padding: 0.4rem 0.9rem; }
+		.btn-cancel { min-height: 40px; padding: 0.4rem 0.9rem; }
+		.btn-save { min-height: 44px; padding: 0.6rem 1.2rem; }
 	}
 </style>

@@ -128,7 +128,10 @@
 				{/if}
 
 				<FlavorProfile flavor={recipe.flavor} />
-				<IngredientList ingredients={recipe.ingredients} />
+				<IngredientList
+					ingredients={recipe.ingredients}
+					storageKey={recipe.video_id ?? String(recipe.id ?? '')}
+				/>
 				<StepTimeline steps={recipe.steps} />
 
 				{#if recipe.tip}
@@ -319,7 +322,10 @@
 	}
 	.video-link { font-size: 0.9rem; color: var(--color-dusty-blue); }
 
-	.recipe-bottom-bar { text-align: center; padding: 2rem 0; }
+	.recipe-bottom-bar {
+		text-align: center;
+		padding: 2rem 0;
+	}
 	.save-btn-bottom {
 		padding: 0.9rem 2.5rem;
 		font-size: 1.05rem;
@@ -329,8 +335,44 @@
 	@media (max-width: 767px) {
 		.page-wrap { padding: 0 var(--page-padding-mobile); }
 		.hero-text h1 { font-size: 1.4rem; }
-		.recipe-card { padding: 1.5rem; }
+		.recipe-card {
+			padding: 1.5rem;
+			padding-bottom: 5rem; /* sticky 버튼에 가리지 않도록 */
+		}
 		.recipe-title { font-size: 1.4rem; }
 		.recipe-top-bar { flex-wrap: wrap; }
+
+		/* 모바일: 상단 저장 버튼 숨기고 하단 sticky만 노출 */
+		.save-btn { display: none; }
+
+		/* 모바일: 버튼 터치 영역 확보 */
+		.back-link {
+			min-height: 44px;
+			display: flex;
+			align-items: center;
+		}
+		.reanalyze-btn {
+			min-height: 44px;
+			padding: 0.6rem 1rem;
+		}
+
+		/* 모바일: 하단 sticky 저장 버튼 */
+		.recipe-bottom-bar {
+			position: sticky;
+			bottom: 0;
+			padding: 0.75rem 1rem;
+			background: var(--color-paper);
+			border-top: 1px solid var(--color-light-line);
+			margin-left: calc(-1 * var(--page-padding-mobile));
+			margin-right: calc(-1 * var(--page-padding-mobile));
+			z-index: 50;
+		}
+		.save-btn-bottom {
+			width: 100%;
+			min-height: 52px;
+			font-size: 1rem;
+			border-radius: 8px;
+			padding: 0.75rem 1rem;
+		}
 	}
 </style>

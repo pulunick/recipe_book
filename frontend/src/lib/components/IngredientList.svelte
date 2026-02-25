@@ -1,10 +1,37 @@
 <script lang="ts">
 	import type { Ingredient } from '$lib/types';
+	import { browser } from '$app/environment';
 
 	interface Props {
 		ingredients: Ingredient[];
+		storageKey?: string;
 	}
-	let { ingredients }: Props = $props();
+	let { ingredients, storageKey = '' }: Props = $props();
+
+	const lsKey = $derived(storageKey ? `recipe_checked_${storageKey}` : '');
+	let checkedItems: string[] = $state([]);
+
+	// 페이지 로드 시 localStorage에서 복원
+	$effect(() => {
+		if (!lsKey || !browser) return;
+		try {
+			const stored = localStorage.getItem(lsKey);
+			checkedItems = stored ? JSON.parse(stored) : [];
+		} catch {
+			checkedItems = [];
+		}
+	});
+
+	function toggle(name: string) {
+		if (checkedItems.includes(name)) {
+			checkedItems = checkedItems.filter(n => n !== name);
+		} else {
+			checkedItems = [...checkedItems, name];
+		}
+		if (lsKey && browser) {
+			try { localStorage.setItem(lsKey, JSON.stringify(checkedItems)); } catch {}
+		}
+	}
 
 	const grouped = $derived(
 		ingredients.reduce<Record<string, Ingredient[]>>((acc, item) => {
@@ -29,7 +56,11 @@
 				{#each items as item}
 					<li class="ingredient-row">
 						<label class="check-label">
-							<input type="checkbox" />
+							<input
+								type="checkbox"
+								checked={checkedItems.includes(item.name)}
+								onchange={() => toggle(item.name)}
+							/>
 							<span class="check-box"></span>
 							<span class="item-name">{item.name}</span>
 							<span class="dotted-line"></span>
@@ -83,11 +114,12 @@
 		gap: 0.6rem;
 		cursor: pointer;
 		padding: 0.35rem 0;
+		min-height: 44px;
 	}
 	.check-label input { display: none; }
 	.check-box {
-		width: 18px;
-		height: 18px;
+		width: 20px;
+		height: 20px;
 		border: 2px solid var(--color-light-line);
 		border-radius: 4px;
 		flex-shrink: 0;
@@ -106,12 +138,12 @@
 		align-items: center;
 		justify-content: center;
 		color: white;
-		font-size: 0.7rem;
+		font-size: 0.75rem;
 		font-weight: 700;
 	}
 	.check-label input:checked ~ .item-name,
 	.check-label input:checked ~ .item-amount {
-		opacity: 0.5;
+		opacity: 0.45;
 		text-decoration: line-through;
 	}
 
