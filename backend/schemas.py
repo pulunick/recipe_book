@@ -6,6 +6,7 @@ from typing import List, Dict, Optional
 class ExtractRecipeRequest(BaseModel):
     youtube_url: str = Field(..., description="유튜브 영상 URL")
     mode: str = Field("fast", description="분석 모드: 'fast'(빠른 분석) 또는 'precise'(정밀 분석)")
+    force_refresh: bool = Field(False, description="캐시 무시하고 강제 재분석")
 
     @field_validator("youtube_url")
     @classmethod

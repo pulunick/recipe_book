@@ -108,12 +108,41 @@ def extract_video_id(url: str) -> tuple[str | None, str | None]:
 # YouTube oEmbed API — 메타데이터 (yt-dlp 불필요)
 # ============================================================
 
+def _fetch_video_description(video_id: str) -> str | None:
+    """YouTube 페이지 HTML에서 description 직접 스크래핑.
+    oEmbed는 description을 제공하지 않아 별도 파싱 필요.
+    """
+    try:
+        url = f"https://www.youtube.com/watch?v={video_id}"
+        req = urllib.request.Request(url, headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept-Language": "ko-KR,ko;q=0.9,en;q=0.8",
+        })
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            html = resp.read().decode("utf-8", errors="ignore")
+
+        # ytInitialPlayerResponse에 포함된 shortDescription 추출
+        match = re.search(r'"shortDescription":"((?:[^"\\]|\\.)*)"', html)
+        if match:
+            desc = match.group(1)
+            desc = desc.replace("\\n", "\n").replace('\\"', '"').replace("\\\\", "\\")
+            logger.info("YouTube 페이지 description 추출 성공 (%d자)", len(desc))
+            return desc
+    except Exception as e:
+        logger.warning("YouTube description 스크래핑 실패: %s", e)
+    return None
+
+
 def get_video_metadata(url: str) -> dict:
-    """YouTube oEmbed API로 메타데이터 추출 (봇 차단 없음)"""
+    """YouTube 메타데이터 추출.
+    - title/uploader: oEmbed API (봇 차단 없음)
+    - description: 페이지 HTML 직접 파싱 (oEmbed는 제공 안 함)
+    - 둘 다 실패 시 yt-dlp fallback
+    """
     video_id = get_video_id_fallback(url)
     metadata: dict = {"title": "", "description": "", "uploader": ""}
 
-    # oEmbed API (API 키 불필요, 데이터센터에서도 동작)
+    # 1) oEmbed API — title, uploader
     oembed_url = f"https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v={video_id}&format=json"
     try:
         req = urllib.request.Request(oembed_url, headers={"User-Agent": "Mozilla/5.0"})
@@ -125,13 +154,22 @@ def get_video_metadata(url: str) -> dict:
     except Exception as e:
         logger.warning("oEmbed 메타데이터 실패: %s", e)
 
-    # yt-dlp fallback (실패해도 진행)
+    # 2) description 별도 스크래핑
+    if video_id:
+        desc = _fetch_video_description(video_id)
+        if desc:
+            metadata["description"] = desc
+
+    # 3) yt-dlp fallback — title 없을 때만, description도 보완
     if not metadata["title"]:
         try:
             ydl_opts = {**_get_common_opts(), "quiet": True, "skip_download": True}
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
-                metadata = info
+                metadata["title"] = info.get("title", metadata["title"])
+                metadata["uploader"] = info.get("uploader", metadata["uploader"])
+                if not metadata["description"] and info.get("description"):
+                    metadata["description"] = info.get("description", "")
                 logger.info("yt-dlp 메타데이터 fallback 성공")
         except Exception as e:
             logger.warning("yt-dlp 메타데이터도 실패 (진행 계속): %s", e)

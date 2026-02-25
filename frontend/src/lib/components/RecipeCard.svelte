@@ -6,7 +6,7 @@
 	}
 	let { item }: Props = $props();
 
-	const topFlavors = $derived(() => {
+	const topFlavors = $derived.by(() => {
 		const f = item.recipe.flavor;
 		const entries: { label: string; score: number }[] = [
 			{ label: '짠맛', score: f.saltiness },
@@ -30,12 +30,12 @@
 	};
 </script>
 
-<a href="/" class="list-item">
+<a href="/library/{item.id}" class="list-item">
 	<div class="item-main">
 		<h3 class="title">{item.recipe.title}</h3>
 		<div class="item-meta">
 			<span class="flavor-tags">
-				{#each topFlavors() as { label, score }}
+				{#each topFlavors as { label, score }}
 					<span class="flavor-tag" style:--tag-color={flavorColorMap[label]}>
 						{label}{'●'.repeat(score)}
 					</span>

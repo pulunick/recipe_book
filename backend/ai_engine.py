@@ -1,10 +1,9 @@
-import asyncio
 import json
 import os
 import re
-import time
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from dotenv import load_dotenv
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
@@ -15,37 +14,32 @@ load_dotenv()
 
 logger = get_logger(__name__)
 
-MAX_POLLING_SECONDS = 120
+# 지연 초기화
+_client: genai.Client | None = None
+MODEL = "gemini-2.5-flash"
 
-# --- 지연 초기화 (lazy init) ---
-_model = None
 
-
-def _get_model():
-    global _model
-    if _model is None:
+def _get_client() -> genai.Client:
+    global _client
+    if _client is None:
         api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
             raise RuntimeError("GEMINI_API_KEY 환경변수가 설정되지 않았습니다.")
-        genai.configure(api_key=api_key)
-        _model = genai.GenerativeModel("gemini-2.5-flash")
-        logger.info("Gemini 모델 초기화 완료")
-    return _model
+        _client = genai.Client(api_key=api_key)
+        logger.info("Gemini 클라이언트 초기화 완료 (SDK: google-genai)")
+    return _client
 
 
 def _extract_json_from_text(text: str) -> dict:
     """Gemini 응답에서 JSON을 안전하게 추출"""
-    # 1) ```json ... ``` 블록 추출
     md_match = re.search(r"```json\s*([\s\S]*?)```", text)
     if md_match:
         return json.loads(md_match.group(1).strip())
 
-    # 2) ``` ... ``` 블록 추출
     code_match = re.search(r"```\s*([\s\S]*?)```", text)
     if code_match:
         return json.loads(code_match.group(1).strip())
 
-    # 3) 첫 번째 { ... 마지막 } 추출
     brace_match = re.search(r"\{[\s\S]*\}", text)
     if brace_match:
         return json.loads(brace_match.group(0))
@@ -53,58 +47,41 @@ def _extract_json_from_text(text: str) -> dict:
     raise ValueError("Gemini 응답에서 유효한 JSON을 찾을 수 없습니다.")
 
 
-def _build_prompt(metadata: dict, subtitle_text: str | None = None, has_audio: bool = False) -> str:
-    """분석 모드에 따라 프롬프트를 생성"""
+def _build_prompt(metadata: dict) -> str:
+    """분석 프롬프트 생성"""
     title = metadata.get("title", "")
+    description = metadata.get("description", "")
 
-    # 입력 소스 설명
-    if has_audio and subtitle_text:
-        source_desc = "제공된 [오디오 파일]과 [자막 텍스트], 그리고 메타데이터(제목, 설명)"
-        fact_check = (
-            "1. 오디오와 자막을 교차 검증하여 가장 정확한 정보를 추출하십시오.\n"
-            "2. 오디오와 자막이 다를 경우, 오디오 내용을 우선하되 자막의 정확한 수치 정보를 참고하십시오.\n"
-            "3. \"대충\", \"적당히\" 같은 표현은 \"10g\", \"약간\" 등으로 표준화하되, 뉘앙스를 최대한 살리십시오.\n"
-            "4. **[중요]** 분석 결과, 해당 영상이 실제 요리 과정을 담은 '레시피 영상'이 아닌 경우(예: 단순히 음식을 먹는 영상, 뉴스, 노래, 브이로그 등), "
-            "`is_recipe`를 `false`로 설정하고 그 이유를 `non_recipe_reason`에 구체적으로 적으십시오."
-        )
-    elif subtitle_text:
-        source_desc = "제공된 [자막 텍스트]와 메타데이터(제목, 설명)"
-        fact_check = (
-            "1. 자막 텍스트의 내용을 최우선으로 반영하십시오. (정량, 재료명, 팁 등)\n"
-            "2. \"대충\", \"적당히\" 같은 표현은 \"10g\", \"약간\" 등으로 표준화하되, 뉘앙스를 최대한 살리십시오.\n"
-            "3. **[중요]** 자막 분석 결과, 해당 영상이 실제 요리 과정을 담은 '레시피 영상'이 아닌 경우(예: 단순히 음식을 먹는 영상, 뉴스, 노래, 브이로그 등), "
-            "`is_recipe`를 `false`로 설정하고 그 이유를 `non_recipe_reason`에 구체적으로 적으십시오."
-        )
-    else:
-        source_desc = "제공된 [오디오 파일]과 메타데이터(제목, 설명)"
-        fact_check = (
-            "1. 오디오 내용을 최우선으로 반영하십시오. (정량, 재료명, 팁 등)\n"
-            "2. \"대충\", \"적당히\" 같은 표현은 \"10g\", \"약간\" 등으로 표준화하되, 오디오의 뉘앙스를 최대한 살리십시오.\n"
-            "3. **[중요]** 오디오 분석 결과, 해당 영상이 실제 요리 과정을 담은 '레시피 영상'이 아닌 경우(예: 단순히 음식을 먹는 영상, 뉴스, 노래, 브이로그 등), "
-            "`is_recipe`를 `false`로 설정하고 그 이유를 `non_recipe_reason`에 구체적으로 적으십시오."
-        )
-
-    # 자막 텍스트 섹션
-    subtitle_section = ""
-    if subtitle_text:
-        subtitle_section = f"""
-    [자막 텍스트]
-    {subtitle_text}
+    description_section = ""
+    if description and len(description.strip()) > 20:
+        description_section = f"""
+    [영상 설명란 (Description)] ← 재료명·수치의 최우선 출처
+    {description.strip()}
     """
 
-    prompt = f"""
+    return f"""
     당신은 영상을 정밀하게 분석하여 데이터베이스에 저장할 구조화된 레시피 데이터를 추출하는 'AI 요리 데이터 분석가'입니다.
-    {source_desc}를 바탕으로, 다음 규칙에 맞춰 완벽한 JSON 데이터를 생성하세요.
-    {subtitle_section}
+    첨부된 [YouTube 영상]과 메타데이터(제목, 설명)를 바탕으로, 다음 규칙에 맞춰 완벽한 JSON 데이터를 생성하세요.
+    {description_section}
+    [소스별 우선순위 - 반드시 준수]
+    - **재료명·수치**: [영상 설명란]에 명시된 값이 있으면 그것을 절대 기준으로 사용. 설명란이 없거나 해당 재료가 없을 때만 영상에서 추출.
+    - **조리 순서(steps)**: 영상 기준. 설명란보다 훨씬 상세하므로 영상 우선.
+    - **팁(tip)**: 영상에서 추출. 설명란의 추가 메모가 있으면 병합.
+
     [필수 지침 - Fact Check]
-    {fact_check}
-    이 경우 나머지 필드는 최소화하거나 비워두어도 됩니다.
+    1. 영상 내용을 최우선으로 반영하십시오. (정량, 재료명, 팁 등)
+    2. "대충", "적당히" 같은 표현은 "10g", "약간" 등으로 표준화하되, 뉘앙스를 최대한 살리십시오.
+    3. **[중요]** 분석 결과, 해당 영상이 실제 요리 과정을 담은 '레시피 영상'이 아닌 경우(예: 단순히 음식을 먹는 영상, 뉴스, 노래, 브이로그 등),
+       `is_recipe`를 `false`로 설정하고 그 이유를 `non_recipe_reason`에 구체적으로 적으십시오.
 
     [데이터 구조화 가이드]
     1. **Ingredients (재료)**:
        - 모든 재료를 하나씩 분리하여 객체로 만드세요.
        - `amount`는 수치(String)로, `unit`은 단위(String)로 명확히 분리하세요.
        - `category`는 '주재료', '부재료', '양념', '소스', '토핑' 등으로 분류하세요.
+       - **[간장 종류 구분]** 간장류는 반드시 정확히 구분하세요: '간장', '진간장', '국간장', '양조간장', '조선간장' 등을 혼용하지 마세요.
+       - **[수량 정확도]** 수량은 절대 반올림하거나 범위로 표현하지 마세요. "1.3T", "45g" 등 정확한 수치를 말했다면 그대로 기록하세요.
+       - **[중복 재료 합산]** 동일한 재료가 여러 단계에서 나뉘어 사용되더라도 ingredients 목록에는 하나로 합산하여 표시하세요.
     2. **Steps (조리 과정)**:
        - 각 단계를 순서대로 분리하세요.
        - `timer` 필드에는 "10분", "30초" 등 구체적인 시간이 언급된 경우에만 기입하세요.
@@ -155,7 +132,6 @@ def _build_prompt(metadata: dict, subtitle_text: str | None = None, has_audio: b
         "tip": null
     }}}}
     """
-    return prompt
 
 
 @retry(
@@ -167,48 +143,34 @@ def _build_prompt(metadata: dict, subtitle_text: str | None = None, has_audio: b
     ),
 )
 async def extract_recipe_with_gemini(
-    url: str, video_id: str, metadata: dict,
-    audio_path: str | None = None, subtitle_text: str | None = None
+    url: str, video_id: str, metadata: dict
 ) -> Recipe:
-    """Gemini에게 자막/오디오를 전달하여 레시피 구조화
+    """YouTube URL을 Gemini에 직접 전달하여 레시피 구조화.
 
-    - 자막만: 텍스트 기반 빠른 분석
-    - 오디오 + 자막: 멀티모달 교차 검증 (정밀 분석)
-    - 오디오만: 기존 방식 (fallback)
+    오디오 다운로드·자막 추출 없이 Google 서버가 YouTube에 직접 접근하므로
+    클라우드 배포 환경에서도 봇 차단 없이 동작한다.
     """
+    client = _get_client()
+    prompt = _build_prompt(metadata)
 
-    model = _get_model()
-    has_audio = audio_path is not None
-    prompt = _build_prompt(metadata, subtitle_text, has_audio)
+    # video_id로 정규화된 URL 사용 (shorts/youtu.be 등 모든 형식 통일)
+    canonical_url = f"https://www.youtube.com/watch?v={video_id}"
+    logger.info("Gemini YouTube URL 분석 시작 (video_id: %s)", video_id)
 
-    if has_audio:
-        # 오디오 업로드 및 처리 대기
-        logger.info("Gemini 파일 업로드 시작...")
-        audio_file = genai.upload_file(audio_path, mime_type="audio/mp3")
-
-        poll_start = time.time()
-        while audio_file.state.name == "PROCESSING":
-            elapsed = time.time() - poll_start
-            if elapsed > MAX_POLLING_SECONDS:
-                raise TimeoutError(
-                    f"Gemini 파일 처리 타임아웃 ({MAX_POLLING_SECONDS}초 초과)"
+    response = await client.aio.models.generate_content(
+        model=MODEL,
+        contents=[
+            prompt,
+            types.Part(
+                file_data=types.FileData(
+                    file_uri=canonical_url,
+                    mime_type="video/*",
                 )
-            logger.info("오디오 파일 처리 중... (%.0f초 경과)", elapsed)
-            await asyncio.sleep(3)
-            audio_file = genai.get_file(audio_file.name)
-
-        if audio_file.state.name == "FAILED":
-            raise RuntimeError("Gemini 오디오 파일 처리 실패")
-
-        logger.info("오디오 업로드 및 처리 완료")
-        response = model.generate_content([prompt, audio_file])
-    else:
-        # 자막 텍스트만으로 분석 (빠른 모드)
-        logger.info("자막 텍스트 기반 분석 시작...")
-        response = model.generate_content([prompt])
+            ),
+        ],
+    )
 
     logger.info("Gemini 응답 수신 완료")
-
     parsed = _extract_json_from_text(response.text)
     result_recipe = Recipe(**parsed)
     result_recipe.video_id = video_id
