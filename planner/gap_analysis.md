@@ -33,10 +33,10 @@
 - **영향**: AI 응답 원본 디버깅 불가
 - **해결**: `ai_engine.py`에서 Gemini 원본 응답을 반환하거나 main.py에서 캡처
 
-#### [GAP-B4] 보관함 삭제/수정 API 부재
-- **현상**: 저장만 가능, 삭제/수정 불가
-- **영향**: 사용자 경험 제한
-- **해결**: `DELETE /collections/{id}`, `PATCH /collections/{id}` 추가
+#### ~~[GAP-B4]~~ ✅ 보관함 삭제/수정 API — **해결됨** (2026-02-25)
+- `DELETE /collections/{collection_id}`, `PATCH /collections/{collection_id}` 구현 완료
+- CORS에 DELETE, PATCH 메서드 추가 완료
+- `CollectionUpdateRequest` 스키마 추가
 
 ---
 
@@ -67,10 +67,11 @@
 - **영향**: 사용자 식별 불가, 개인화 기능 사용 불가
 - **해결**: GAP-B2 해결 후 Supabase Auth UI 연동
 
-#### [GAP-F6] 카테고리 필터 미구현
-- **현상**: 디자인 시안(prd/web design.png)에 카테고리 탭(전체/매운맛/국/찌개/파티/반찬)이 있으나 코드에 없음
-- **영향**: 시안 대비 기능 누락
-- **해결**: 카테고리 API 및 UI 구현
+#### ~~[GAP-F6]~~ ✅ 카테고리 필터 — **해결됨** (2026-02-25)
+- Gemini 프롬프트에 고정 카테고리 목록(15종) 추가, `category` 필드 DB/API/프론트 전체 연동 완료
+- `library/+page.svelte`에 카테고리 탭 UI + 클라이언트 사이드 필터링 구현
+- `RecipeCard.svelte`에 카테고리 배지 표시
+- DB 변경 필요: `ALTER TABLE recipes ADD COLUMN IF NOT EXISTS category TEXT;`
 
 #### [GAP-F7] YouTube 썸네일 URL 파싱 취약
 - **현상**: 결과 페이지에서 `new URL(youtubeUrl).searchParams.get('v')`로 썸네일 추출. `youtu.be/ID` 형식 URL에서는 실패
@@ -136,7 +137,7 @@
 | ID | 갭 | 담당 | 작업 내용 |
 |----|----|------|-----------|
 | T-06 | GAP-F3 | Frontend | 반응형 CSS 추가 (모바일/태블릿 대응) |
-| T-07 | GAP-B4 | Backend | 보관함 삭제 API (`DELETE /collections/{id}`) |
+| ~~T-07~~ | ~~GAP-B4~~ | — | ~~보관함 삭제 API~~ ✅ 완료 (2026-02-25) |
 | T-08 | GAP-B3 | Backend | analysis_logs에 Gemini raw_response 기록 |
 | T-09 | GAP-I2 | Frontend | API URL 환경변수화 (하드코딩 제거) |
 | T-10 | GAP-I1 | Infra | 프론트엔드 Dockerfile 작성 (빌드 + nginx 서빙) |
@@ -148,7 +149,7 @@
 | T-11 | GAP-B2 | Backend | Supabase Auth JWT 검증 구현 (`auth.py`) |
 | T-12 | GAP-F5 | Frontend | 로그인/회원가입 UI + Supabase Auth SDK 연동 |
 | T-13 | GAP-D2 | DB | RLS 정책 활성화 (인증 구현 후) |
-| T-14 | GAP-F6 | Frontend | 카테고리 필터 UI + 백엔드 API |
+| ~~T-14~~ | ~~GAP-F6~~ | — | ~~카테고리 필터 UI + 백엔드 API~~ ✅ 완료 (2026-02-25) |
 | T-15 | GAP-D1 | Backend | categories, cooking_history 테이블 API 연동 |
 | T-16 | GAP-DOC1 | Planner | 기존 PRD 문서 업데이트 또는 폐기 결정 |
 
@@ -177,4 +178,4 @@
 ---
 
 *이 문서는 초안이며, 팀 리뷰를 통해 수정될 예정입니다.*
-*최종 수정: 2026-02-12*
+*최종 수정: 2026-02-25*

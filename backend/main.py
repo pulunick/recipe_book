@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
-from schemas import Recipe, CollectionRequest, ExtractRecipeRequest, ErrorResponse
+from schemas import Recipe, CollectionRequest, CollectionUpdateRequest, ExtractRecipeRequest, ErrorResponse
 from utils import extract_video_id, get_video_metadata
 from ai_engine import extract_recipe_with_gemini
 from database import get_supabase_client
@@ -31,7 +31,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "DELETE", "PATCH"],
     allow_headers=["Content-Type", "Authorization"],
 )
 
@@ -268,6 +268,68 @@ async def save_to_collection(request: CollectionRequest):
             detail=ErrorResponse(
                 error_code="INTERNAL_ERROR",
                 message="보관함 저장 중 오류가 발생했습니다.",
+                detail=str(e),
+            ).model_dump(),
+        )
+
+
+@app.delete("/collections/{collection_id}")
+async def delete_from_collection(collection_id: int):
+    """보관함에서 레시피 삭제"""
+    try:
+        supabase = get_supabase_client()
+        if not supabase:
+            raise HTTPException(
+                status_code=500,
+                detail=ErrorResponse(
+                    error_code="DB_CONNECTION_FAILED",
+                    message="데이터베이스 연결에 실패했습니다.",
+                ).model_dump(),
+            )
+
+        supabase.table("user_collections").delete().eq("id", collection_id).execute()
+        return {"status": "deleted"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("보관함 삭제 오류 (id: %s): %s", collection_id, e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=ErrorResponse(
+                error_code="DELETE_FAILED",
+                message="보관함 삭제 중 오류가 발생했습니다.",
+                detail=str(e),
+            ).model_dump(),
+        )
+
+
+@app.patch("/collections/{collection_id}")
+async def update_collection(collection_id: int, request: CollectionUpdateRequest):
+    """보관함 메모(custom_tip) 수정"""
+    try:
+        supabase = get_supabase_client()
+        if not supabase:
+            raise HTTPException(
+                status_code=500,
+                detail=ErrorResponse(
+                    error_code="DB_CONNECTION_FAILED",
+                    message="데이터베이스 연결에 실패했습니다.",
+                ).model_dump(),
+            )
+
+        supabase.table("user_collections").update({"custom_tip": request.custom_tip}).eq("id", collection_id).execute()
+        return {"status": "updated"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("보관함 수정 오류 (id: %s): %s", collection_id, e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=ErrorResponse(
+                error_code="UPDATE_FAILED",
+                message="보관함 수정 중 오류가 발생했습니다.",
                 detail=str(e),
             ).model_dump(),
         )

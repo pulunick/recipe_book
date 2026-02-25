@@ -107,6 +107,7 @@ YouTube URL로부터 AI 기반 레시피 데이터를 추출한다.
 | `steps` | RecipeStep[] | 조리 과정 |
 | `flavor` | FlavorProfile | 맛 5축 지표 |
 | `tip` | string / null | 전문가 팁 |
+| `category` | string / null | 레시피 카테고리 (한식, 양식, 중식, 일식, 동남아, 국/찌개, 볶음, 구이, 찜, 반찬, 디저트, 음료, 간식, 다이어트, 간편식) |
 | `video_url` | string / null | YouTube URL |
 | `video_id` | string / null | YouTube 영상 ID |
 
@@ -205,58 +206,67 @@ YouTube URL로부터 AI 기반 레시피 데이터를 추출한다.
 
 ---
 
-## 3. 미구현이지만 필요한 엔드포인트
+## 3. 신규 구현된 엔드포인트 (2026-02-25)
 
-### 3.1 `GET /collections/{user_id}` — 보관함 조회 (P0)
+### 3.1 `DELETE /collections/{collection_id}` — 보관함 삭제 ✅ 구현 완료
 
-> 프론트엔드 `library/+page.svelte`에서 이미 호출 중이나 백엔드에 없음.
-
-**우선순위**: P0 (즉시 구현 필요)
-
-#### 예상 Request
+#### Request
 
 ```
-GET /collections/00000000-0000-0000-0000-000000000000
+DELETE /collections/1
 ```
 
-#### 예상 Response `200 OK`
+#### Response `200 OK`
 
 ```json
-[
-  {
-    "id": 1,
-    "user_id": "00000000-...",
-    "recipe_id": 1,
-    "custom_tip": "고추장 더 넣기",
-    "ingredient_adjustments": null,
-    "created_at": "2026-02-12T00:00:00Z",
-    "recipe": {
-      "id": 1,
-      "title": "김치찌개",
-      "summary": "...",
-      "video_id": "VIDEO_ID"
-    }
-  }
-]
+{ "status": "deleted" }
 ```
 
-**참고**: 프론트엔드에서 `item.recipe.title` 형태로 접근하므로, 보관함 데이터에 연관된 레시피 정보도 함께 반환해야 한다. Supabase의 `select("*, recipe:recipes(*)")` 문법 활용 가능.
+#### 에러 응답
+
+| HTTP 상태 | error_code             | 발생 조건          |
+| --------- | ---------------------- | ------------------ |
+| `500`     | `DB_CONNECTION_FAILED` | Supabase 연결 실패 |
+| `500`     | `DELETE_FAILED`        | 삭제 중 오류       |
 
 ---
 
-### 3.2 `DELETE /collections/{collection_id}` — 보관함 삭제 (P1)
+### 3.2 `PATCH /collections/{collection_id}` — 보관함 메모 수정 ✅ 구현 완료
 
-**우선순위**: P1 (나의 주방 페이지 완성 시 필요)
+#### Request
+
+```json
+{ "custom_tip": "고추장 1큰술 더 넣으면 더 맛있음" }
+```
+
+| 필드         | 타입          | 필수 | 설명              |
+| ------------ | ------------- | ---- | ----------------- |
+| `custom_tip` | string / null | X    | 수정할 개인 메모  |
+
+#### Response `200 OK`
+
+```json
+{ "status": "updated" }
+```
+
+#### 에러 응답
+
+| HTTP 상태 | error_code             | 발생 조건          |
+| --------- | ---------------------- | ------------------ |
+| `500`     | `DB_CONNECTION_FAILED` | Supabase 연결 실패 |
+| `500`     | `UPDATE_FAILED`        | 수정 중 오류       |
 
 ---
 
-### 3.3 `GET /recipes/{recipe_id}` — 개별 레시피 조회 (P1)
+## 4. 미구현 / 향후 예정 엔드포인트
+
+### 4.1 `GET /recipes/{recipe_id}` — 개별 레시피 조회 (P1)
 
 **우선순위**: P1 (보관함에서 레시피 상세 보기 시 필요)
 
 ---
 
-### 3.4 인증 관련 엔드포인트 (P2)
+### 4.2 인증 관련 엔드포인트 (P2)
 
 > `auth.py`에 스켈레톤 존재. Supabase Auth 연동 시 구현 예정.
 
@@ -266,15 +276,6 @@ GET /collections/00000000-0000-0000-0000-000000000000
 | `GET /me`                      | 현재 로그인 사용자 정보 반환 (JWT 검증)                           |
 
 **참고**: Supabase Auth를 사용하면 별도 회원가입/로그인 API 없이 프론트엔드에서 직접 처리 가능. 백엔드는 JWT 검증(`require_auth` dependency)만 담당.
-
----
-
-### 3.5 카테고리 관련 (P2)
-
-| 엔드포인트                      | 설명                   |
-| ------------------------------- | ---------------------- |
-| `GET /categories`               | 카테고리 목록 조회     |
-| `POST /recipes/{id}/categories` | 레시피에 카테고리 태깅 |
 
 ---
 
@@ -299,10 +300,12 @@ class ErrorResponse(BaseModel):
 | `VALIDATION_ERROR`     | 422  | 요청 데이터 형식 오류          |
 | `DB_CONNECTION_FAILED` | 500  | DB 연결 실패                   |
 | `SAVE_FAILED`          | 400  | 보관함 저장 실패               |
+| `DELETE_FAILED`        | 500  | 보관함 삭제 실패               |
+| `UPDATE_FAILED`        | 500  | 보관함 수정 실패               |
 | `EXTRACTION_FAILED`    | 500  | AI 추출 중 오류                |
 | `INTERNAL_ERROR`       | 500  | 서버 내부 오류                 |
 
 ---
 
 _이 문서는 초안이며, 팀 리뷰를 통해 수정될 예정입니다._
-_최종 수정: 2026-02-12_
+_최종 수정: 2026-02-25_

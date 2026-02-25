@@ -32,7 +32,12 @@
 
 <a href="/library/{item.id}" class="list-item">
 	<div class="item-main">
-		<h3 class="title">{item.recipe.title}</h3>
+		<div class="title-row">
+			<h3 class="title">{item.recipe.title}</h3>
+			{#if item.recipe.category}
+				<span class="category-badge">{item.recipe.category}</span>
+			{/if}
+		</div>
 		<div class="item-meta">
 			<span class="flavor-tags">
 				{#each topFlavors as { label, score }}
@@ -67,10 +72,25 @@
 		flex-direction: column;
 		gap: 0.4rem;
 	}
+	.title-row {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		flex-wrap: wrap;
+	}
 	.title {
 		font-size: 1.05rem;
 		font-weight: 600;
 		color: var(--color-warm-brown);
+	}
+	.category-badge {
+		font-size: 0.72rem;
+		font-weight: 600;
+		color: var(--color-terracotta);
+		background: color-mix(in srgb, var(--color-terracotta) 12%, transparent);
+		border-radius: 10px;
+		padding: 0.15rem 0.5rem;
+		white-space: nowrap;
 	}
 	.item-meta {
 		display: flex;

@@ -47,3 +47,19 @@ export async function getCollections(userId = '00000000-0000-0000-0000-000000000
 	const response = await fetch(`${API_BASE}/collections/${userId}`);
 	return handleResponse<CollectionItem[]>(response);
 }
+
+export async function deleteFromCollection(collectionId: number): Promise<void> {
+	const response = await fetch(`${API_BASE}/collections/${collectionId}`, {
+		method: 'DELETE'
+	});
+	await handleResponse(response);
+}
+
+export async function updateCollection(collectionId: number, customTip: string): Promise<void> {
+	const response = await fetch(`${API_BASE}/collections/${collectionId}`, {
+		method: 'PATCH',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ custom_tip: customTip || null })
+	});
+	await handleResponse(response);
+}

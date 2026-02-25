@@ -62,6 +62,7 @@ class Recipe(BaseModel):
     steps: List[RecipeStep] = Field(..., description="구조화된 조리 순서")
     flavor: FlavorProfile
     tip: Optional[str] = Field(None, description="마무리 꿀팁 및 보관법")
+    category: Optional[str] = Field(None, description="레시피 카테고리 (예: 한식, 양식, 국/찌개 등)")
     video_url: Optional[str] = Field(None, description="유튜브 영상 URL")
     video_id: Optional[str] = Field(None, description="유튜브 영상 고유 ID")
 
@@ -71,3 +72,7 @@ class CollectionRequest(BaseModel):
     recipe_id: int = Field(..., description="레시피 고유 ID")
     custom_tip: Optional[str] = Field(None, description="개인 메모")
     ingredient_adjustments: Optional[Dict] = Field(None, description="재료 가감 (예: {excluded: ['고춧가루']})")
+
+
+class CollectionUpdateRequest(BaseModel):
+    custom_tip: Optional[str] = Field(None, description="수정할 개인 메모")

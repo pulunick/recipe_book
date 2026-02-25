@@ -88,6 +88,9 @@ def _build_prompt(metadata: dict) -> str:
     3. **Flavor (맛 분석)**:
        - `saltiness` (짠맛), `sweetness` (단맛), `spiciness` (매운맛), `sourness` (신맛), `oiliness` (기름짐)
        - 5가지 지표를 1~5점 척도로 평가하세요.
+    4. **Category (카테고리)**: 다음 고정 목록 중 하나를 선택하여 `category` 필드에 입력하세요.
+       - 목록: 한식, 양식, 중식, 일식, 동남아, 국/찌개, 볶음, 구이, 찜, 반찬, 디저트, 음료, 간식, 다이어트, 간편식
+       - 레시피 영상이 아닌 경우 `null`로 설정하세요.
 
     [결과 포맷 (JSON)]
     {{{{
@@ -117,7 +120,8 @@ def _build_prompt(metadata: dict) -> str:
             "sourness": 1,
             "oiliness": 3
         }}}},
-        "tip": "마지막에 참기름을 한 바퀴 두르면 풍미가 살아납니다."
+        "tip": "마지막에 참기름을 한 바퀴 두르면 풍미가 살아납니다.",
+        "category": "한식"
     }}}}
 
     * 만약 레시피 영상이 아니면:
@@ -129,7 +133,8 @@ def _build_prompt(metadata: dict) -> str:
         "ingredients": [],
         "steps": [],
         "flavor": {{{{"saltiness": 1, "sweetness": 1, "spiciness": 1, "sourness": 1, "oiliness": 1}}}},
-        "tip": null
+        "tip": null,
+        "category": null
     }}}}
     """
 

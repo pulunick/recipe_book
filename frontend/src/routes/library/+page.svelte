@@ -8,6 +8,7 @@
 	let collections: CollectionItem[] = $state([]);
 	let loading = $state(true);
 	let error = $state('');
+	let selectedCategory = $state('전체');
 
 	onMount(async () => {
 		try {
@@ -18,6 +19,19 @@
 			loading = false;
 		}
 	});
+
+	const categories = $derived.by(() => {
+		const cats = collections
+			.map(c => c.recipe.category)
+			.filter((c): c is string => Boolean(c));
+		return ['전체', ...Array.from(new Set(cats))];
+	});
+
+	const filteredCollections = $derived(
+		selectedCategory === '전체'
+			? collections
+			: collections.filter(c => c.recipe.category === selectedCategory)
+	);
 </script>
 
 <svelte:head>
@@ -48,11 +62,29 @@
 			<a href="/" class="cta-btn">첫 레시피 정리하러 가기</a>
 		</div>
 	{:else}
-		<div class="recipe-list" in:fade>
-			{#each collections as item (item.id)}
-				<RecipeCard {item} />
-			{/each}
-		</div>
+		{#if categories.length > 2}
+			<div class="category-tabs" in:fade>
+				{#each categories as cat}
+					<button
+						class="tab-btn"
+						class:active={selectedCategory === cat}
+						onclick={() => selectedCategory = cat}
+					>{cat}</button>
+				{/each}
+			</div>
+		{/if}
+
+		{#if filteredCollections.length === 0}
+			<div class="status-area" in:fade>
+				<p>이 카테고리에 저장된 레시피가 없어요</p>
+			</div>
+		{:else}
+			<div class="recipe-list" in:fade>
+				{#each filteredCollections as item (item.id)}
+					<RecipeCard {item} />
+				{/each}
+			</div>
+		{/if}
 	{/if}
 </main>
 
@@ -73,6 +105,39 @@
 	.count {
 		font-size: 0.95rem;
 		color: var(--color-soft-brown);
+	}
+
+	.category-tabs {
+		display: flex;
+		gap: 0.4rem;
+		margin-bottom: 1rem;
+		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
+		padding-bottom: 0.2rem;
+	}
+	.category-tabs::-webkit-scrollbar { display: none; }
+
+	.tab-btn {
+		flex-shrink: 0;
+		padding: 0.35rem 0.9rem;
+		border-radius: 20px;
+		border: 1px solid var(--color-light-line);
+		background: white;
+		font-size: 0.85rem;
+		color: var(--color-soft-brown);
+		cursor: pointer;
+		white-space: nowrap;
+		transition: background 0.15s, color 0.15s, border-color 0.15s;
+	}
+	.tab-btn:hover {
+		background: var(--color-cream);
+		border-color: var(--color-soft-brown);
+	}
+	.tab-btn.active {
+		background: var(--color-terracotta);
+		color: white;
+		border-color: var(--color-terracotta);
+		font-weight: 600;
 	}
 
 	.recipe-list {

@@ -27,6 +27,7 @@ export interface Recipe {
 	steps: RecipeStep[];
 	flavor: FlavorProfile;
 	tip: string | null;
+	category: string | null;
 	video_url: string | null;
 	video_id: string | null;
 }
