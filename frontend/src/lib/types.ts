@@ -55,4 +55,4 @@ export interface CollectionTag {
 
 export type AnalysisMode = 'fast' | 'precise';
 
-export type PageStatus = 'IDLE' | 'LOADING' | 'RESULT' | 'ERROR';
+export type PageStatus = 'IDLE' | 'LOADING' | 'ERROR';
