@@ -204,7 +204,7 @@
 		</div>
 
 		<article class="recipe-card">
-			<h1 class="recipe-title">{recipe.title}</h1>
+			<h1 class="recipe-title">{recipe.title}{recipe.channel_name ? ` - ${recipe.channel_name}` : ''}</h1>
 
 			{#if sourceLine}
 				<p class="source-line">{sourceLine}</p>

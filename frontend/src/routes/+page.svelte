@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { fade } from 'svelte/transition';
+	import { onMount, onDestroy } from 'svelte';
 	import type { Recipe, PageStatus } from '$lib/types';
 	import { extractRecipe, saveToCollection } from '$lib/api';
+	import { registerHomeReset, unregisterHomeReset } from '$lib/homeReset';
 	import SearchBox from '$lib/components/SearchBox.svelte';
 	import LoadingScreen from '$lib/components/LoadingScreen.svelte';
 	import FlavorProfile from '$lib/components/FlavorProfile.svelte';
@@ -70,6 +72,9 @@
 		currentUrl = '';
 		currentVideoId = null;
 	}
+
+	onMount(() => registerHomeReset(goHome));
+	onDestroy(() => unregisterHomeReset());
 </script>
 
 <svelte:head>
@@ -77,25 +82,25 @@
 </svelte:head>
 
 <main class="page-wrap">
-	{#if status === 'IDLE' || status === 'ERROR'}
-		<section class="home" in:fade>
-			<div class="hero-text">
+	{#if status === 'IDLE' || status === 'ERROR' || status === 'LOADING'}
+		<section class="home">
+			<!-- hero-text: LOADING 중에도 공간 유지 (visibility로 제어) -->
+			<div class="hero-text" class:invisible={status === 'LOADING'}>
 				<h1>유튜브 요리 영상의 레시피를<br />깔끔하게 정리해드려요</h1>
 			</div>
 			<SearchBox
 				onsubmit={handleAnalyze}
+				disabled={status === 'LOADING'}
 				errorMessage={status === 'ERROR' ? errorMessage : ''}
 			/>
-			<p class="how-to">
-				링크 붙여넣기 → 버튼 누르기<br />
-				재료와 만드는 법이 한 페이지로 정리돼요
-			</p>
-		</section>
-
-	{:else if status === 'LOADING'}
-		<section class="home" in:fade>
-			<SearchBox onsubmit={handleAnalyze} disabled={true} />
-			<LoadingScreen videoId={currentVideoId} />
+			{#if status === 'LOADING'}
+				<LoadingScreen videoId={currentVideoId} />
+			{:else}
+				<p class="how-to">
+					링크 붙여넣기 → 버튼 누르기<br />
+					재료와 만드는 법이 한 페이지로 정리돼요
+				</p>
+			{/if}
 		</section>
 
 	{:else if status === 'RESULT' && recipe}
@@ -121,7 +126,7 @@
 			</div>
 
 			<article class="recipe-card">
-				<h1 class="recipe-title">{recipe.title}</h1>
+				<h1 class="recipe-title">{recipe.title}{recipe.channel_name ? ` - ${recipe.channel_name}` : ''}</h1>
 
 				{#if recipe.summary}
 					<p class="recipe-summary">{recipe.summary}</p>
@@ -200,6 +205,9 @@
 		min-height: calc(100vh - 200px);
 		gap: 2rem;
 		text-align: center;
+	}
+	.hero-text.invisible {
+		visibility: hidden;
 	}
 	.hero-text h1 {
 		font-size: 1.8rem;
