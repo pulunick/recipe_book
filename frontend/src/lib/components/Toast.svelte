@@ -5,8 +5,9 @@
 		message: string;
 		show: boolean;
 		ondismiss: () => void;
+		type?: 'success' | 'error';
 	}
-	let { message, show, ondismiss }: Props = $props();
+	let { message, show, ondismiss, type = 'success' }: Props = $props();
 
 	$effect(() => {
 		if (show) {
@@ -17,8 +18,8 @@
 </script>
 
 {#if show}
-	<div class="toast" transition:fly={{ y: 16, duration: 220 }}>
-		<span class="icon">✓</span>
+	<div class="toast" class:error={type === 'error'} transition:fly={{ y: 16, duration: 220 }}>
+		<span class="icon">{type === 'error' ? '✕' : '✓'}</span>
 		{message}
 	</div>
 {/if}
@@ -42,5 +43,6 @@
 		gap: 0.5rem;
 		white-space: nowrap;
 	}
+	.toast.error { background: #c0392b; }
 	.icon { font-size: 1rem; }
 </style>

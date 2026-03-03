@@ -11,6 +11,7 @@
 		setCollectionTags
 	} from '$lib/api';
 	import RecipeCard from '$lib/components/RecipeCard.svelte';
+	import Toast from '$lib/components/Toast.svelte';
 
 	/* ── 목업 데이터 (백엔드 연동 전) ── */
 	const MOCK_COLLECTIONS: CollectionItem[] = [
@@ -80,6 +81,15 @@
 	let selectedFilter = $state<'all' | 'favorites' | string>('all');
 	let selectedTagId = $state<number | null>(null);
 	let useMock = $state(false);
+	let toastMsg = $state('');
+	let toastType = $state<'success' | 'error'>('success');
+	let showToast = $state(false);
+
+	function showToastMsg(msg: string, type: 'success' | 'error' = 'success') {
+		toastMsg = msg;
+		toastType = type;
+		showToast = true;
+	}
 
 	/* ── 마운트 시 실제 API 호출, 실패 시 목업 폴백 ── */
 	onMount(async () => {
@@ -185,7 +195,12 @@
 			try {
 				newTag = await createTag(name, color);
 				allTags = [...allTags, newTag];
-			} catch { return; }
+				showToastMsg(`"${name}" 태그가 추가됐어요`);
+			} catch (e) {
+				const msg = e instanceof Error ? e.message : '태그 생성에 실패했어요';
+				showToastMsg(msg, 'error');
+				return;
+			}
 		}
 		await handleTagAttach(collectionId, newTag.id);
 	}
@@ -204,6 +219,8 @@
 <svelte:head>
 	<title>내 레시피북 | 입맛 저격 레시피 AI</title>
 </svelte:head>
+
+<Toast message={toastMsg} show={showToast} type={toastType} ondismiss={() => (showToast = false)} />
 
 <div class="page-layout">
 	<!-- ── 데스크탑 사이드바 ── -->
