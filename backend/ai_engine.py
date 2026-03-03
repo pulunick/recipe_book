@@ -16,7 +16,7 @@ logger = get_logger(__name__)
 
 # 지연 초기화
 _client: genai.Client | None = None
-MODEL = "gemini-2.5-flash-preview-04-17"
+MODEL = "gemini-2.5-flash"
 
 
 def _get_client() -> genai.Client:
