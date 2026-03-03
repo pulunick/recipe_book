@@ -289,7 +289,7 @@
 						<button class="btn-cancel-memo" onclick={cancelEdit} disabled={isSavingMemo}>취소</button>
 					</div>
 				{:else}
-					<div class="tip-card memo">
+					<div class="memo-card">
 						{#if item.custom_tip}
 							<p>{item.custom_tip}</p>
 						{:else}
@@ -304,12 +304,8 @@
 
 			{#if recipe.tip}
 				<div class="tip-section">
-					<div class="section-divider">
-						<span class="divider-line"></span>
-						<span class="divider-text">꿀팁</span>
-						<span class="divider-line"></span>
-					</div>
 					<div class="tip-card">
+						<span class="tip-label">✦ 꿀팁</span>
 						<p>{recipe.tip}</p>
 					</div>
 				</div>
@@ -537,8 +533,30 @@
 		line-height: 1.7;
 	}
 
-	.tip-section { margin-top: 1.5rem; }
+	.tip-section { margin-top: 2rem; }
 
+	.tip-card {
+		border-left: 4px solid var(--color-terracotta);
+		background: var(--color-cream);
+		padding: 1rem 1.2rem;
+		border-radius: 0 8px 8px 0;
+	}
+	.tip-label {
+		display: block;
+		font-size: 0.75rem;
+		font-weight: 700;
+		color: var(--color-terracotta);
+		letter-spacing: 0.06em;
+		margin-bottom: 0.45rem;
+	}
+	.tip-card p {
+		margin: 0;
+		line-height: 1.75;
+		color: var(--color-warm-brown);
+		font-size: 0.95rem;
+	}
+
+	/* 내 메모 섹션 구분선은 유지 */
 	.section-divider {
 		display: flex;
 		align-items: center;
@@ -557,17 +575,14 @@
 		white-space: nowrap;
 	}
 
-	.tip-card {
-		background: var(--color-warm-yellow);
+	.memo-card {
+		background: var(--color-cream);
 		padding: 1.2rem 1.5rem;
 		border-radius: 10px;
 		font-family: var(--font-memo);
+		font-style: italic;
 		line-height: 1.8;
 		color: var(--color-warm-brown);
-	}
-	.tip-card.memo {
-		background: var(--color-cream);
-		font-style: italic;
 	}
 	.empty-memo {
 		color: var(--color-soft-brown);
