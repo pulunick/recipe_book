@@ -65,6 +65,8 @@ class Recipe(BaseModel):
     category: Optional[str] = Field(None, description="레시피 카테고리 (예: 한식, 양식, 국/찌개 등)")
     video_url: Optional[str] = Field(None, description="유튜브 영상 URL")
     video_id: Optional[str] = Field(None, description="유튜브 영상 고유 ID")
+    video_title: Optional[str] = Field(None, description="유튜브 영상 원본 제목")
+    channel_name: Optional[str] = Field(None, description="유튜브 채널명")
 
 
 class CollectionRequest(BaseModel):

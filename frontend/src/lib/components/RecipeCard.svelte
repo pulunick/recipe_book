@@ -51,10 +51,14 @@
 
 	<!-- 카드 본문 -->
 	<div class="card-body">
-		<!-- 제목 -->
+		<!-- 제목: 순수 요리명 -->
 		<a href="/my-recipes/{item.id}" class="title-link">
 			<h3 class="title">{item.recipe.title}</h3>
 		</a>
+
+		{#if item.recipe.channel_name}
+			<span class="channel-name">{item.recipe.channel_name}</span>
+		{/if}
 
 		<!-- 카테고리 + 단골 뱃지 -->
 		<div class="badges">
@@ -193,6 +197,15 @@
 		overflow: hidden;
 	}
 	.title-link:hover .title { color: var(--color-terracotta); }
+
+	.channel-name {
+		font-size: 0.75rem;
+		color: var(--color-soft-brown);
+		opacity: 0.8;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
 
 	/* 뱃지 */
 	.badges {

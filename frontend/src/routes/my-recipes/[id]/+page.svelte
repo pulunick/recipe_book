@@ -1,15 +1,31 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { untrack } from 'svelte';
 	import type { PageData } from './$types';
+	import type { CollectionTag } from '$lib/types';
 	import FlavorProfile from '$lib/components/FlavorProfile.svelte';
 	import IngredientList from '$lib/components/IngredientList.svelte';
 	import StepTimeline from '$lib/components/StepTimeline.svelte';
+	import StarRating from '$lib/components/StarRating.svelte';
+	import TagBadge from '$lib/components/TagBadge.svelte';
+	import TagPopover from '$lib/components/TagPopover.svelte';
 	import Toast from '$lib/components/Toast.svelte';
-	import { deleteFromCollection, updateCollection } from '$lib/api';
+	import {
+		deleteFromCollection,
+		updateCollection,
+		setRating,
+		recordCooked,
+		getTags,
+		createTag,
+		setCollectionTags
+	} from '$lib/api';
 
 	let { data }: { data: PageData } = $props();
-	const item = $derived(data.item);
-	const recipe = $derived(data.item.recipe);
+
+	// 로컬 상태로 복사 (즉시 업데이트 반영, untrack으로 초기값 추적 경고 억제)
+	let item = $state(untrack(() => data.item));
+	const recipe = $derived(item.recipe);
+	let allTags = $state<CollectionTag[]>(untrack(() => data.allTags ?? []));
 
 	// 삭제 상태
 	let isConfirmingDelete = $state(false);
@@ -17,8 +33,21 @@
 
 	// 메모 편집 상태
 	let isEditingMemo = $state(false);
-	let memoText = $state(data.item.custom_tip ?? '');
+	let memoText = $state(untrack(() => data.item.custom_tip ?? ''));
+
+	// data props 변경 시 로컬 상태 동기화 (라우트 이동 대응)
+	$effect(() => {
+		item = data.item;
+		allTags = data.allTags ?? [];
+		memoText = data.item.custom_tip ?? '';
+	});
 	let isSavingMemo = $state(false);
+
+	// 요리 기록 상태
+	let isCooking = $state(false);
+
+	// 태그 팝오버 상태
+	let showTagPopover = $state(false);
 
 	// 토스트
 	let showToast = $state(false);
@@ -27,6 +56,82 @@
 	function triggerToast(msg: string) {
 		toastMessage = msg;
 		showToast = true;
+	}
+
+	// 별점 변경
+	async function handleRating(rating: number) {
+		const prevRating = item.my_rating;
+		item = { ...item, my_rating: rating };
+		try {
+			await setRating(item.id, rating);
+		} catch {
+			item = { ...item, my_rating: prevRating };
+			triggerToast('별점 저장 중 오류가 발생했습니다.');
+		}
+	}
+
+	// 요리 기록
+	async function handleCooked() {
+		isCooking = true;
+		const prevCount = item.cooked_count;
+		const prevDate = item.last_cooked_at;
+		item = {
+			...item,
+			cooked_count: item.cooked_count + 1,
+			last_cooked_at: new Date().toISOString()
+		};
+		try {
+			await recordCooked(item.id);
+			triggerToast('요리 기록이 추가되었습니다!');
+		} catch {
+			item = { ...item, cooked_count: prevCount, last_cooked_at: prevDate };
+			triggerToast('기록 중 오류가 발생했습니다.');
+		} finally {
+			isCooking = false;
+		}
+	}
+
+	// 태그 부착
+	async function handleTagAttach(tagId: number) {
+		const tag = allTags.find(t => t.id === tagId);
+		if (!tag || item.tags.some(t => t.id === tagId)) return;
+		item = { ...item, tags: [...item.tags, tag] };
+		try {
+			await setCollectionTags(item.id, item.tags.map(t => t.id));
+		} catch {
+			item = { ...item, tags: item.tags.filter(t => t.id !== tagId) };
+			triggerToast('태그 부착 중 오류가 발생했습니다.');
+		}
+	}
+
+	// 태그 해제
+	async function handleTagDetach(tagId: number) {
+		const prevTags = item.tags;
+		item = { ...item, tags: item.tags.filter(t => t.id !== tagId) };
+		try {
+			await setCollectionTags(item.id, item.tags.map(t => t.id));
+		} catch {
+			item = { ...item, tags: prevTags };
+			triggerToast('태그 해제 중 오류가 발생했습니다.');
+		}
+	}
+
+	// 태그 생성 후 부착
+	async function handleTagCreate(name: string, color: string) {
+		try {
+			const newTag = await createTag(name, color);
+			allTags = [...allTags, newTag];
+			await handleTagAttach(newTag.id);
+			triggerToast(`"${name}" 태그가 추가됐어요`);
+		} catch (e) {
+			const msg = e instanceof Error ? e.message : '태그 생성에 실패했어요';
+			triggerToast(msg);
+		}
+	}
+
+	// 태그 제거 (뱃지에서)
+	function handleTagRemove(tagId: number) {
+		handleTagDetach(tagId);
 	}
 
 	async function confirmDelete() {
@@ -45,6 +150,7 @@
 		isSavingMemo = true;
 		try {
 			await updateCollection(item.id, memoText);
+			item = { ...item, custom_tip: memoText || null };
 			isEditingMemo = false;
 			triggerToast('메모가 저장되었습니다.');
 		} catch {
@@ -58,6 +164,17 @@
 		memoText = item.custom_tip ?? '';
 		isEditingMemo = false;
 	}
+
+	const attachedTagIds = $derived(item.tags.map(t => t.id));
+
+	// 채널명 + 영상 제목 서브라인
+	const sourceLineParts = $derived.by(() => {
+		const parts: string[] = [];
+		if (recipe.channel_name) parts.push(recipe.channel_name);
+		if (recipe.video_title) parts.push(recipe.video_title);
+		return parts;
+	});
+	const sourceLine = $derived(sourceLineParts.join(' \u00b7 '));
 </script>
 
 <svelte:head>
@@ -88,6 +205,56 @@
 
 		<article class="recipe-card">
 			<h1 class="recipe-title">{recipe.title}</h1>
+
+			{#if sourceLine}
+				<p class="source-line">{sourceLine}</p>
+			{/if}
+
+			<!-- 별점 + 요리횟수 -->
+			<div class="meta-row">
+				<div class="rating-area">
+					<StarRating rating={item.my_rating} onchange={handleRating} />
+					{#if item.my_rating}
+						<span class="rating-label">{item.my_rating}점</span>
+					{:else}
+						<span class="rating-label muted">별점을 매겨보세요</span>
+					{/if}
+				</div>
+
+				<div class="cooked-area">
+					<button class="btn-cooked" onclick={handleCooked} disabled={isCooking}>
+						{isCooking ? '기록 중...' : '오늘 요리했어요 🍳'}
+					</button>
+					<span class="cooked-count">{item.cooked_count}회 요리</span>
+					{#if item.last_cooked_at}
+						<span class="last-cooked">
+							마지막: {new Date(item.last_cooked_at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
+						</span>
+					{/if}
+				</div>
+			</div>
+
+			<!-- 태그 영역 -->
+			<div class="tags-area">
+				{#each item.tags as tag (tag.id)}
+					<TagBadge {tag} removable onremove={handleTagRemove} />
+				{/each}
+				<div class="tag-add-wrap">
+					<button class="btn-add-tag" onclick={() => showTagPopover = !showTagPopover}>
+						+ 태그
+					</button>
+					{#if showTagPopover}
+						<TagPopover
+							{allTags}
+							{attachedTagIds}
+							onclose={() => showTagPopover = false}
+							onattach={handleTagAttach}
+							ondetach={handleTagDetach}
+							oncreate={handleTagCreate}
+						/>
+					{/if}
+				</div>
+			</div>
 
 			{#if recipe.summary}
 				<p class="recipe-summary">{recipe.summary}</p>
@@ -263,8 +430,104 @@
 
 	.recipe-title {
 		font-size: 1.8rem;
-		margin-bottom: 1rem;
+		margin-bottom: 0.5rem;
 		text-align: center;
+	}
+
+	.source-line {
+		font-size: 0.82rem;
+		color: var(--color-soft-brown);
+		text-align: center;
+		margin-bottom: 1.2rem;
+		opacity: 0.8;
+	}
+
+	/* 별점 + 요리횟수 메타 영역 */
+	.meta-row {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 2rem;
+		flex-wrap: wrap;
+		margin-bottom: 1rem;
+		padding: 0.8rem 0;
+		border-bottom: 1px solid var(--color-light-line);
+	}
+
+	.rating-area {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+	.rating-label {
+		font-size: 0.82rem;
+		color: var(--color-warm-brown);
+		font-weight: 600;
+	}
+	.rating-label.muted {
+		color: var(--color-soft-brown);
+		font-weight: 400;
+		opacity: 0.7;
+	}
+
+	.cooked-area {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+		flex-wrap: wrap;
+	}
+	.btn-cooked {
+		font-size: 0.82rem;
+		background: var(--color-warm-yellow, #fff3cd);
+		border: 1px solid color-mix(in srgb, var(--color-warm-yellow, #fff3cd) 70%, #a67c00);
+		border-radius: 8px;
+		padding: 0.35rem 0.8rem;
+		cursor: pointer;
+		font-weight: 600;
+		color: var(--color-warm-brown);
+		transition: background 0.15s;
+	}
+	.btn-cooked:hover {
+		background: color-mix(in srgb, var(--color-warm-yellow, #fff3cd) 80%, #f5a623);
+	}
+	.btn-cooked:disabled { opacity: 0.6; cursor: not-allowed; }
+
+	.cooked-count {
+		font-size: 0.82rem;
+		font-weight: 600;
+		color: var(--color-warm-brown);
+	}
+	.last-cooked {
+		font-size: 0.75rem;
+		color: var(--color-soft-brown);
+	}
+
+	/* 태그 영역 */
+	.tags-area {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-wrap: wrap;
+		gap: 0.4rem;
+		margin-bottom: 1.2rem;
+	}
+	.tag-add-wrap {
+		position: relative;
+	}
+	.btn-add-tag {
+		font-size: 0.72rem;
+		font-weight: 600;
+		padding: 0.15rem 0.5rem;
+		border-radius: 10px;
+		border: 1px dashed var(--color-light-line);
+		background: none;
+		color: var(--color-soft-brown);
+		cursor: pointer;
+		transition: border-color 0.15s, color 0.15s;
+	}
+	.btn-add-tag:hover {
+		border-color: var(--color-terracotta);
+		color: var(--color-terracotta);
 	}
 
 	.recipe-summary {
@@ -391,5 +654,7 @@
 		.btn-confirm { min-height: 40px; padding: 0.4rem 0.9rem; }
 		.btn-cancel { min-height: 40px; padding: 0.4rem 0.9rem; }
 		.btn-save { min-height: 44px; padding: 0.6rem 1.2rem; }
+		.meta-row { gap: 1rem; }
+		.btn-cooked { min-height: 40px; padding: 0.4rem 0.9rem; }
 	}
 </style>

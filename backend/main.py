@@ -19,7 +19,7 @@ from logger import get_logger
 logger = get_logger(__name__)
 
 app = FastAPI(
-    title="Recipe AI Extraction API",
+    title="마레픽 API — My Recipe Pick",
     responses={
         400: {"model": ErrorResponse},
         403: {"model": ErrorResponse},
@@ -141,6 +141,8 @@ async def extract_recipe(request: ExtractRecipeRequest):
         logger.info("Gemini 분석 시작 (video_id: %s)", video_id)
         recipe = await extract_recipe_with_gemini(youtube_url, video_id, metadata)
         recipe.video_url = youtube_url
+        recipe.video_title = metadata.get("title") or None
+        recipe.channel_name = metadata.get("uploader") or None
 
         if not recipe.is_recipe:
             logger.info("레시피 영상 아님: %s", recipe.non_recipe_reason)
