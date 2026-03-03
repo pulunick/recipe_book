@@ -1,9 +1,7 @@
 <script lang="ts">
 	import { fade } from 'svelte/transition';
-	import { onMount, onDestroy } from 'svelte';
 	import type { Recipe, PageStatus } from '$lib/types';
 	import { extractRecipe, saveToCollection } from '$lib/api';
-	import { registerHomeReset, unregisterHomeReset } from '$lib/homeReset';
 	import SearchBox from '$lib/components/SearchBox.svelte';
 	import LoadingScreen from '$lib/components/LoadingScreen.svelte';
 	import FlavorProfile from '$lib/components/FlavorProfile.svelte';
@@ -73,8 +71,6 @@
 		currentVideoId = null;
 	}
 
-	onMount(() => registerHomeReset(goHome));
-	onDestroy(() => unregisterHomeReset());
 </script>
 
 <svelte:head>

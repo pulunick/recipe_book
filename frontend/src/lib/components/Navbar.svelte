@@ -1,23 +1,12 @@
 <script lang="ts">
-	import { page } from '$app/state';
-	import { triggerHomeReset } from '$lib/homeReset';
-
 	interface Props {
 		activePage: 'home' | 'my-recipes';
 	}
 	let { activePage }: Props = $props();
-
-	function handleLogoClick(e: MouseEvent) {
-		// 이미 홈(/)에 있을 때는 SvelteKit 네비게이션 대신 상태 직접 초기화
-		if (page.url.pathname === '/') {
-			e.preventDefault();
-			triggerHomeReset();
-		}
-	}
 </script>
 
 <nav class="navbar">
-	<a href="/" class="logo" onclick={handleLogoClick}>마레픽</a>
+	<a href="/" class="logo">마레픽</a>
 	<div class="nav-links">
 		<a href="/my-recipes" class:active={activePage === 'my-recipes'}>내 레시피북</a>
 		<button class="login-btn">로그인</button>
