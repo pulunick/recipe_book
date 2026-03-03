@@ -33,7 +33,7 @@
 		isDeleting = true;
 		try {
 			await deleteFromCollection(item.id);
-			goto('/library');
+			goto('/my-recipes');
 		} catch {
 			isDeleting = false;
 			isConfirmingDelete = false;
@@ -67,7 +67,7 @@
 <main class="page-wrap">
 	<section class="recipe-page">
 		<div class="recipe-top-bar">
-			<a href="/library" class="back-link">← 레시피북으로</a>
+			<a href="/my-recipes" class="back-link">← 레시피북으로</a>
 			<div class="top-bar-right">
 				<span class="saved-date">
 					{new Date(item.created_at).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })} 저장

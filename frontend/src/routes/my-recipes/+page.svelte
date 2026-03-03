@@ -72,24 +72,28 @@
 	];
 
 	/* ── 상태 ── */
-	let collections: CollectionItem[] = $state(MOCK_COLLECTIONS);
-	let allTags: CollectionTag[] = $state(MOCK_TAGS);
-	let loading = $state(false);
+	let collections: CollectionItem[] = $state([]);
+	let allTags: CollectionTag[] = $state([]);
+	let loading = $state(true);
 	let error = $state('');
 	let searchQuery = $state('');
 	let selectedFilter = $state<'all' | 'favorites' | string>('all');
 	let selectedTagId = $state<number | null>(null);
-	let useMock = $state(true); // 목업 사용 여부
+	let useMock = $state(false);
 
-	/* ── 마운트 시 실제 API 호출 시도 ── */
+	/* ── 마운트 시 실제 API 호출, 실패 시 목업 폴백 ── */
 	onMount(async () => {
 		try {
 			const [cols, tags] = await Promise.all([getCollections(), getTags()]);
 			collections = cols;
 			allTags = tags;
-			useMock = false;
 		} catch {
-			// 목업 데이터 유지
+			// 백엔드 연결 실패 시 목업으로 폴백
+			collections = MOCK_COLLECTIONS;
+			allTags = MOCK_TAGS;
+			useMock = true;
+		} finally {
+			loading = false;
 		}
 	});
 
@@ -304,7 +308,7 @@
 
 		{#if useMock}
 			<div class="mock-notice">
-				목업 데이터로 표시 중 — 백엔드 연동 후 실제 데이터가 표시됩니다
+				⚠️ 서버에 연결할 수 없어 샘플 데이터를 표시 중입니다
 			</div>
 		{/if}
 

@@ -31,7 +31,7 @@
 
 <article class="recipe-card">
 	<!-- 썸네일 영역 -->
-	<a href="/library/{item.id}" class="thumb-link" tabindex="-1" aria-hidden="true">
+	<a href="/my-recipes/{item.id}" class="thumb-link" tabindex="-1" aria-hidden="true">
 		<div class="thumb">
 			{#if thumbUrl}
 				<img src={thumbUrl} alt="{item.recipe.title} 썸네일" loading="lazy" />
@@ -52,7 +52,7 @@
 	<!-- 카드 본문 -->
 	<div class="card-body">
 		<!-- 제목 -->
-		<a href="/library/{item.id}" class="title-link">
+		<a href="/my-recipes/{item.id}" class="title-link">
 			<h3 class="title">{item.recipe.title}</h3>
 		</a>
 

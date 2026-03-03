@@ -6,8 +6,7 @@
 	let { children } = $props();
 
 	const activePage = $derived(
-		page.url.pathname.startsWith('/my-recipes') ? 'my-recipes' as const :
-		page.url.pathname.startsWith('/library') ? 'library' as const : 'home' as const
+		page.url.pathname.startsWith('/my-recipes') ? 'my-recipes' as const : 'home' as const
 	);
 </script>
 

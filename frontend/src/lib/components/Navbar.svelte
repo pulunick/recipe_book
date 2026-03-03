@@ -1,6 +1,6 @@
 <script lang="ts">
 	interface Props {
-		activePage: 'home' | 'library' | 'my-recipes';
+		activePage: 'home' | 'my-recipes';
 	}
 	let { activePage }: Props = $props();
 </script>
@@ -9,7 +9,6 @@
 	<a href="/" class="logo">입맛 저격 AI</a>
 	<div class="nav-links">
 		<a href="/my-recipes" class:active={activePage === 'my-recipes'}>내 레시피북</a>
-		<a href="/library" class:active={activePage === 'library'}>보관함</a>
 		<button class="login-btn">로그인</button>
 	</div>
 </nav>

@@ -23,7 +23,7 @@
 		</p>
 		<div class="actions">
 			<a href="/" class="home-btn">홈으로 돌아가기</a>
-			<a href="/library" class="library-btn">내 레시피북</a>
+			<a href="/my-recipes" class="library-btn">내 레시피북</a>
 		</div>
 	</div>
 </main>
