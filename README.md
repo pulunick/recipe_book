@@ -1,16 +1,16 @@
-# 입맛 저격 레시피 AI (Recipe Book)
+# 마레픽 — My Recipe Pick
 
 유튜브 요리 영상 URL을 붙여넣으면 AI가 레시피를 깔끔하게 정리해주는 웹 서비스.
 
 ## 기술 스택
 
-| 영역 | 기술 |
-|------|------|
-| **프론트엔드** | SvelteKit (Svelte 5) + TypeScript |
-| **백엔드** | FastAPI + Python 3.11 |
-| **AI** | Google Gemini 2.5 Flash (음성/자막 분석) |
-| **DB** | Supabase (PostgreSQL) |
-| **배포** | Vercel (프론트) + Railway (백엔드) |
+| 영역           | 기술                                     |
+| -------------- | ---------------------------------------- |
+| **프론트엔드** | SvelteKit (Svelte 5) + TypeScript        |
+| **백엔드**     | FastAPI + Python 3.11                    |
+| **AI**         | Google Gemini 2.5 Flash (음성/자막 분석) |
+| **DB**         | Supabase (PostgreSQL)                    |
+| **배포**       | Vercel (프론트) + Railway (백엔드)       |
 
 ## 로컬 실행
 
@@ -40,22 +40,22 @@ main ─────────────────────────
 
 ### 규칙
 
-| 규칙 | 설명 |
-|------|------|
-| `main` 직접 커밋 금지 | 모든 변경은 브랜치 → PR → merge |
-| 브랜치 네이밍 | `feat/기능명`, `fix/버그명`, `deploy/배포작업`, `docs/문서작업` |
-| PR merge 전 | `npm run check` (프론트), 빌드 성공 확인 |
-| merge 후 | 브랜치 삭제 |
+| 규칙                  | 설명                                                            |
+| --------------------- | --------------------------------------------------------------- |
+| `main` 직접 커밋 금지 | 모든 변경은 브랜치 → PR → merge                                 |
+| 브랜치 네이밍         | `feat/기능명`, `fix/버그명`, `deploy/배포작업`, `docs/문서작업` |
+| PR merge 전           | `npm run check` (프론트), 빌드 성공 확인                        |
+| merge 후              | 브랜치 삭제                                                     |
 
 ### 브랜치 종류
 
-| 접두사 | 용도 | 예시 |
-|--------|------|------|
-| `feat/` | 새 기능 | `feat/recipe-detail-page` |
-| `fix/` | 버그 수정 | `fix/cors-port-mismatch` |
-| `deploy/` | 배포/인프라 | `deploy/vercel-adapter` |
-| `docs/` | 문서 | `docs/api-guide` |
-| `refactor/` | 리팩토링 | `refactor/component-split` |
+| 접두사      | 용도        | 예시                       |
+| ----------- | ----------- | -------------------------- |
+| `feat/`     | 새 기능     | `feat/recipe-detail-page`  |
+| `fix/`      | 버그 수정   | `fix/cors-port-mismatch`   |
+| `deploy/`   | 배포/인프라 | `deploy/vercel-adapter`    |
+| `docs/`     | 문서        | `docs/api-guide`           |
+| `refactor/` | 리팩토링    | `refactor/component-split` |
 
 ## 배포 구성
 

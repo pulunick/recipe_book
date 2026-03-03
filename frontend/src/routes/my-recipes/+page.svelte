@@ -217,7 +217,7 @@
 </script>
 
 <svelte:head>
-	<title>내 레시피북 | 입맛 저격 레시피 AI</title>
+	<title>내 레시피북 | 마레픽</title>
 </svelte:head>
 
 <Toast message={toastMsg} show={showToast} type={toastType} ondismiss={() => (showToast = false)} />

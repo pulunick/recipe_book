@@ -3,7 +3,7 @@
 </script>
 
 <svelte:head>
-	<title>오류 | 입맛 저격 레시피 AI</title>
+	<title>오류 | 마레픽</title>
 </svelte:head>
 
 <main class="error-page">

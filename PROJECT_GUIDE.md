@@ -1,4 +1,4 @@
-# 입맛 저격 레시피 AI — 프로젝트 가이드
+# 마레픽 (My Recipe Pick) — 프로젝트 가이드
 
 > 유튜브 요리 영상 URL을 붙여넣으면 AI가 재료·조리 순서·맛 프로필을 자동으로 뽑아주는 서비스.
 
@@ -43,18 +43,18 @@
 
 ## 2. 기술 스택
 
-| 영역 | 기술 | 이유 |
-|------|------|------|
-| **백엔드 언어** | Python 3.11 | AI 라이브러리 생태계가 가장 풍부 |
-| **백엔드 프레임워크** | FastAPI | 비동기 지원, 자동 API 문서, 빠른 개발 |
-| **AI 분석** | Google Gemini 2.5 Flash | YouTube URL 직접 분석 가능 (다운로드 불필요) |
-| **AI SDK** | google-genai (신버전) | YouTube URL 네이티브 지원 |
-| **데이터 검증** | Pydantic v2 | AI 응답 JSON을 타입 안전하게 파싱 |
-| **데이터베이스** | Supabase (PostgreSQL) | Auth 내장, 실시간 기능, 무료 시작 가능 |
-| **프론트엔드 프레임워크** | SvelteKit | 가볍고 빠름, Svelte 5 반응형 문법 |
-| **프론트엔드 언어** | TypeScript | 타입 안전성 |
-| **백엔드 배포** | Render | 무료 플랜, GitHub 자동 배포 |
-| **프론트엔드 배포** | Vercel | SvelteKit 최적화, GitHub 자동 배포 |
+| 영역                      | 기술                    | 이유                                         |
+| ------------------------- | ----------------------- | -------------------------------------------- |
+| **백엔드 언어**           | Python 3.11             | AI 라이브러리 생태계가 가장 풍부             |
+| **백엔드 프레임워크**     | FastAPI                 | 비동기 지원, 자동 API 문서, 빠른 개발        |
+| **AI 분석**               | Google Gemini 2.5 Flash | YouTube URL 직접 분석 가능 (다운로드 불필요) |
+| **AI SDK**                | google-genai (신버전)   | YouTube URL 네이티브 지원                    |
+| **데이터 검증**           | Pydantic v2             | AI 응답 JSON을 타입 안전하게 파싱            |
+| **데이터베이스**          | Supabase (PostgreSQL)   | Auth 내장, 실시간 기능, 무료 시작 가능       |
+| **프론트엔드 프레임워크** | SvelteKit               | 가볍고 빠름, Svelte 5 반응형 문법            |
+| **프론트엔드 언어**       | TypeScript              | 타입 안전성                                  |
+| **백엔드 배포**           | Render                  | 무료 플랜, GitHub 자동 배포                  |
+| **프론트엔드 배포**       | Vercel                  | SvelteKit 최적화, GitHub 자동 배포           |
 
 ---
 
@@ -223,15 +223,18 @@ GET /health
 ### 페이지 구성
 
 **홈 (`/`)**
+
 - URL 입력 → 분석 요청 → 결과 표시가 한 페이지에서 이루어짐
 - 상태 머신 방식: `IDLE → LOADING → RESULT / ERROR`
 - "내 레시피북에 추가" 버튼으로 저장
 
 **내 레시피북 (`/library`)**
+
 - 저장된 레시피 카드 목록
 - 각 카드: 제목, 맛 태그, 저장 날짜, 내 메모
 
 **레시피 상세 (`/library/[id]`)**
+
 - 저장된 레시피 전체 내용 표시
 - 맛 프로필 + 재료 + 조리 단계 + 꿀팁 + 원본 영상 링크
 
@@ -250,23 +253,23 @@ SearchBox       : YouTube URL 입력 + 제출
 
 ```typescript
 interface Recipe {
-    id: number | null;
-    title: string;
-    summary: string;
-    ingredients: Ingredient[];   // 재료 목록
-    steps: RecipeStep[];         // 조리 단계
-    flavor: FlavorProfile;       // 맛 점수 (각 1~5)
-    tip: string | null;          // 꿀팁
-    video_url: string | null;
-    video_id: string | null;
+  id: number | null;
+  title: string;
+  summary: string;
+  ingredients: Ingredient[]; // 재료 목록
+  steps: RecipeStep[]; // 조리 단계
+  flavor: FlavorProfile; // 맛 점수 (각 1~5)
+  tip: string | null; // 꿀팁
+  video_url: string | null;
+  video_id: string | null;
 }
 
 interface FlavorProfile {
-    saltiness: number;   // 짠맛
-    sweetness: number;   // 단맛
-    spiciness: number;   // 매운맛
-    sourness: number;    // 신맛
-    oiliness: number;    // 기름기
+  saltiness: number; // 짠맛
+  sweetness: number; // 단맛
+  spiciness: number; // 매운맛
+  sourness: number; // 신맛
+  oiliness: number; // 기름기
 }
 ```
 

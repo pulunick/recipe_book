@@ -73,7 +73,7 @@
 </script>
 
 <svelte:head>
-	<title>입맛 저격 레시피 AI</title>
+	<title>마레픽 — AI 레시피 정리</title>
 </svelte:head>
 
 <main class="page-wrap">

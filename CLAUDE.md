@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-"입맛 저격 레시피 AI" — a system that extracts structured recipe data from YouTube cooking videos using Gemini multimodal AI (audio analysis). Users paste a YouTube URL, the backend downloads audio, sends it to Gemini for analysis, and returns structured recipe JSON (ingredients, steps, flavor profile). Results are cached in Supabase to avoid redundant AI calls.
+"마레픽 (My Recipe Pick)" — a system that extracts structured recipe data from YouTube cooking videos using Gemini multimodal AI (audio analysis). Users paste a YouTube URL, the backend downloads audio, sends it to Gemini for analysis, and returns structured recipe JSON (ingredients, steps, flavor profile). Results are cached in Supabase to avoid redundant AI calls.
 
 ## Language Rule
 
@@ -13,6 +13,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ### Backend (FastAPI + Python 3.11)
+
 ```bash
 # Run locally
 cd backend
@@ -24,6 +25,7 @@ docker compose up backend
 ```
 
 ### Frontend (SvelteKit + Svelte 5 + TypeScript)
+
 ```bash
 cd frontend
 npm install
@@ -33,6 +35,7 @@ npm run check        # svelte-check type checking
 ```
 
 ### Full Stack (Docker Compose)
+
 ```bash
 docker compose up          # backend on :8000, frontend (nginx) on :80
 ```
@@ -40,6 +43,7 @@ docker compose up          # backend on :8000, frontend (nginx) on :80
 ## Architecture
 
 ### Backend (`backend/`)
+
 - **main.py** — FastAPI app with two endpoints:
   - `POST /extract-recipe` — core flow: extract video ID → check Supabase cache → download audio via yt-dlp → Gemini analysis → validate with Pydantic → save to DB → return Recipe
   - `POST /collections` — save recipe to user's personal collection with custom tips and ingredient adjustments
@@ -50,14 +54,17 @@ docker compose up          # backend on :8000, frontend (nginx) on :80
 - **init_db.sql** — Full schema: `recipes`, `users`, `user_collections`, `categories`, `recipe_categories`, `cooking_history`, `analysis_logs`
 
 ### Frontend (`frontend/`)
+
 SvelteKit project (Svelte 5, adapter-auto). Currently scaffolded — pages and components need to be built.
 
 ### Database (Supabase / PostgreSQL)
+
 - `recipes` table is the canonical cache — keyed by `video_id` (unique). `ingredients`, `steps`, `flavor` stored as JSONB.
 - `user_collections` links users to recipes with personal customization (`custom_tip`, `ingredient_adjustments`).
 - Cascade deletes on foreign keys.
 
 ### Data Flow
+
 1. YouTube URL → extract `video_id` (yt-dlp, regex fallback)
 2. Check `recipes` table by `video_id` (cache hit → return immediately)
 3. Cache miss → download audio (mp3 via yt-dlp + ffmpeg) → upload to Gemini
@@ -65,11 +72,13 @@ SvelteKit project (Svelte 5, adapter-auto). Currently scaffolded — pages and c
 5. Temp audio files are always cleaned up in `finally` block
 
 ## Environment Variables (`backend/.env`)
+
 - `GEMINI_API_KEY` — Google Gemini API key
 - `SUPABASE_URL` — Supabase project URL
 - `SUPABASE_KEY` — Supabase anon/service key
 
 ## Key Rules
+
 - **CUD/DDL operations require explicit user approval** before execution. Show the SQL/code and explain impact first.
 - `supabase-prod` is read-only — never write to production.
 - Non-recipe videos (먹방, vlogs, music) are detected by Gemini via `is_recipe` flag and rejected without DB storage.
@@ -94,11 +103,11 @@ SvelteKit project (Svelte 5, adapter-auto). Currently scaffolded — pages and c
 
 ### 팀원 역할
 
-| 팀원 | 모델 | 역할 | 담당 범위 |
-|------|------|------|-----------|
-| **Planner** | Opus | 기획, 설계, 코드 리뷰 | 로드맵, 설계 문서, API 계약, DB 설계 방향 |
-| **Backend** | Sonnet 4.6 | FastAPI, DB, Python 구현 | `backend/` 전체, SQL |
-| **Frontend-QA** | Sonnet 4.6 | SvelteKit UI, QA 검증 | `frontend/` 전체 |
+| 팀원            | 모델       | 역할                     | 담당 범위                                 |
+| --------------- | ---------- | ------------------------ | ----------------------------------------- |
+| **Planner**     | Opus       | 기획, 설계, 코드 리뷰    | 로드맵, 설계 문서, API 계약, DB 설계 방향 |
+| **Backend**     | Sonnet 4.6 | FastAPI, DB, Python 구현 | `backend/` 전체, SQL                      |
+| **Frontend-QA** | Sonnet 4.6 | SvelteKit UI, QA 검증    | `frontend/` 전체                          |
 
 각 팀원의 상세 역할 정의는 `.agents/` 디렉토리 참조. 팀원들은 이 CLAUDE.md를 자동으로 로드한다.
 

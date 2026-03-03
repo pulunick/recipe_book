@@ -6,7 +6,7 @@
 </script>
 
 <nav class="navbar">
-	<a href="/" class="logo">입맛 저격 AI</a>
+	<a href="/" class="logo">마레픽</a>
 	<div class="nav-links">
 		<a href="/my-recipes" class:active={activePage === 'my-recipes'}>내 레시피북</a>
 		<button class="login-btn">로그인</button>
