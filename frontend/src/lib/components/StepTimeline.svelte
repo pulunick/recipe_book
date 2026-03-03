@@ -5,79 +5,170 @@
 		steps: RecipeStep[];
 	}
 	let { steps }: Props = $props();
+
+	// 완료된 단계 추적 (클릭으로 토글)
+	let completed = $state<Set<number>>(new Set());
+
+	function toggleStep(n: number) {
+		const next = new Set(completed);
+		next.has(n) ? next.delete(n) : next.add(n);
+		completed = next;
+	}
+
+	const doneCount = $derived(completed.size);
 </script>
 
 <div class="steps-section">
-	<div class="section-divider">
-		<span class="divider-line"></span>
-		<span class="divider-text">만드는 법</span>
-		<span class="divider-line"></span>
+	<div class="section-header">
+		<span class="section-title">만드는 법</span>
+		<span class="step-progress">
+			{#if doneCount > 0}
+				{doneCount}/{steps.length} 완료
+			{:else}
+				{steps.length}단계
+			{/if}
+		</span>
 	</div>
+
 	<ol class="step-list">
-		{#each steps as step}
-			<li class="step-item">
-				<div class="step-header">
-					<span class="step-number">{step.step_number}.</span>
-					{#if step.timer}
-						<span class="timer-badge">{step.timer}</span>
+		{#each steps as step (step.step_number)}
+			{@const done = completed.has(step.step_number)}
+			<li class="step-item" class:done>
+				<button
+					class="step-num-btn"
+					onclick={() => toggleStep(step.step_number)}
+					aria-label="{step.step_number}단계 {done ? '완료 취소' : '완료'}"
+				>
+					{#if done}
+						<span class="step-check">✓</span>
+					{:else}
+						<span class="step-num">{step.step_number}</span>
 					{/if}
+				</button>
+
+				<div class="step-body">
+					{#if step.timer}
+						<span class="timer-badge">⏱ {step.timer}</span>
+					{/if}
+					<p class="step-desc">{step.description}</p>
 				</div>
-				<p class="step-desc">{step.description}</p>
 			</li>
 		{/each}
 	</ol>
 </div>
 
 <style>
-	.section-divider {
+	.steps-section { margin-top: 2rem; }
+
+	.section-header {
 		display: flex;
-		align-items: center;
-		gap: 1rem;
-		margin-bottom: 1.2rem;
+		align-items: baseline;
+		gap: 0.6rem;
+		margin-bottom: 1.4rem;
 	}
-	.divider-line {
-		flex: 1;
-		height: 1px;
-		background: var(--color-light-line);
-	}
-	.divider-text {
+	.section-title {
 		font-size: 0.85rem;
-		font-weight: 600;
+		font-weight: 700;
 		color: var(--color-soft-brown);
-		white-space: nowrap;
+	}
+	.step-progress {
+		font-size: 0.75rem;
+		color: var(--color-terracotta);
+		font-weight: 600;
 	}
 
+	/* 타임라인 컨테이너 */
 	.step-list {
 		list-style: none;
-		counter-reset: none;
+		padding: 0;
+		margin: 0;
+		position: relative;
 	}
+	/* 좌측 수직 연결선 */
+	.step-list::before {
+		content: '';
+		position: absolute;
+		left: 15px;
+		top: 16px;
+		bottom: 16px;
+		width: 2px;
+		background: var(--color-light-line);
+		border-radius: 2px;
+	}
+
 	.step-item {
+		display: flex;
+		gap: 1rem;
 		margin-bottom: 1.5rem;
-		padding-left: 0.5rem;
+		position: relative;
+		align-items: flex-start;
 	}
-	.step-header {
+	.step-item:last-child { margin-bottom: 0; }
+
+	/* 원형 번호 배지 (타임라인 연결선 위에 표시) */
+	.step-num-btn {
+		flex-shrink: 0;
+		width: 32px;
+		height: 32px;
+		border-radius: 50%;
+		border: 2px solid var(--color-terracotta);
+		background: white;
 		display: flex;
 		align-items: center;
-		gap: 0.8rem;
-		margin-bottom: 0.4rem;
+		justify-content: center;
+		cursor: pointer;
+		position: relative;
+		z-index: 1;
+		transition: background 0.18s, border-color 0.18s;
 	}
-	.step-number {
+	.step-num-btn:hover {
+		background: var(--color-cream);
+	}
+	.step-num {
+		font-size: 0.82rem;
 		font-weight: 700;
-		font-size: 1.1rem;
 		color: var(--color-terracotta);
+		line-height: 1;
 	}
-	.timer-badge {
-		font-family: var(--font-number);
-		font-size: 0.8rem;
-		font-weight: 600;
-		background: var(--color-terracotta);
+	.step-check {
+		font-size: 0.82rem;
+		font-weight: 700;
 		color: white;
-		padding: 0.2rem 0.7rem;
-		border-radius: 20px;
+		line-height: 1;
 	}
+
+	/* 완료 상태 */
+	.step-item.done .step-num-btn {
+		background: var(--color-terracotta);
+		border-color: var(--color-terracotta);
+	}
+
+	.step-body {
+		flex: 1;
+		padding-top: 0.3rem;
+	}
+
+	.timer-badge {
+		display: inline-block;
+		font-size: 0.75rem;
+		font-weight: 600;
+		background: color-mix(in srgb, var(--color-terracotta) 10%, transparent);
+		color: var(--color-terracotta);
+		padding: 0.15rem 0.55rem;
+		border-radius: 10px;
+		margin-bottom: 0.35rem;
+	}
+
 	.step-desc {
+		margin: 0;
 		color: var(--color-warm-brown);
-		line-height: 1.7;
-		padding-left: 1.2rem;
+		line-height: 1.75;
+		font-size: 0.95rem;
+		transition: opacity 0.2s;
+	}
+	.step-item.done .step-desc {
+		opacity: 0.35;
+		text-decoration: line-through;
+		text-decoration-color: var(--color-soft-brown);
 	}
 </style>

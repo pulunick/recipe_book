@@ -269,37 +269,39 @@
 
 			<StepTimeline steps={recipe.steps} />
 
-			<div class="tip-section">
-				<div class="section-divider">
-					<span class="divider-line"></span>
-					<span class="divider-text">내 메모</span>
-					<span class="divider-line"></span>
-				</div>
-				{#if isEditingMemo}
-					<textarea
-						class="memo-textarea"
-						bind:value={memoText}
-						placeholder="이 레시피에 대한 나만의 메모를 남겨보세요..."
-						rows="4"
-					></textarea>
-					<div class="memo-actions">
-						<button class="btn-save" onclick={saveMemo} disabled={isSavingMemo}>
-							{isSavingMemo ? '저장 중...' : '저장'}
-						</button>
-						<button class="btn-cancel-memo" onclick={cancelEdit} disabled={isSavingMemo}>취소</button>
-					</div>
-				{:else}
-					<div class="memo-card">
-						{#if item.custom_tip}
-							<p>{item.custom_tip}</p>
-						{:else}
-							<p class="empty-memo">메모를 남겨보세요.</p>
+			<div class="memo-section">
+				<div class="memo-card">
+					<div class="memo-card-header">
+						<span class="memo-label">✎ 내 메모</span>
+						{#if !isEditingMemo}
+							<button
+								class="btn-memo-edit"
+								onclick={() => isEditingMemo = true}
+							>
+								{item.custom_tip ? '수정' : '+ 추가'}
+							</button>
 						{/if}
 					</div>
-					<button class="btn-edit-memo" onclick={() => isEditingMemo = true}>
-						{item.custom_tip ? '메모 수정' : '메모 추가'}
-					</button>
-				{/if}
+
+					{#if isEditingMemo}
+						<textarea
+							class="memo-textarea"
+							bind:value={memoText}
+							placeholder="이 레시피에 대한 나만의 메모..."
+							rows="3"
+						></textarea>
+						<div class="memo-actions">
+							<button class="btn-save" onclick={saveMemo} disabled={isSavingMemo}>
+								{isSavingMemo ? '저장 중...' : '저장'}
+							</button>
+							<button class="btn-cancel-memo" onclick={cancelEdit} disabled={isSavingMemo}>취소</button>
+						</div>
+					{:else if item.custom_tip}
+						<p class="memo-text">{item.custom_tip}</p>
+					{:else}
+						<p class="empty-memo">아직 메모가 없어요</p>
+					{/if}
+				</div>
 			</div>
 
 			{#if recipe.tip}
@@ -533,8 +535,8 @@
 		line-height: 1.7;
 	}
 
+	/* 꿀팁 */
 	.tip-section { margin-top: 2rem; }
-
 	.tip-card {
 		border-left: 4px solid var(--color-terracotta);
 		background: var(--color-cream);
@@ -556,55 +558,68 @@
 		font-size: 0.95rem;
 	}
 
-	/* 내 메모 섹션 구분선은 유지 */
-	.section-divider {
-		display: flex;
-		align-items: center;
-		gap: 1rem;
-		margin-bottom: 1.2rem;
-	}
-	.divider-line {
-		flex: 1;
-		height: 1px;
-		background: var(--color-light-line);
-	}
-	.divider-text {
-		font-size: 0.85rem;
-		font-weight: 600;
-		color: var(--color-soft-brown);
-		white-space: nowrap;
-	}
-
+	/* 내 메모 */
+	.memo-section { margin-top: 2rem; }
 	.memo-card {
+		border-left: 4px solid var(--color-dusty-blue);
 		background: var(--color-cream);
-		padding: 1.2rem 1.5rem;
+		padding: 1rem 1.2rem;
+		border-radius: 0 8px 8px 0;
+	}
+	.memo-card-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 0.5rem;
+	}
+	.memo-label {
+		font-size: 0.75rem;
+		font-weight: 700;
+		color: var(--color-dusty-blue);
+		letter-spacing: 0.06em;
+	}
+	.btn-memo-edit {
+		font-size: 0.72rem;
+		font-weight: 600;
+		color: var(--color-dusty-blue);
+		background: none;
+		border: 1px solid var(--color-dusty-blue);
 		border-radius: 10px;
-		font-family: var(--font-memo);
-		font-style: italic;
-		line-height: 1.8;
+		padding: 0.15rem 0.6rem;
+		cursor: pointer;
+		opacity: 0.7;
+		transition: opacity 0.15s;
+	}
+	.btn-memo-edit:hover { opacity: 1; }
+	.memo-text {
+		margin: 0;
+		line-height: 1.75;
 		color: var(--color-warm-brown);
+		font-size: 0.95rem;
+		font-style: italic;
 	}
 	.empty-memo {
+		margin: 0;
+		font-size: 0.88rem;
 		color: var(--color-soft-brown);
-		opacity: 0.6;
+		opacity: 0.55;
 	}
-
 	.memo-textarea {
 		width: 100%;
-		padding: 1rem;
+		padding: 0.7rem 0.8rem;
 		border: 1px solid var(--color-light-line);
-		border-radius: 10px;
-		font-family: var(--font-memo);
+		border-radius: 6px;
 		font-size: 0.95rem;
-		line-height: 1.8;
+		line-height: 1.75;
 		color: var(--color-warm-brown);
-		background: var(--color-cream);
+		background: white;
 		resize: vertical;
 		box-sizing: border-box;
+		font-family: inherit;
 	}
 	.memo-textarea:focus {
 		outline: none;
-		border-color: var(--color-soft-brown);
+		border-color: var(--color-dusty-blue);
 	}
 
 	.memo-actions {
@@ -636,18 +651,6 @@
 	}
 	.btn-cancel-memo:disabled { opacity: 0.6; cursor: not-allowed; }
 
-	.btn-edit-memo {
-		margin-top: 0.6rem;
-		font-size: 0.82rem;
-		background: none;
-		border: none;
-		color: var(--color-dusty-blue);
-		cursor: pointer;
-		padding: 0;
-		text-decoration: underline;
-		text-underline-offset: 2px;
-	}
-	.btn-edit-memo:hover { color: var(--color-soft-brown); }
 
 	.video-link-area {
 		margin-top: 2rem;
