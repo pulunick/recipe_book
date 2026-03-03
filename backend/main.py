@@ -267,6 +267,11 @@ async def get_user_collections(
         result = query.execute()
         data = result.data or []
 
+        # tags 중첩 구조 평탄화: [{ tag: {...} }] → [{...}]
+        for item in data:
+            raw_tags = item.get("tags") or []
+            item["tags"] = [t["tag"] for t in raw_tags if t.get("tag")]
+
         # 카테고리 필터 (category_override 우선, 없으면 recipe.category)
         if category:
             filtered = []
