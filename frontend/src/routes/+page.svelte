@@ -114,7 +114,7 @@
 						{#if saveStatus === 'saved'}추가됨 ✓
 						{:else if saveStatus === 'saving'}추가 중...
 						{:else if saveStatus === 'error'}다시 시도
-						{:else}레시피북에 추가
+						{:else}<span class="bookmark-icon" aria-hidden="true"></span>레시피북에 추가
 						{/if}
 					</button>
 				</div>
@@ -170,7 +170,7 @@
 					{#if saveStatus === 'saved'}레시피북에 추가됨 ✓
 					{:else if saveStatus === 'saving'}추가하는 중...
 					{:else if saveStatus === 'error'}다시 시도
-					{:else}내 레시피북에 추가
+					{:else}<span class="bookmark-icon" aria-hidden="true"></span>내 레시피북에 추가
 					{/if}
 				</button>
 			</div>
@@ -254,6 +254,18 @@
 	.reanalyze-btn:hover {
 		border-color: var(--color-soft-brown);
 		color: var(--color-warm-brown);
+	}
+
+	.bookmark-icon {
+		display: inline-block;
+		width: 14px;
+		height: 18px;
+		background: white;
+		clip-path: polygon(0 0, 100% 0, 100% 85%, 50% 100%, 0 85%);
+		margin-right: 0.4rem;
+		vertical-align: middle;
+		position: relative;
+		top: -1px;
 	}
 
 	.save-btn, .save-btn-bottom {

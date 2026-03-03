@@ -37,6 +37,18 @@ export interface CollectionItem {
 	recipe: Recipe;
 	custom_tip: string | null;
 	created_at: string;
+	is_favorite: boolean;
+	my_rating: number | null;
+	cooked_count: number;
+	last_cooked_at: string | null;
+	category_override: string | null;
+	tags: CollectionTag[];
+}
+
+export interface CollectionTag {
+	id: number;
+	name: string;
+	color: string;
 }
 
 export type AnalysisMode = 'fast' | 'precise';

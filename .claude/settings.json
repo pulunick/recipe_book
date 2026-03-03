@@ -2,5 +2,16 @@
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
   },
-  "teammateMode": "in-process"
+  "teammateMode": "in-process",
+  "mcpServers": {
+    "supabase-recipes": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@henkey/postgres-mcp-server",
+        "postgresql://postgres.mwcoyzekowcknktwkbjm:rlawlsgud12!@aws-1-ap-northeast-2.pooler.supabase.com:5432/postgres"
+      ],
+      "disabled": false
+    }
+  }
 }

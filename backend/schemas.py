@@ -76,3 +76,70 @@ class CollectionRequest(BaseModel):
 
 class CollectionUpdateRequest(BaseModel):
     custom_tip: Optional[str] = Field(None, description="수정할 개인 메모")
+
+
+# --- 태그 관련 스키마 ---
+
+class TagCreate(BaseModel):
+    user_id: str = Field(..., description="사용자 UUID")
+    name: str = Field(..., min_length=1, max_length=30, description="태그 이름")
+    color: str = Field("#e8ddd4", description="태그 색상 (hex)")
+
+    @field_validator("color")
+    @classmethod
+    def validate_color(cls, v: str) -> str:
+        allowed = {
+            "#f28b82", "#fbbc04", "#34a853", "#4285f4",
+            "#a8c7fa", "#e6c9a8", "#d3d3d3", "#e8ddd4",
+        }
+        if v not in allowed:
+            raise ValueError(f"허용되지 않는 색상입니다. 허용 색상: {allowed}")
+        return v
+
+
+class CollectionTag(BaseModel):
+    id: int
+    user_id: str
+    name: str
+    color: str
+    created_at: Optional[str] = None
+
+
+# 하위 호환성을 위한 별칭
+Tag = CollectionTag
+
+
+class CollectionTagUpdate(BaseModel):
+    tag_ids: List[int] = Field(..., description="부착할 태그 ID 목록 (전체 덮어쓰기)")
+
+
+# --- 즐겨찾기 / 별점 / 요리 기록 스키마 ---
+
+class RatingRequest(BaseModel):
+    rating: int = Field(..., ge=1, le=5, description="별점 (1~5)")
+
+
+class CookedRequest(BaseModel):
+    rating: Optional[int] = Field(None, ge=1, le=5, description="선택적 별점 (1~5)")
+
+
+class CategoryOverrideRequest(BaseModel):
+    category: Optional[str] = Field(None, description="수동 변경할 카테고리 (None이면 AI 분류로 복원)")
+
+
+# --- 보관함 목록 응답 스키마 ---
+
+class CollectionListItem(BaseModel):
+    id: int
+    user_id: str
+    recipe_id: int
+    custom_tip: Optional[str] = None
+    ingredient_adjustments: Optional[Dict] = None
+    is_favorite: bool = False
+    my_rating: Optional[int] = None
+    cooked_count: int = 0
+    last_cooked_at: Optional[str] = None
+    category_override: Optional[str] = None
+    created_at: Optional[str] = None
+    recipe: Optional[Dict] = None
+    tags: Optional[List[CollectionTag]] = None

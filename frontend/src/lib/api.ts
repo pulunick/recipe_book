@@ -1,4 +1,4 @@
-import type { Recipe, CollectionItem } from './types';
+import type { Recipe, CollectionItem, CollectionTag } from './types';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -60,6 +60,59 @@ export async function updateCollection(collectionId: number, customTip: string):
 		method: 'PATCH',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({ custom_tip: customTip || null })
+	});
+	await handleResponse(response);
+}
+
+export async function toggleFavorite(collectionId: number): Promise<void> {
+	const response = await fetch(`${API_BASE}/collections/${collectionId}/favorite`, {
+		method: 'PUT'
+	});
+	await handleResponse(response);
+}
+
+export async function setRating(collectionId: number, rating: number): Promise<void> {
+	const response = await fetch(`${API_BASE}/collections/${collectionId}/rating`, {
+		method: 'PUT',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ rating })
+	});
+	await handleResponse(response);
+}
+
+export async function recordCooked(collectionId: number, rating?: number): Promise<void> {
+	const response = await fetch(`${API_BASE}/collections/${collectionId}/cooked`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ rating: rating ?? null })
+	});
+	await handleResponse(response);
+}
+
+export async function getTags(userId = '00000000-0000-0000-0000-000000000000'): Promise<CollectionTag[]> {
+	const response = await fetch(`${API_BASE}/tags/${userId}`);
+	return handleResponse<CollectionTag[]>(response);
+}
+
+export async function createTag(name: string, color: string, userId = '00000000-0000-0000-0000-000000000000'): Promise<CollectionTag> {
+	const response = await fetch(`${API_BASE}/tags`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ user_id: userId, name, color })
+	});
+	return handleResponse<CollectionTag>(response);
+}
+
+export async function deleteTag(tagId: number): Promise<void> {
+	const response = await fetch(`${API_BASE}/tags/${tagId}`, { method: 'DELETE' });
+	await handleResponse(response);
+}
+
+export async function setCollectionTags(collectionId: number, tagIds: number[]): Promise<void> {
+	const response = await fetch(`${API_BASE}/collections/${collectionId}/tags`, {
+		method: 'PUT',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ tag_ids: tagIds })
 	});
 	await handleResponse(response);
 }
