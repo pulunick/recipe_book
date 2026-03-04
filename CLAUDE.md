@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-"마레픽 (My Recipe Pick)" — a system that extracts structured recipe data from YouTube cooking videos using Gemini multimodal AI (audio analysis). Users paste a YouTube URL, the backend downloads audio, sends it to Gemini for analysis, and returns structured recipe JSON (ingredients, steps, flavor profile). Results are cached in Supabase to avoid redundant AI calls.
+"해먹당 (My Recipe Pick)" — a system that extracts structured recipe data from YouTube cooking videos using Gemini multimodal AI (audio analysis). Users paste a YouTube URL, the backend downloads audio, sends it to Gemini for analysis, and returns structured recipe JSON (ingredients, steps, flavor profile). Results are cached in Supabase to avoid redundant AI calls.
 
 ## Language Rule
 

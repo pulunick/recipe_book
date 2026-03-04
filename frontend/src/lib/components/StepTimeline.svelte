@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { RecipeStep } from '$lib/types';
+	import { Timer } from 'lucide-svelte';
 
 	interface Props {
 		steps: RecipeStep[];
@@ -8,6 +9,11 @@
 
 	// 완료된 단계 추적 (클릭으로 토글)
 	let completed = $state<Set<number>>(new Set());
+
+	// **텍스트** → <mark> 변환
+	function renderStep(text: string): string {
+		return text.replace(/\*\*(.+?)\*\*/g, '<mark class="step-highlight">$1</mark>');
+	}
 
 	function toggleStep(n: number) {
 		const next = new Set(completed);
@@ -48,9 +54,9 @@
 
 				<div class="step-body">
 					{#if step.timer}
-						<span class="timer-badge">⏱ {step.timer}</span>
+						<span class="timer-badge"><Timer size={14} /> {step.timer}</span>
 					{/if}
-					<p class="step-desc">{step.description}</p>
+					<p class="step-desc">{@html renderStep(step.description)}</p>
 				</div>
 			</li>
 		{/each}
@@ -149,7 +155,9 @@
 	}
 
 	.timer-badge {
-		display: inline-block;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.25rem;
 		font-size: 0.75rem;
 		font-weight: 600;
 		background: color-mix(in srgb, var(--color-terracotta) 10%, transparent);
@@ -165,6 +173,13 @@
 		line-height: 1.75;
 		font-size: 0.95rem;
 		transition: opacity 0.2s;
+	}
+	:global(.step-highlight) {
+		background: color-mix(in srgb, var(--color-terracotta) 14%, transparent);
+		color: var(--color-terracotta);
+		font-weight: 700;
+		border-radius: 3px;
+		padding: 0 2px;
 	}
 	.step-item.done .step-desc {
 		opacity: 0.35;

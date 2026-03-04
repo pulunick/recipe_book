@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import type { PageStatus } from '$lib/types';
-	import { extractRecipe } from '$lib/api';
+	import { extractRecipe, saveToCollection } from '$lib/api';
 	import SearchBox from '$lib/components/SearchBox.svelte';
 	import LoadingScreen from '$lib/components/LoadingScreen.svelte';
 
@@ -20,10 +20,18 @@
 		currentVideoId = getVideoId(url);
 		try {
 			const recipe = await extractRecipe(url);
-			// 분석 완료 → 결과 페이지로 이동 (recipe와 sourceUrl을 state로 전달)
-			await goto(`/recipe/${recipe.video_id ?? recipe.id}`, {
-				state: { recipe, sourceUrl: url }
-			});
+			// 분석 완료 → 자동 저장 → 상세 페이지로 바로 이동
+			if (recipe.id) {
+				const collectionId = await saveToCollection(recipe.id);
+				await goto(`/my-recipes/${collectionId}`, {
+					state: { justAdded: true }
+				});
+			} else {
+				// recipe.id 없는 경우 (예외) — 결과 페이지로 fallback
+				await goto(`/recipe/${recipe.video_id ?? recipe.id}`, {
+					state: { recipe, sourceUrl: url }
+				});
+			}
 		} catch (e: unknown) {
 			status = 'ERROR';
 			errorMessage = e instanceof Error ? e.message : '알 수 없는 오류가 발생했습니다.';
@@ -32,7 +40,7 @@
 </script>
 
 <svelte:head>
-	<title>마레픽 — AI 레시피 정리</title>
+	<title>해먹당 — 나만의 AI 레시피북</title>
 </svelte:head>
 
 <main class="page-wrap">

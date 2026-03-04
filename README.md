@@ -1,4 +1,4 @@
-# 마레픽 — My Recipe Pick
+# 해먹당 — My Recipe Pick
 
 유튜브 요리 영상 URL을 붙여넣으면 AI가 레시피를 깔끔하게 정리해주는 웹 서비스.
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import type { CollectionItem, CollectionTag } from '$lib/types';
 	import {
@@ -17,7 +17,7 @@
 	const MOCK_COLLECTIONS: CollectionItem[] = [
 		{
 			id: 1,
-			recipe: { id: 1, title: '된장찌개 황금 레시피', summary: '구수하고 깊은 맛', ingredients: [], steps: [], flavor: { saltiness: 4, sweetness: 1, spiciness: 2, sourness: 1, oiliness: 2 }, tip: null, category: '한식', video_url: null, video_id: 'dQw4w9WgXcQ', video_title: null, channel_name: null },
+			recipe: { id: 1, title: '된장찌개 황금 레시피', summary: '구수하고 깊은 맛', ingredients: [], steps: [], flavor: { saltiness: 4, sweetness: 1, spiciness: 2, sourness: 1, oiliness: 2 }, tip: null, category: '한식', video_url: null, video_id: 'dQw4w9WgXcQ', video_title: null, channel_name: null, servings: null, cooking_time: null, difficulty: null },
 			custom_tip: '된장 조금 덜 넣는 게 맛있음',
 			created_at: '2025-12-01T09:00:00Z',
 			is_favorite: true,
@@ -29,7 +29,7 @@
 		},
 		{
 			id: 2,
-			recipe: { id: 2, title: '간단 파스타 10분 완성', summary: '바쁜 날을 위한 빠른 파스타', ingredients: [], steps: [], flavor: { saltiness: 3, sweetness: 2, spiciness: 1, sourness: 3, oiliness: 4 }, tip: null, category: '양식', video_url: null, video_id: 'abc1234abcd', video_title: null, channel_name: null },
+			recipe: { id: 2, title: '간단 파스타 10분 완성', summary: '바쁜 날을 위한 빠른 파스타', ingredients: [], steps: [], flavor: { saltiness: 3, sweetness: 2, spiciness: 1, sourness: 3, oiliness: 4 }, tip: null, category: '양식', video_url: null, video_id: 'abc1234abcd', video_title: null, channel_name: null, servings: null, cooking_time: null, difficulty: null },
 			custom_tip: null,
 			created_at: '2025-11-15T12:00:00Z',
 			is_favorite: false,
@@ -41,7 +41,7 @@
 		},
 		{
 			id: 3,
-			recipe: { id: 3, title: '떡볶이 매운맛 버전', summary: '진짜 매운 떡볶이', ingredients: [], steps: [], flavor: { saltiness: 3, sweetness: 4, spiciness: 5, sourness: 1, oiliness: 2 }, tip: null, category: '분식', video_url: null, video_id: 'xyz9876xyzw', video_title: null, channel_name: null },
+			recipe: { id: 3, title: '떡볶이 매운맛 버전', summary: '진짜 매운 떡볶이', ingredients: [], steps: [], flavor: { saltiness: 3, sweetness: 4, spiciness: 5, sourness: 1, oiliness: 2 }, tip: null, category: '분식', video_url: null, video_id: 'xyz9876xyzw', video_title: null, channel_name: null, servings: null, cooking_time: null, difficulty: null },
 			custom_tip: '물 조금 더 추가',
 			created_at: '2025-10-05T14:00:00Z',
 			is_favorite: true,
@@ -53,7 +53,7 @@
 		},
 		{
 			id: 4,
-			recipe: { id: 4, title: '오이 무침 다이어트 반찬', summary: '상큼하고 칼로리 낮은 반찬', ingredients: [], steps: [], flavor: { saltiness: 2, sweetness: 2, spiciness: 2, sourness: 4, oiliness: 1 }, tip: null, category: '한식', video_url: null, video_id: 'mnb3210mnba', video_title: null, channel_name: null },
+			recipe: { id: 4, title: '오이 무침 다이어트 반찬', summary: '상큼하고 칼로리 낮은 반찬', ingredients: [], steps: [], flavor: { saltiness: 2, sweetness: 2, spiciness: 2, sourness: 4, oiliness: 1 }, tip: null, category: '한식', video_url: null, video_id: 'mnb3210mnba', video_title: null, channel_name: null, servings: null, cooking_time: null, difficulty: null },
 			custom_tip: null,
 			created_at: '2025-09-12T10:00:00Z',
 			is_favorite: false,
@@ -214,10 +214,21 @@
 		selectedTagId = selectedTagId === tagId ? null : tagId;
 		selectedFilter = 'all';
 	}
+
+	// 모바일 탭 active 스크롤
+	$effect(() => {
+		// 의존성 추적
+		selectedFilter;
+		selectedTagId;
+		tick().then(() => {
+			const activeTab = document.querySelector('.mobile-tabs .mobile-tab.active') as HTMLElement | null;
+			activeTab?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+		});
+	});
 </script>
 
 <svelte:head>
-	<title>내 레시피북 | 마레픽</title>
+	<title>내 레시피북 | 해먹당</title>
 </svelte:head>
 
 <Toast message={toastMsg} show={showToast} type={toastType} ondismiss={() => (showToast = false)} />
@@ -353,12 +364,7 @@
 				{#each filteredCollections as item (item.id)}
 					<RecipeCard
 						{item}
-						{allTags}
 						onfavorite={handleFavorite}
-						ontagattach={handleTagAttach}
-						ontagdetach={handleTagDetach}
-						ontagcreate={handleTagCreate}
-						onrate={handleRate}
 					/>
 				{/each}
 			</div>
@@ -593,13 +599,28 @@
 			color: white;
 		}
 
-		.content-header { flex-wrap: wrap; }
+		.content-header {
+			flex-wrap: wrap;
+			position: sticky;
+			top: 0;
+			background: var(--color-bg, #faf7f2);
+			z-index: 10;
+			padding-top: 0.5rem;
+			padding-bottom: 0.5rem;
+		}
 		.search-input { width: 100%; }
 		.page-title { font-size: 1.4rem; }
+
+		.mobile-tab {
+			min-height: 40px;
+			display: flex;
+			align-items: center;
+		}
 
 		/* 카드 그리드: 모바일 1열 */
 		.card-grid {
 			grid-template-columns: 1fr;
+			gap: 1rem;
 		}
 	}
 </style>

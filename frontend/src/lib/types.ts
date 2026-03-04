@@ -32,6 +32,9 @@ export interface Recipe {
 	video_id: string | null;
 	video_title: string | null;
 	channel_name: string | null;
+	servings: string | null;
+	cooking_time: string | null;
+	difficulty: string | null;
 }
 
 export interface CollectionItem {

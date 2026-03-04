@@ -19,7 +19,7 @@ from logger import get_logger
 logger = get_logger(__name__)
 
 app = FastAPI(
-    title="마레픽 API — My Recipe Pick",
+    title="해먹당 API",
     responses={
         400: {"model": ErrorResponse},
         403: {"model": ErrorResponse},
@@ -29,7 +29,7 @@ app = FastAPI(
 )
 
 # --- CORS 설정 (환경변수 기반) ---
-allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:80,https://recipe-book-gray-five.vercel.app")
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5180,http://localhost:80,https://recipe-book-gray-five.vercel.app")
 origins = [o.strip() for o in allowed_origins.split(",") if o.strip()]
 
 app.add_middleware(
@@ -332,7 +332,8 @@ async def save_to_collection(request: CollectionRequest):
                 ).model_dump(),
             )
 
-        return {"status": "success", "message": "보관함에 저장되었습니다."}
+        collection_id = result.data[0]["id"]
+        return {"status": "success", "collection_id": collection_id}
     except HTTPException:
         raise
     except Exception as e:

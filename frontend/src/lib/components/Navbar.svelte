@@ -6,7 +6,9 @@
 </script>
 
 <nav class="navbar">
-	<a href="/" class="logo">마레픽</a>
+	<a href="/" class="logo">
+		<img src="/logo.png" alt="해먹당" class="logo-img" />
+	</a>
 	<div class="nav-links">
 		<a href="/my-recipes" class:active={activePage === 'my-recipes'}>내 레시피북</a>
 		<button class="login-btn">로그인</button>
@@ -24,12 +26,14 @@
 		border-bottom: 1px solid var(--color-light-line);
 	}
 	.logo {
-		font-weight: 700;
-		font-size: 1.3rem;
-		color: var(--color-warm-brown);
-		letter-spacing: -0.5px;
+		display: flex;
+		align-items: center;
 	}
-	.logo:hover { color: var(--color-terracotta); }
+	.logo-img {
+		height: 64px;
+		width: auto;
+	}
+	.logo:hover { opacity: 0.85; }
 	.nav-links {
 		display: flex;
 		align-items: center;

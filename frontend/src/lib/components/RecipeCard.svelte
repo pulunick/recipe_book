@@ -2,21 +2,13 @@
 	import type { CollectionItem, CollectionTag } from '$lib/types';
 	import StarRating from './StarRating.svelte';
 	import TagBadge from './TagBadge.svelte';
-	import TagPopover from './TagPopover.svelte';
 
 	interface Props {
 		item: CollectionItem;
-		allTags: CollectionTag[];
 		onfavorite: (id: number) => void;
-		ontagattach: (collectionId: number, tagId: number) => void;
-		ontagdetach: (collectionId: number, tagId: number) => void;
-		ontagcreate: (collectionId: number, name: string, color: string) => void;
-		onrate: (collectionId: number, rating: number) => void;
 	}
 
-	let { item, allTags, onfavorite, ontagattach, ontagdetach, ontagcreate, onrate }: Props = $props();
-
-	let showTagPopover = $state(false);
+	let { item, onfavorite }: Props = $props();
 
 	const thumbUrl = $derived(
 		item.recipe.video_id
@@ -30,31 +22,46 @@
 </script>
 
 <article class="recipe-card">
+	<!-- 카드 전체 링크 (absolute overlay) -->
+	<a href="/my-recipes/{item.id}" class="card-link" aria-label="{item.recipe.title} 상세 보기"></a>
+
 	<!-- 썸네일 영역 -->
-	<a href="/my-recipes/{item.id}" class="thumb-link" tabindex="-1" aria-hidden="true">
-		<div class="thumb">
-			{#if thumbUrl}
-				<img src={thumbUrl} alt="{item.recipe.title} 썸네일" loading="lazy" />
-			{:else}
-				<div class="thumb-placeholder">🍳</div>
-			{/if}
-			<!-- 즐겨찾기 버튼 -->
-			<button
-				type="button"
-				class="fav-btn"
-				class:active={item.is_favorite}
-				aria-label={item.is_favorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
-				onclick={(e) => { e.preventDefault(); onfavorite(item.id); }}
-			>⭐</button>
-		</div>
-	</a>
+	<div class="thumb">
+		{#if thumbUrl}
+			<img src={thumbUrl} alt="{item.recipe.title} 썸네일" loading="lazy" />
+		{:else}
+			<div class="thumb-placeholder">🍳</div>
+		{/if}
+
+		<!-- 좌상단 메타 오버레이 -->
+		{#if item.recipe.cooking_time || item.recipe.difficulty || item.recipe.servings}
+			<div class="thumb-meta">
+				{#if item.recipe.cooking_time}
+					<span class="thumb-badge">🍳 {item.recipe.cooking_time}</span>
+				{/if}
+				{#if item.recipe.difficulty}
+					<span class="thumb-badge">{item.recipe.difficulty}</span>
+				{/if}
+				{#if item.recipe.servings}
+					<span class="thumb-badge">👥 {item.recipe.servings}</span>
+				{/if}
+			</div>
+		{/if}
+
+		<!-- 즐겨찾기 버튼 -->
+		<button
+			type="button"
+			class="fav-btn"
+			class:active={item.is_favorite}
+			aria-label={item.is_favorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+			onclick={(e) => { e.stopPropagation(); onfavorite(item.id); }}
+		>⭐</button>
+	</div>
 
 	<!-- 카드 본문 -->
 	<div class="card-body">
 		<!-- 제목: 순수 요리명 -->
-		<a href="/my-recipes/{item.id}" class="title-link">
-			<h3 class="title">{item.recipe.title}</h3>
-		</a>
+		<h3 class="title">{item.recipe.title}</h3>
 
 		{#if item.recipe.channel_name}
 			<span class="channel-name">{item.recipe.channel_name}</span>
@@ -70,32 +77,14 @@
 			{/if}
 		</div>
 
-		<!-- 태그 목록 -->
-		<div class="tags-row">
-			{#each item.tags as tag}
-				<TagBadge {tag} removable={false} />
-			{/each}
-
-			<!-- +태그 버튼 + 팝오버 -->
-			<div class="tag-add-wrap">
-				<button
-					type="button"
-					class="add-tag-btn"
-					onclick={() => (showTagPopover = !showTagPopover)}
-				>+태그</button>
-
-				{#if showTagPopover}
-					<TagPopover
-						{allTags}
-						attachedTagIds={item.tags.map(t => t.id)}
-						onclose={() => (showTagPopover = false)}
-						onattach={(tagId) => ontagattach(item.id, tagId)}
-						ondetach={(tagId) => ontagdetach(item.id, tagId)}
-						oncreate={(name, color) => { ontagcreate(item.id, name, color); showTagPopover = false; }}
-					/>
-				{/if}
+		<!-- 태그 목록 (읽기 전용) -->
+		{#if item.tags.length > 0}
+			<div class="tags-row">
+				{#each item.tags as tag}
+					<TagBadge {tag} removable={false} />
+				{/each}
 			</div>
-		</div>
+		{/if}
 
 		<!-- 별점 + 요리 횟수 + 날짜 -->
 		<div class="card-meta">
@@ -103,7 +92,7 @@
 				<StarRating
 					rating={item.my_rating}
 					size="sm"
-					onchange={(r) => onrate(item.id, r)}
+					readonly
 				/>
 				{#if item.cooked_count > 0}
 					<span class="cooked-count">🍳 {item.cooked_count}회</span>
@@ -125,14 +114,22 @@
 		transition: box-shadow 0.2s, transform 0.2s;
 		display: flex;
 		flex-direction: column;
+		position: relative;
+		cursor: pointer;
 	}
 	.recipe-card:hover {
 		box-shadow: 0 6px 20px rgba(0,0,0,0.1);
 		transform: translateY(-2px);
 	}
 
+	/* 카드 전체 링크 */
+	.card-link {
+		position: absolute;
+		inset: 0;
+		z-index: 0;
+	}
+
 	/* 썸네일 */
-	.thumb-link { display: block; }
 	.thumb {
 		position: relative;
 		aspect-ratio: 16 / 9;
@@ -154,6 +151,28 @@
 		color: var(--color-light-line);
 	}
 
+	/* 좌상단 메타 오버레이 */
+	.thumb-meta {
+		position: absolute;
+		top: 0.4rem;
+		left: 0.4rem;
+		display: flex;
+		flex-direction: row;
+		gap: 0.25rem;
+		z-index: 1;
+	}
+	.thumb-badge {
+		display: inline-block;
+		background: rgba(0,0,0,0.52);
+		color: white;
+		font-size: 0.7rem;
+		font-weight: 600;
+		padding: 0.15rem 0.45rem;
+		border-radius: 20px;
+		backdrop-filter: blur(4px);
+		white-space: nowrap;
+	}
+
 	/* 즐겨찾기 버튼 */
 	.fav-btn {
 		position: absolute;
@@ -171,6 +190,7 @@
 		box-shadow: 0 1px 4px rgba(0,0,0,0.1);
 		filter: grayscale(1);
 		transition: filter 0.2s, transform 0.2s;
+		z-index: 1;
 	}
 	.fav-btn.active { filter: grayscale(0); }
 	.fav-btn:hover { transform: scale(1.15); }
@@ -182,9 +202,17 @@
 		flex-direction: column;
 		gap: 0.45rem;
 		flex: 1;
+		position: relative;
+		z-index: 1;
+		pointer-events: none;
 	}
 
-	.title-link { text-decoration: none; }
+	/* 카드 본문 내 인터랙션 필요한 요소만 살리기 */
+	.card-body .tags-row,
+	.card-body .card-meta {
+		pointer-events: auto;
+	}
+
 	.title {
 		font-size: 0.95rem;
 		font-weight: 600;
@@ -196,7 +224,7 @@
 		-webkit-box-orient: vertical;
 		overflow: hidden;
 	}
-	.title-link:hover .title { color: var(--color-terracotta); }
+	.recipe-card:hover .title { color: var(--color-terracotta); }
 
 	.channel-name {
 		font-size: 0.75rem;
@@ -238,24 +266,7 @@
 		align-items: center;
 		min-height: 22px;
 	}
-	.tag-add-wrap {
-		position: relative;
-	}
-	.add-tag-btn {
-		font-size: 0.7rem;
-		font-weight: 600;
-		padding: 0.1rem 0.45rem;
-		border-radius: 10px;
-		border: 1px dashed var(--color-soft-brown);
-		background: none;
-		color: var(--color-soft-brown);
-	}
-	.add-tag-btn:hover {
-		border-color: var(--color-terracotta);
-		color: var(--color-terracotta);
-	}
-
-	/* 메타 정보 */
+/* 메타 정보 */
 	.card-meta {
 		display: flex;
 		align-items: center;

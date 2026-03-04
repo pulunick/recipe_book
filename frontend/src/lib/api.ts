@@ -30,7 +30,7 @@ export async function extractRecipe(url: string, forceRefresh = false): Promise<
 	return handleResponse<Recipe>(response);
 }
 
-export async function saveToCollection(recipeId: number, customTip?: string): Promise<void> {
+export async function saveToCollection(recipeId: number, customTip?: string): Promise<number> {
 	const response = await fetch(`${API_BASE}/collections`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
@@ -40,7 +40,8 @@ export async function saveToCollection(recipeId: number, customTip?: string): Pr
 			custom_tip: customTip || null
 		})
 	});
-	await handleResponse(response);
+	const data = await handleResponse<{ status: string; collection_id: number }>(response);
+	return data.collection_id;
 }
 
 export async function getCollections(userId = '00000000-0000-0000-0000-000000000000'): Promise<CollectionItem[]> {

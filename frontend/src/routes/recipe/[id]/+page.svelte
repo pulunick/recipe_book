@@ -7,6 +7,8 @@
 	import FlavorProfile from '$lib/components/FlavorProfile.svelte';
 	import IngredientList from '$lib/components/IngredientList.svelte';
 	import StepTimeline from '$lib/components/StepTimeline.svelte';
+	import VideoCard from '$lib/components/VideoCard.svelte';
+	import ScrollToTop from '$lib/components/ScrollToTop.svelte';
 	import Toast from '$lib/components/Toast.svelte';
 
 	// navigation state에서 recipe와 sourceUrl 가져오기
@@ -52,7 +54,7 @@
 </script>
 
 <svelte:head>
-	<title>{displayTitle} | 마레픽</title>
+	<title>{displayTitle} | 해먹당</title>
 </svelte:head>
 
 {#if recipe}
@@ -83,6 +85,20 @@
 		<article class="recipe-card">
 			<h1 class="recipe-title">{displayTitle}</h1>
 
+			{#if recipe.servings || recipe.cooking_time || recipe.difficulty}
+				<div class="recipe-meta-chips">
+					{#if recipe.servings}
+						<span class="meta-chip">👥 {recipe.servings}</span>
+					{/if}
+					{#if recipe.cooking_time}
+						<span class="meta-chip">⏱ {recipe.cooking_time}</span>
+					{/if}
+					{#if recipe.difficulty}
+						<span class="meta-chip difficulty-{recipe.difficulty === '쉬움' ? 'easy' : recipe.difficulty === '보통' ? 'medium' : 'hard'}">{recipe.difficulty}</span>
+					{/if}
+				</div>
+			{/if}
+
 			{#if recipe.summary}
 				<p class="recipe-summary">{recipe.summary}</p>
 			{/if}
@@ -103,18 +119,12 @@
 				</div>
 			{/if}
 
-			{#if recipe.video_url || recipe.video_id}
-				<div class="video-link-area">
-					<a
-						href={recipe.video_url || `https://youtu.be/${recipe.video_id}`}
-						target="_blank"
-						rel="noopener noreferrer"
-						class="video-link"
-					>
-						원본 영상 보기 →
-					</a>
-				</div>
-			{/if}
+			<VideoCard
+				videoId={recipe.video_id}
+				videoUrl={recipe.video_url}
+				channelName={recipe.channel_name}
+				videoTitle={recipe.video_title}
+			/>
 		</article>
 
 		<div class="recipe-bottom-bar">
@@ -133,6 +143,8 @@
 	</section>
 </main>
 {/if}
+
+<ScrollToTop />
 
 <Toast
 	message="레시피북에 추가됐어요!"
@@ -233,6 +245,25 @@
 		text-align: center;
 	}
 
+	.recipe-meta-chips {
+		display: flex;
+		justify-content: center;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		margin-bottom: 1.2rem;
+	}
+	.meta-chip {
+		font-size: 0.82rem;
+		font-weight: 500;
+		color: var(--color-soft-brown);
+		background: var(--color-cream);
+		border-radius: 12px;
+		padding: 0.25rem 0.7rem;
+	}
+	.meta-chip.difficulty-easy { color: #1e7e34; background: #d4edda; font-weight: 600; }
+	.meta-chip.difficulty-medium { color: #856404; background: #fff3cd; font-weight: 600; }
+	.meta-chip.difficulty-hard { color: #a94442; background: #fde8e8; font-weight: 600; }
+
 	.recipe-summary {
 		color: var(--color-soft-brown);
 		text-align: center;
@@ -262,14 +293,6 @@
 		color: var(--color-warm-brown);
 		font-size: 0.95rem;
 	}
-
-	.video-link-area {
-		margin-top: 2rem;
-		text-align: center;
-		padding-top: 1.5rem;
-		border-top: 1px solid var(--color-light-line);
-	}
-	.video-link { font-size: 0.9rem; color: var(--color-dusty-blue); }
 
 	.recipe-bottom-bar {
 		text-align: center;

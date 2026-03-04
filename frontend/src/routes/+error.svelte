@@ -3,7 +3,7 @@
 </script>
 
 <svelte:head>
-	<title>오류 | 마레픽</title>
+	<title>오류 | 해먹당</title>
 </svelte:head>
 
 <main class="error-page">

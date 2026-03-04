@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import type { CollectionTag } from '$lib/types';
 
 	interface Props {
@@ -8,9 +9,27 @@
 		onattach: (tagId: number) => void;
 		ondetach: (tagId: number) => void;
 		oncreate: (name: string, color: string) => void;
+		allowCreate?: boolean;
 	}
 
-	let { allTags, attachedTagIds, onclose, onattach, ondetach, oncreate }: Props = $props();
+	let { allTags, attachedTagIds, onclose, onattach, ondetach, oncreate, allowCreate = true }: Props = $props();
+
+	let popoverEl: HTMLDivElement;
+
+	// 전체 backdrop 대신 document 클릭 감지 — 링크 클릭이 차단되지 않음
+	onMount(() => {
+		function handleDocClick(e: MouseEvent) {
+			if (popoverEl && !popoverEl.contains(e.target as Node)) {
+				onclose();
+			}
+		}
+		// setTimeout: 팝오버를 여는 클릭이 즉시 닫히지 않도록 지연
+		const t = setTimeout(() => document.addEventListener('click', handleDocClick), 0);
+		return () => {
+			clearTimeout(t);
+			document.removeEventListener('click', handleDocClick);
+		};
+	});
 
 	const TAG_COLORS = [
 		{ hex: '#f28b82', label: '레드' },
@@ -44,14 +63,7 @@
 	}
 </script>
 
-<!-- 팝오버 외부 클릭 시 닫기용 배경 -->
-<div
-	class="popover-backdrop"
-	role="presentation"
-	onclick={onclose}
-></div>
-
-<div class="popover" role="dialog" aria-label="태그 추가">
+<div class="popover" bind:this={popoverEl} role="dialog" aria-label="태그 추가">
 	<p class="popover-title">태그 추가</p>
 
 	<!-- 기존 태그 목록 -->
@@ -69,56 +81,53 @@
 				</button>
 			{/each}
 		</div>
-		<hr class="divider" />
+		{#if allowCreate}<hr class="divider" />{/if}
 	{/if}
 
 	<!-- 새 태그 생성 -->
-	<p class="create-label">새 태그 만들기</p>
-	<input
-		type="text"
-		class="tag-input"
-		placeholder="태그 이름 입력 후 Enter"
-		bind:value={newTagName}
-		onkeydown={handleKeydown}
-		maxlength={20}
-	/>
+	{#if allowCreate}
+		<p class="create-label">새 태그 만들기</p>
+		<input
+			type="text"
+			class="tag-input"
+			placeholder="태그 이름 입력 후 Enter"
+			bind:value={newTagName}
+			onkeydown={handleKeydown}
+			maxlength={20}
+		/>
 
-	<!-- 색상 선택 -->
-	<div class="color-picker">
-		{#each TAG_COLORS as c}
+		<!-- 색상 선택 -->
+		<div class="color-picker">
+			{#each TAG_COLORS as c}
+				<button
+					type="button"
+					class="color-swatch"
+					class:selected={selectedColor === c.hex}
+					style:background={c.hex}
+					aria-label={c.label}
+					onclick={() => (selectedColor = c.hex)}
+				></button>
+			{/each}
+		</div>
+
+		{#if newTagName.trim()}
 			<button
 				type="button"
-				class="color-swatch"
-				class:selected={selectedColor === c.hex}
-				style:background={c.hex}
-				aria-label={c.label}
-				onclick={() => (selectedColor = c.hex)}
-			></button>
-		{/each}
-	</div>
-
-	{#if newTagName.trim()}
-		<button
-			type="button"
-			class="create-btn"
-			onclick={() => { oncreate(newTagName.trim(), selectedColor); newTagName = ''; }}
-		>
-			"{newTagName}" 태그 만들기
-		</button>
+				class="create-btn"
+				onclick={() => { oncreate(newTagName.trim(), selectedColor); newTagName = ''; }}
+			>
+				"{newTagName}" 태그 만들기
+			</button>
+		{/if}
 	{/if}
 </div>
 
 <style>
-	.popover-backdrop {
-		position: fixed;
-		inset: 0;
-		z-index: 100;
-	}
 	.popover {
 		position: absolute;
-		bottom: calc(100% + 8px);
+		top: calc(100% + 4px);
 		left: 0;
-		z-index: 101;
+		z-index: 200;
 		background: white;
 		border: 1px solid var(--color-light-line);
 		border-radius: 12px;

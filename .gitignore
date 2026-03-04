@@ -41,3 +41,6 @@ docker-compose.override.yml
 # 배포 설정 (세션 쿠키 포함)
 RENDER_ENV_SETUP.md
 cookies.txt
+
+# MCP 설정 (DB 자격증명 포함)
+.mcp.json

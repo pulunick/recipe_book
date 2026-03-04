@@ -10,6 +10,7 @@ declare global {
 		interface PageState {
 			recipe?: Recipe;
 			sourceUrl?: string;
+			justAdded?: boolean;
 		}
 		// interface Platform {}
 	}

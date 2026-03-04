@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { untrack } from 'svelte';
+	import { page } from '$app/state';
+	import { untrack, onMount } from 'svelte';
 	import type { PageData } from './$types';
 	import type { CollectionTag } from '$lib/types';
 	import FlavorProfile from '$lib/components/FlavorProfile.svelte';
@@ -9,8 +10,12 @@
 	import StarRating from '$lib/components/StarRating.svelte';
 	import TagBadge from '$lib/components/TagBadge.svelte';
 	import TagPopover from '$lib/components/TagPopover.svelte';
+	import VideoCard from '$lib/components/VideoCard.svelte';
+	import ScrollToTop from '$lib/components/ScrollToTop.svelte';
 	import Toast from '$lib/components/Toast.svelte';
+	import { UtensilsCrossed } from 'lucide-svelte';
 	import {
+		extractRecipe,
 		deleteFromCollection,
 		updateCollection,
 		setRating,
@@ -43,6 +48,24 @@
 	});
 	let isSavingMemo = $state(false);
 
+	// 재분석 상태
+	let isReanalyzing = $state(false);
+
+	async function handleReanalyze() {
+		const videoUrl = recipe.video_url ?? (recipe.video_id ? `https://www.youtube.com/watch?v=${recipe.video_id}` : null);
+		if (!videoUrl) return;
+		isReanalyzing = true;
+		try {
+			const updated = await extractRecipe(videoUrl, true);
+			item = { ...item, recipe: updated };
+			triggerToast('재분석 완료!');
+		} catch (e) {
+			triggerToast(e instanceof Error ? e.message : '재분석 중 오류가 발생했습니다.');
+		} finally {
+			isReanalyzing = false;
+		}
+	}
+
 	// 요리 기록 상태
 	let isCooking = $state(false);
 
@@ -57,6 +80,13 @@
 		toastMessage = msg;
 		showToast = true;
 	}
+
+	// 자동 저장으로 이동 시 "추가됐어요" 토스트
+	onMount(() => {
+		if (page.state.justAdded) {
+			triggerToast('레시피북에 추가됐어요!');
+		}
+	});
 
 	// 별점 변경
 	async function handleRating(rating: number) {
@@ -189,6 +219,9 @@
 				<span class="saved-date">
 					{new Date(item.created_at).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })} 저장
 				</span>
+				<button class="btn-reanalyze" onclick={handleReanalyze} disabled={isReanalyzing}>
+					{isReanalyzing ? '분석 중...' : '다시 분석'}
+				</button>
 				{#if isConfirmingDelete}
 					<span class="confirm-delete">
 						정말 삭제할까요?
@@ -210,6 +243,20 @@
 				<p class="source-line">{sourceLine}</p>
 			{/if}
 
+			{#if recipe.servings || recipe.cooking_time || recipe.difficulty}
+				<div class="recipe-meta-chips">
+					{#if recipe.servings}
+						<span class="meta-chip">👥 {recipe.servings}</span>
+					{/if}
+					{#if recipe.cooking_time}
+						<span class="meta-chip">⏱ {recipe.cooking_time}</span>
+					{/if}
+					{#if recipe.difficulty}
+						<span class="meta-chip difficulty-{recipe.difficulty === '쉬움' ? 'easy' : recipe.difficulty === '보통' ? 'medium' : 'hard'}">{recipe.difficulty}</span>
+					{/if}
+				</div>
+			{/if}
+
 			<!-- 별점 + 요리횟수 -->
 			<div class="meta-row">
 				<div class="rating-area">
@@ -223,7 +270,7 @@
 
 				<div class="cooked-area">
 					<button class="btn-cooked" onclick={handleCooked} disabled={isCooking}>
-						{isCooking ? '기록 중...' : '오늘 요리했어요 🍳'}
+						{isCooking ? '기록 중...' : '오늘 요리했어요'} <UtensilsCrossed size={16} />
 					</button>
 					<span class="cooked-count">{item.cooked_count}회 요리</span>
 					{#if item.last_cooked_at}
@@ -269,6 +316,15 @@
 
 			<StepTimeline steps={recipe.steps} />
 
+			{#if recipe.tip}
+				<div class="tip-section">
+					<div class="tip-card">
+						<span class="tip-label">✦ 꿀팁</span>
+						<p>{recipe.tip}</p>
+					</div>
+				</div>
+			{/if}
+
 			<div class="memo-section">
 				<div class="memo-card">
 					<div class="memo-card-header">
@@ -304,30 +360,17 @@
 				</div>
 			</div>
 
-			{#if recipe.tip}
-				<div class="tip-section">
-					<div class="tip-card">
-						<span class="tip-label">✦ 꿀팁</span>
-						<p>{recipe.tip}</p>
-					</div>
-				</div>
-			{/if}
-
-			{#if recipe.video_url || recipe.video_id}
-				<div class="video-link-area">
-					<a
-						href={recipe.video_url || `https://youtu.be/${recipe.video_id}`}
-						target="_blank"
-						rel="noopener noreferrer"
-						class="video-link"
-					>
-						원본 영상 보기 →
-					</a>
-				</div>
-			{/if}
+			<VideoCard
+				videoId={recipe.video_id}
+				videoUrl={recipe.video_url}
+				channelName={recipe.channel_name}
+				videoTitle={recipe.video_title}
+			/>
 		</article>
 	</section>
 </main>
+
+<ScrollToTop />
 
 <Toast message={toastMessage} show={showToast} ondismiss={() => showToast = false} />
 
@@ -373,6 +416,22 @@
 		font-size: 0.85rem;
 		color: var(--color-soft-brown);
 	}
+
+	.btn-reanalyze {
+		font-size: 0.82rem;
+		color: var(--color-soft-brown);
+		background: none;
+		border: 1px solid var(--color-light-line);
+		border-radius: 6px;
+		padding: 0.3rem 0.7rem;
+		cursor: pointer;
+		transition: border-color 0.15s, color 0.15s;
+	}
+	.btn-reanalyze:hover:not(:disabled) {
+		border-color: var(--color-soft-brown);
+		color: var(--color-warm-brown);
+	}
+	.btn-reanalyze:disabled { opacity: 0.6; cursor: not-allowed; }
 
 	.btn-delete {
 		font-size: 0.82rem;
@@ -509,13 +568,17 @@
 		gap: 0.4rem;
 		margin-bottom: 1.2rem;
 	}
+	.tags-area :global(.tag-badge) {
+		font-size: 0.88rem;
+		padding: 0.3rem 0.75rem;
+	}
 	.tag-add-wrap {
 		position: relative;
 	}
 	.btn-add-tag {
-		font-size: 0.72rem;
+		font-size: 0.88rem;
 		font-weight: 600;
-		padding: 0.15rem 0.5rem;
+		padding: 0.3rem 0.75rem;
 		border-radius: 10px;
 		border: 1px dashed var(--color-light-line);
 		background: none;
@@ -527,6 +590,25 @@
 		border-color: var(--color-terracotta);
 		color: var(--color-terracotta);
 	}
+
+	.recipe-meta-chips {
+		display: flex;
+		justify-content: center;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		margin-bottom: 1.2rem;
+	}
+	.meta-chip {
+		font-size: 0.82rem;
+		font-weight: 500;
+		color: var(--color-soft-brown);
+		background: var(--color-cream);
+		border-radius: 12px;
+		padding: 0.25rem 0.7rem;
+	}
+	.meta-chip.difficulty-easy { color: #1e7e34; background: #d4edda; font-weight: 600; }
+	.meta-chip.difficulty-medium { color: #856404; background: #fff3cd; font-weight: 600; }
+	.meta-chip.difficulty-hard { color: #a94442; background: #fde8e8; font-weight: 600; }
 
 	.recipe-summary {
 		color: var(--color-soft-brown);
@@ -651,17 +733,6 @@
 	}
 	.btn-cancel-memo:disabled { opacity: 0.6; cursor: not-allowed; }
 
-
-	.video-link-area {
-		margin-top: 2rem;
-		text-align: center;
-		padding-top: 1.5rem;
-		border-top: 1px solid var(--color-light-line);
-	}
-	.video-link {
-		font-size: 0.9rem;
-		color: var(--color-dusty-blue);
-	}
 
 	@media (max-width: 767px) {
 		.page-wrap { padding: 0 var(--page-padding-mobile); }

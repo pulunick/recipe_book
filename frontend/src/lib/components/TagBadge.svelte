@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { CollectionTag } from '$lib/types';
+	import { X } from 'lucide-svelte';
 
 	interface Props {
 		tag: CollectionTag;
@@ -18,7 +19,7 @@
 			class="remove-btn"
 			aria-label="{tag.name} 태그 제거"
 			onclick={() => onremove?.(tag.id)}
-		>×</button>
+		><X size={12} /></button>
 	{/if}
 </span>
 

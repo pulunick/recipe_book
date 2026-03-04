@@ -22,6 +22,14 @@ SvelteKit UI 구현, TypeScript 코드 작성, 컴포넌트 분리, 스타일링
 - 반응형 디자인 기본 적용
 - `npm run check`로 타입 체크 통과 확인
 
+## 프레임워크 활용 원칙
+- **SvelteKit/Svelte 네이티브 방식 우선** — 커스텀 패턴보다 SvelteKit이 제공하는 기능을 먼저 활용
+  - 라우팅: SvelteKit `<a href>`, `goto()`, `load()` 등 네이티브 사용
+  - 상태 관리: Svelte 5 rune(`$state`, `$derived`, `$effect`) 또는 Svelte store 활용, 별도 전역 유틸 파일 지양
+  - 전역 상태 공유 필요 시: `.svelte.ts` rune 파일 또는 `writable` store 사용 (외부 등록/해제 패턴 금지)
+  - 트랜지션/애니메이션: `svelte/transition`, `svelte/animate` 활용
+- SvelteKit 기본 동작을 우회하는 커스텀 패턴은 도입 전 팀리더에게 먼저 확인
+
 ## QA 범위
 - 프론트엔드 ↔ 백엔드 통합 검증
 - UI/UX 일관성 확인

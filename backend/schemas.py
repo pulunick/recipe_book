@@ -62,6 +62,9 @@ class Recipe(BaseModel):
     steps: List[RecipeStep] = Field(..., description="구조화된 조리 순서")
     flavor: FlavorProfile
     tip: Optional[str] = Field(None, description="마무리 꿀팁 및 보관법")
+    servings: Optional[str] = Field(None, description="몇 인분 (예: '2인분', '4인분')")
+    cooking_time: Optional[str] = Field(None, description="총 조리 시간 (예: '30분', '1시간 30분')")
+    difficulty: Optional[str] = Field(None, description="난이도: '쉬움', '보통', '어려움' 중 하나")
     category: Optional[str] = Field(None, description="레시피 카테고리 (예: 한식, 양식, 국/찌개 등)")
     video_url: Optional[str] = Field(None, description="유튜브 영상 URL")
     video_id: Optional[str] = Field(None, description="유튜브 영상 고유 ID")
