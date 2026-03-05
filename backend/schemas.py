@@ -81,6 +81,10 @@ class CollectionRequest(BaseModel):
 
 class CollectionUpdateRequest(BaseModel):
     custom_tip: Optional[str] = Field(None, description="수정할 개인 메모")
+    recipe_override: Optional[Dict] = Field(
+        None,
+        description="재료/단계 수정본 (ingredients, steps, tip 키 포함 가능). None이면 원본 사용.",
+    )
 
 
 # --- 태그 관련 스키마 ---

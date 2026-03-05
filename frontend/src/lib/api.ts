@@ -1,4 +1,4 @@
-import type { Recipe, CollectionItem, CollectionTag } from './types';
+import type { Recipe, CollectionItem, CollectionTag, RecipeOverride } from './types';
 import { getSession } from '$lib/stores/auth.svelte';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -82,6 +82,22 @@ export async function updateCollection(collectionId: number, customTip: string):
 		method: 'PATCH',
 		headers: getAuthHeaders(),
 		body: JSON.stringify({ custom_tip: customTip || null })
+	});
+	await handleResponse(response);
+}
+
+export async function updateCollectionWithOverride(
+	collectionId: number,
+	customTip: string | null,
+	recipeOverride: RecipeOverride | null
+): Promise<void> {
+	const response = await fetch(`${API_BASE}/collections/${collectionId}`, {
+		method: 'PATCH',
+		headers: getAuthHeaders(),
+		body: JSON.stringify({
+			custom_tip: customTip || null,
+			recipe_override: recipeOverride
+		})
 	});
 	await handleResponse(response);
 }

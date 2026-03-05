@@ -37,10 +37,32 @@ export interface Recipe {
 	difficulty: string | null;
 }
 
+export interface IngredientOverride {
+	name: string;
+	amount: string;
+	unit: string;
+	category: string;
+	note?: string;
+}
+
+export interface StepOverride {
+	order: number;
+	description: string;
+	timer_minutes?: number | null;
+	note?: string;
+}
+
+export interface RecipeOverride {
+	ingredients?: IngredientOverride[];
+	steps?: StepOverride[];
+	tip?: string;
+}
+
 export interface CollectionItem {
 	id: number;
 	recipe: Recipe;
 	custom_tip: string | null;
+	recipe_override: RecipeOverride | null;
 	created_at: string;
 	is_favorite: boolean;
 	my_rating: number | null;

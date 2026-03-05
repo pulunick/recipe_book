@@ -5,6 +5,9 @@ from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from schemas import (
     Recipe, CollectionRequest, CollectionUpdateRequest, ExtractRecipeRequest, ErrorResponse,
@@ -18,6 +21,9 @@ from auth import get_current_user
 from logger import get_logger
 
 logger = get_logger(__name__)
+
+# --- slowapi Rate Limiter ---
+limiter = Limiter(key_func=get_remote_address)
 
 
 async def _verify_collection_owner(collection_id: int, user_id: str, supabase) -> None:
@@ -41,9 +47,23 @@ app = FastAPI(
         400: {"model": ErrorResponse},
         403: {"model": ErrorResponse},
         422: {"model": ErrorResponse},
+        429: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },
 )
+app.state.limiter = limiter
+
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(_request: Request, exc: RateLimitExceeded):
+    return JSONResponse(
+        status_code=429,
+        content=ErrorResponse(
+            error_code="RATE_LIMIT_EXCEEDED",
+            message="요청 횟수가 너무 많습니다. 잠시 후 다시 시도해 주세요.",
+            detail=str(exc.detail),
+        ).model_dump(),
+    )
 
 # --- CORS 설정 (환경변수 기반) ---
 allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5180,http://localhost:80,https://recipe-book-gray-five.vercel.app")
@@ -109,7 +129,8 @@ async def health_check():
 
 
 @app.post("/extract-recipe", response_model=Recipe)
-async def extract_recipe(request: ExtractRecipeRequest):
+@limiter.limit("5/minute;30/day")
+async def extract_recipe(request_obj: Request, request: ExtractRecipeRequest):
     start_time = time.time()
     success = False
 
@@ -406,7 +427,7 @@ async def delete_from_collection(collection_id: int, jwt_user_id: str = Depends(
 
 @app.patch("/collections/{collection_id}")
 async def update_collection(collection_id: int, request: CollectionUpdateRequest, jwt_user_id: str = Depends(get_current_user)):
-    """보관함 메모(custom_tip) 수정"""
+    """보관함 메모(custom_tip) 및 레시피 수정본(recipe_override) 업데이트"""
     try:
         supabase = get_supabase_client()
         if not supabase:
@@ -419,7 +440,17 @@ async def update_collection(collection_id: int, request: CollectionUpdateRequest
             )
 
         await _verify_collection_owner(collection_id, jwt_user_id, supabase)
-        supabase.table("user_collections").update({"custom_tip": request.custom_tip}).eq("id", collection_id).execute()
+
+        update_data: dict = {}
+        if request.custom_tip is not None:
+            update_data["custom_tip"] = request.custom_tip
+        # recipe_override는 None 전달 시 원본 복원, 값 전달 시 수정본 저장
+        if "recipe_override" in request.model_fields_set:
+            update_data["recipe_override"] = request.recipe_override
+
+        if update_data:
+            supabase.table("user_collections").update(update_data).eq("id", collection_id).execute()
+
         return {"status": "updated"}
 
     except HTTPException:

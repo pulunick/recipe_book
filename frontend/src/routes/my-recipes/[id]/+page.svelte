@@ -14,10 +14,12 @@
 	import ScrollToTop from '$lib/components/ScrollToTop.svelte';
 	import Toast from '$lib/components/Toast.svelte';
 	import { UtensilsCrossed } from 'lucide-svelte';
+	import type { RecipeOverride, IngredientOverride, StepOverride, RecipeStep, Ingredient } from '$lib/types';
 	import {
 		extractRecipe,
 		deleteFromCollection,
 		updateCollection,
+		updateCollectionWithOverride,
 		setRating,
 		recordCooked,
 		getTags,
@@ -47,6 +49,91 @@
 		memoText = data.item.custom_tip ?? '';
 	});
 	let isSavingMemo = $state(false);
+
+	// 편집 모드 상태
+	let isEditMode = $state(false);
+	let isSavingEdit = $state(false);
+	// 편집 중인 재료/단계 (원본을 복사해서 편집)
+	let editIngredients = $state<IngredientOverride[]>([]);
+	let editSteps = $state<StepOverride[]>([]);
+	let editTip = $state<string>('');
+	// 원본 복원 시 true로 설정
+	let restoreOriginal = $state(false);
+
+	// 편집 모드 진입: 현재 표시 중인 데이터(override 우선)로 초기화
+	function enterEditMode() {
+		const override = item.recipe_override;
+		editIngredients = (override?.ingredients ?? recipe.ingredients).map((ing) => ({
+			name: ing.name,
+			amount: ing.amount ?? '',
+			unit: ing.unit ?? '',
+			category: ing.category,
+			note: (ing as IngredientOverride).note ?? ''
+		}));
+		editSteps = (override?.steps ?? recipe.steps).map((s, i) => ({
+			order: (s as StepOverride).order ?? (s as RecipeStep).step_number ?? i + 1,
+			description: s.description,
+			timer_minutes: (s as StepOverride).timer_minutes ?? null,
+			note: (s as StepOverride).note ?? ''
+		}));
+		editTip = override?.tip ?? recipe.tip ?? '';
+		restoreOriginal = false;
+		isEditMode = true;
+	}
+
+	function cancelEditMode() {
+		isEditMode = false;
+	}
+
+	async function saveEdit() {
+		isSavingEdit = true;
+		try {
+			let override: RecipeOverride | null = null;
+			if (!restoreOriginal) {
+				override = {
+					ingredients: editIngredients,
+					steps: editSteps,
+					tip: editTip || undefined
+				};
+			}
+			await updateCollectionWithOverride(item.id, item.custom_tip, override);
+			item = { ...item, recipe_override: override };
+			isEditMode = false;
+			triggerToast(restoreOriginal ? '원본 레시피로 복원됐어요.' : '수정사항이 저장됐어요.');
+		} catch {
+			triggerToast('저장 중 오류가 발생했습니다.');
+		} finally {
+			isSavingEdit = false;
+		}
+	}
+
+	// 편집 모드에서 표시할 재료/단계 (override 있으면 override, 없으면 원본)
+	const displayIngredients = $derived(
+		isEditMode ? editIngredients : (item.recipe_override?.ingredients ?? recipe.ingredients)
+	);
+	const displaySteps = $derived(
+		isEditMode ? editSteps : (item.recipe_override?.steps ?? recipe.steps)
+	);
+	const displayTip = $derived(
+		isEditMode ? editTip : (item.recipe_override?.tip ?? recipe.tip)
+	);
+	const hasOverride = $derived(item.recipe_override != null);
+
+	// 재료/단계 수정 여부 비교 (원본 대비)
+	function isIngredientModified(idx: number): boolean {
+		if (!item.recipe_override?.ingredients) return false;
+		const orig = recipe.ingredients[idx];
+		const ov = item.recipe_override.ingredients[idx];
+		if (!orig || !ov) return true;
+		return orig.name !== ov.name || (orig.amount ?? '') !== ov.amount || (orig.unit ?? '') !== ov.unit;
+	}
+	function isStepModified(idx: number): boolean {
+		if (!item.recipe_override?.steps) return false;
+		const orig = recipe.steps[idx];
+		const ov = item.recipe_override.steps[idx];
+		if (!orig || !ov) return true;
+		return orig.description !== ov.description;
+	}
 
 	// 재분석 상태
 	let isReanalyzing = $state(false);
@@ -219,22 +306,43 @@
 				<span class="saved-date">
 					{new Date(item.created_at).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })} 저장
 				</span>
-				<button class="btn-reanalyze" onclick={handleReanalyze} disabled={isReanalyzing}>
-					{isReanalyzing ? '분석 중...' : '다시 분석'}
-				</button>
-				{#if isConfirmingDelete}
-					<span class="confirm-delete">
-						정말 삭제할까요?
-						<button class="btn-confirm" onclick={confirmDelete} disabled={isDeleting}>
-							{isDeleting ? '삭제 중...' : '삭제'}
-						</button>
-						<button class="btn-cancel" onclick={() => isConfirmingDelete = false} disabled={isDeleting}>취소</button>
-					</span>
-				{:else}
-					<button class="btn-delete" onclick={() => isConfirmingDelete = true}>삭제</button>
+				{#if !isEditMode}
+					<button class="btn-edit-recipe" onclick={enterEditMode}>
+						레시피 수정
+					</button>
+					<button class="btn-reanalyze" onclick={handleReanalyze} disabled={isReanalyzing}>
+						{isReanalyzing ? '분석 중...' : '다시 분석'}
+					</button>
+					{#if isConfirmingDelete}
+						<span class="confirm-delete">
+							정말 삭제할까요?
+							<button class="btn-confirm" onclick={confirmDelete} disabled={isDeleting}>
+								{isDeleting ? '삭제 중...' : '삭제'}
+							</button>
+							<button class="btn-cancel" onclick={() => isConfirmingDelete = false} disabled={isDeleting}>취소</button>
+						</span>
+					{:else}
+						<button class="btn-delete" onclick={() => isConfirmingDelete = true}>삭제</button>
+					{/if}
 				{/if}
 			</div>
 		</div>
+
+		{#if isEditMode}
+			<div class="edit-banner">
+				<span class="edit-banner-text">✎ 수정 중</span>
+				<label class="restore-label">
+					<input type="checkbox" bind:checked={restoreOriginal} />
+					원본으로 복원
+				</label>
+				<div class="edit-banner-actions">
+					<button class="btn-save-edit" onclick={saveEdit} disabled={isSavingEdit}>
+						{isSavingEdit ? '저장 중...' : '변경 저장'}
+					</button>
+					<button class="btn-cancel-edit" onclick={cancelEditMode} disabled={isSavingEdit}>취소</button>
+				</div>
+			</div>
+		{/if}
 
 		<article class="recipe-card">
 			<h1 class="recipe-title">{recipe.title}{recipe.channel_name ? ` - ${recipe.channel_name}` : ''}</h1>
@@ -309,20 +417,119 @@
 
 			<FlavorProfile flavor={recipe.flavor} />
 
-			<IngredientList
-				ingredients={recipe.ingredients}
-				storageKey={recipe.video_id ?? String(recipe.id ?? '')}
-			/>
-
-			<StepTimeline steps={recipe.steps} />
-
-			{#if recipe.tip}
-				<div class="tip-section">
-					<div class="tip-card">
-						<span class="tip-label">✦ 꿀팁</span>
-						<p>{recipe.tip}</p>
-					</div>
+			{#if isEditMode && !restoreOriginal}
+				<!-- 재료 편집 모드 -->
+				<div class="edit-section">
+					<h3 class="edit-section-title">재료 수정</h3>
+					{#each editIngredients as ing, i (i)}
+						<div class="edit-ingredient-row" class:modified={isIngredientModified(i)}>
+							{#if isIngredientModified(i)}
+								<span class="modified-badge">수정됨</span>
+							{/if}
+							<div class="edit-ingredient-fields">
+								<input
+									class="edit-input name-input"
+									bind:value={editIngredients[i].name}
+									placeholder="재료명"
+								/>
+								<input
+									class="edit-input amount-input"
+									bind:value={editIngredients[i].amount}
+									placeholder="수량"
+								/>
+								<input
+									class="edit-input unit-input"
+									bind:value={editIngredients[i].unit}
+									placeholder="단위"
+								/>
+								<input
+									class="edit-input note-input"
+									bind:value={editIngredients[i].note}
+									placeholder="메모 (선택)"
+								/>
+								<button
+									class="btn-remove-row"
+									onclick={() => { editIngredients = editIngredients.filter((_, idx) => idx !== i); }}
+									aria-label="재료 삭제"
+								>✕</button>
+							</div>
+						</div>
+					{/each}
+					<button
+						class="btn-add-row"
+						onclick={() => { editIngredients = [...editIngredients, { name: '', amount: '', unit: '', category: '기타', note: '' }]; }}
+					>+ 재료 추가</button>
 				</div>
+
+				<!-- 단계 편집 모드 -->
+				<div class="edit-section">
+					<h3 class="edit-section-title">조리 단계 수정</h3>
+					{#each editSteps as step, i (i)}
+						<div class="edit-step-row" class:modified={isStepModified(i)}>
+							<div class="edit-step-header">
+								<span class="step-num">{step.order}단계</span>
+								{#if isStepModified(i)}
+									<span class="modified-badge">수정됨</span>
+								{/if}
+								<button
+									class="btn-remove-row"
+									onclick={() => { editSteps = editSteps.filter((_, idx) => idx !== i); }}
+									aria-label="단계 삭제"
+								>✕</button>
+							</div>
+							<textarea
+								class="edit-textarea"
+								bind:value={editSteps[i].description}
+								placeholder="조리 단계 설명"
+								rows="3"
+							></textarea>
+							<input
+								class="edit-input note-input"
+								bind:value={editSteps[i].note}
+								placeholder="메모 (선택): 이 단계에서 주의할 점"
+							/>
+						</div>
+					{/each}
+					<button
+						class="btn-add-row"
+						onclick={() => { editSteps = [...editSteps, { order: editSteps.length + 1, description: '', note: '' }]; }}
+					>+ 단계 추가</button>
+				</div>
+
+				<!-- 꿀팁 편집 -->
+				<div class="edit-section">
+					<h3 class="edit-section-title">꿀팁 수정</h3>
+					<textarea
+						class="edit-textarea"
+						bind:value={editTip}
+						placeholder="나만의 꿀팁 (비워두면 AI 꿀팁 표시)"
+						rows="3"
+					></textarea>
+				</div>
+			{:else}
+				<!-- 뷰 모드: override 있으면 override 표시, 없으면 원본 -->
+				{#if hasOverride && !isEditMode}
+					<div class="override-notice">
+						<span>수정된 버전을 보고 있어요</span>
+						<button class="btn-restore-link" onclick={async () => { await updateCollectionWithOverride(item.id, item.custom_tip, null); item = { ...item, recipe_override: null }; triggerToast('원본 레시피로 복원됐어요.'); }}>
+							원본으로 복원
+						</button>
+					</div>
+				{/if}
+				<IngredientList
+					ingredients={displayIngredients as Ingredient[]}
+					storageKey={recipe.video_id ?? String(recipe.id ?? '')}
+				/>
+				<StepTimeline steps={displaySteps as RecipeStep[]} />
+
+				{#if displayTip}
+					<div class="tip-section">
+						<div class="tip-card">
+							<span class="tip-label">✦ 꿀팁</span>
+							<p>{displayTip}</p>
+						</div>
+					</div>
+				{/if}
 			{/if}
 
 			<div class="memo-section">
@@ -734,6 +941,223 @@
 	.btn-cancel-memo:disabled { opacity: 0.6; cursor: not-allowed; }
 
 
+	/* 레시피 수정 버튼 */
+	.btn-edit-recipe {
+		font-size: 0.82rem;
+		color: var(--color-terracotta, #c0714f);
+		background: none;
+		border: 1px solid var(--color-terracotta, #c0714f);
+		border-radius: 6px;
+		padding: 0.3rem 0.7rem;
+		cursor: pointer;
+		font-weight: 600;
+		transition: background 0.15s, color 0.15s;
+	}
+	.btn-edit-recipe:hover {
+		background: var(--color-terracotta, #c0714f);
+		color: white;
+	}
+
+	/* 편집 배너 */
+	.edit-banner {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+		padding: 0.7rem 1.2rem;
+		background: color-mix(in srgb, var(--color-terracotta, #c0714f) 10%, white);
+		border: 1px solid color-mix(in srgb, var(--color-terracotta, #c0714f) 30%, white);
+		border-radius: 8px;
+		margin-bottom: 1rem;
+		flex-wrap: wrap;
+	}
+	.edit-banner-text {
+		font-size: 0.9rem;
+		font-weight: 700;
+		color: var(--color-terracotta, #c0714f);
+	}
+	.restore-label {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		font-size: 0.82rem;
+		color: var(--color-soft-brown);
+		cursor: pointer;
+	}
+	.edit-banner-actions {
+		display: flex;
+		gap: 0.5rem;
+		margin-left: auto;
+	}
+	.btn-save-edit {
+		font-size: 0.85rem;
+		background: var(--color-terracotta, #c0714f);
+		color: white;
+		border: none;
+		border-radius: 6px;
+		padding: 0.4rem 1rem;
+		cursor: pointer;
+		font-weight: 600;
+	}
+	.btn-save-edit:disabled { opacity: 0.6; cursor: not-allowed; }
+	.btn-cancel-edit {
+		font-size: 0.85rem;
+		background: none;
+		border: 1px solid var(--color-light-line);
+		border-radius: 6px;
+		padding: 0.4rem 0.8rem;
+		cursor: pointer;
+		color: var(--color-soft-brown);
+	}
+	.btn-cancel-edit:disabled { opacity: 0.6; cursor: not-allowed; }
+
+	/* 편집 섹션 */
+	.edit-section {
+		margin-top: 2rem;
+	}
+	.edit-section-title {
+		font-size: 0.88rem;
+		font-weight: 700;
+		color: var(--color-soft-brown);
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		margin-bottom: 0.8rem;
+		padding-bottom: 0.4rem;
+		border-bottom: 1px solid var(--color-light-line);
+	}
+
+	/* 재료 편집 행 */
+	.edit-ingredient-row {
+		position: relative;
+		margin-bottom: 0.5rem;
+		padding: 0.5rem 0.6rem;
+		border-radius: 6px;
+		background: var(--color-cream);
+	}
+	.edit-ingredient-row.modified {
+		border-left: 3px solid var(--color-terracotta, #c0714f);
+	}
+	.edit-ingredient-fields {
+		display: flex;
+		gap: 0.4rem;
+		align-items: center;
+		flex-wrap: wrap;
+	}
+	.edit-input {
+		font-size: 0.88rem;
+		padding: 0.35rem 0.6rem;
+		border: 1px solid var(--color-light-line);
+		border-radius: 5px;
+		background: white;
+		color: var(--color-warm-brown);
+		font-family: inherit;
+	}
+	.edit-input:focus {
+		outline: none;
+		border-color: var(--color-terracotta, #c0714f);
+	}
+	.name-input { flex: 2; min-width: 80px; }
+	.amount-input { flex: 1; min-width: 60px; }
+	.unit-input { flex: 1; min-width: 50px; }
+	.note-input { flex: 3; min-width: 100px; }
+
+	/* 단계 편집 행 */
+	.edit-step-row {
+		margin-bottom: 1rem;
+		padding: 0.8rem 0.8rem;
+		border-radius: 6px;
+		background: var(--color-cream);
+	}
+	.edit-step-row.modified {
+		border-left: 3px solid var(--color-terracotta, #c0714f);
+	}
+	.edit-step-header {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		margin-bottom: 0.5rem;
+	}
+	.step-num {
+		font-size: 0.78rem;
+		font-weight: 700;
+		color: var(--color-soft-brown);
+	}
+	.edit-textarea {
+		width: 100%;
+		padding: 0.6rem 0.7rem;
+		border: 1px solid var(--color-light-line);
+		border-radius: 5px;
+		font-size: 0.92rem;
+		line-height: 1.7;
+		color: var(--color-warm-brown);
+		background: white;
+		resize: vertical;
+		box-sizing: border-box;
+		font-family: inherit;
+		margin-bottom: 0.4rem;
+	}
+	.edit-textarea:focus {
+		outline: none;
+		border-color: var(--color-terracotta, #c0714f);
+	}
+
+	/* 수정됨 뱃지 */
+	.modified-badge {
+		font-size: 0.68rem;
+		font-weight: 700;
+		color: var(--color-terracotta, #c0714f);
+		background: color-mix(in srgb, var(--color-terracotta, #c0714f) 12%, white);
+		border-radius: 8px;
+		padding: 0.1rem 0.45rem;
+	}
+
+	/* 행 추가/삭제 버튼 */
+	.btn-add-row {
+		font-size: 0.82rem;
+		color: var(--color-terracotta, #c0714f);
+		background: none;
+		border: 1px dashed var(--color-terracotta, #c0714f);
+		border-radius: 6px;
+		padding: 0.35rem 0.8rem;
+		cursor: pointer;
+		margin-top: 0.3rem;
+		transition: background 0.15s;
+	}
+	.btn-add-row:hover { background: color-mix(in srgb, var(--color-terracotta, #c0714f) 8%, white); }
+	.btn-remove-row {
+		font-size: 0.75rem;
+		color: var(--color-muted-red, #c0392b);
+		background: none;
+		border: none;
+		cursor: pointer;
+		padding: 0.1rem 0.3rem;
+		opacity: 0.6;
+		margin-left: auto;
+	}
+	.btn-remove-row:hover { opacity: 1; }
+
+	/* 원본 복원 알림 */
+	.override-notice {
+		display: flex;
+		align-items: center;
+		gap: 0.8rem;
+		font-size: 0.82rem;
+		color: var(--color-soft-brown);
+		background: color-mix(in srgb, var(--color-terracotta, #c0714f) 8%, white);
+		border: 1px solid color-mix(in srgb, var(--color-terracotta, #c0714f) 20%, white);
+		border-radius: 6px;
+		padding: 0.5rem 0.8rem;
+		margin-bottom: 1rem;
+	}
+	.btn-restore-link {
+		font-size: 0.8rem;
+		color: var(--color-terracotta, #c0714f);
+		background: none;
+		border: none;
+		cursor: pointer;
+		text-decoration: underline;
+		padding: 0;
+	}
+
 	@media (max-width: 767px) {
 		.page-wrap { padding: 0 var(--page-padding-mobile); }
 		.recipe-card { padding: 1.5rem; }
@@ -745,5 +1169,7 @@
 		.btn-save { min-height: 44px; padding: 0.6rem 1.2rem; }
 		.meta-row { gap: 1rem; }
 		.btn-cooked { min-height: 40px; padding: 0.4rem 0.9rem; }
+		.edit-ingredient-fields { flex-direction: column; }
+		.name-input, .amount-input, .unit-input, .note-input { width: 100%; }
 	}
 </style>
