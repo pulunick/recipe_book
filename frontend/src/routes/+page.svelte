@@ -1,13 +1,31 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import type { PageStatus } from '$lib/types';
 	import { extractRecipe, saveToCollection } from '$lib/api';
+	import { isLoggedIn, openLoginModal } from '$lib/stores/auth.svelte';
 	import SearchBox from '$lib/components/SearchBox.svelte';
 	import LoadingScreen from '$lib/components/LoadingScreen.svelte';
 
 	let status: PageStatus = $state('IDLE');
 	let errorMessage = $state('');
 	let currentVideoId: string | null = $state(null);
+
+	// 로그인 후 돌아왔을 때 pending recipe 자동 저장
+	onMount(async () => {
+		const pendingRecipeId = page.url.searchParams.get('save_recipe_id');
+		if (pendingRecipeId && isLoggedIn()) {
+			status = 'LOADING';
+			try {
+				const collectionId = await saveToCollection(Number(pendingRecipeId));
+				await goto(`/my-recipes/${collectionId}`, { state: { justAdded: true } });
+			} catch (e: unknown) {
+				status = 'ERROR';
+				errorMessage = e instanceof Error ? e.message : '저장 중 오류가 발생했습니다.';
+			}
+		}
+	});
 
 	function getVideoId(url: string): string | null {
 		const m = url.match(/(?:v=|\/|youtu\.be\/|embed\/|shorts\/)([0-9A-Za-z_-]{11})/);
@@ -20,14 +38,16 @@
 		currentVideoId = getVideoId(url);
 		try {
 			const recipe = await extractRecipe(url);
-			// 분석 완료 → 자동 저장 → 상세 페이지로 바로 이동
 			if (recipe.id) {
+				// 비로그인 시 recipe.id를 redirect에 담아 로그인 후 자동 저장
+				if (!isLoggedIn()) {
+					openLoginModal(`/?save_recipe_id=${recipe.id}`);
+					status = 'IDLE';
+					return;
+				}
 				const collectionId = await saveToCollection(recipe.id);
-				await goto(`/my-recipes/${collectionId}`, {
-					state: { justAdded: true }
-				});
+				await goto(`/my-recipes/${collectionId}`, { state: { justAdded: true } });
 			} else {
-				// recipe.id 없는 경우 (예외) — 결과 페이지로 fallback
 				await goto(`/recipe/${recipe.video_id ?? recipe.id}`, {
 					state: { recipe, sourceUrl: url }
 				});

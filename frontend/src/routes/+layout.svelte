@@ -1,9 +1,16 @@
 <script lang="ts">
 	import '../app.css';
+	import { onMount } from 'svelte';
 	import Navbar from '$lib/components/Navbar.svelte';
+	import LoginModal from '$lib/components/LoginModal.svelte';
 	import { page } from '$app/state';
+	import { initAuth } from '$lib/stores/auth.svelte';
 
 	let { children } = $props();
+
+	onMount(() => {
+		initAuth();
+	});
 
 	const activePage = $derived(
 		page.url.pathname.startsWith('/my-recipes') ? 'my-recipes' as const : 'home' as const
@@ -17,4 +24,5 @@
 </svelte:head>
 
 <Navbar {activePage} />
+<LoginModal />
 {@render children()}

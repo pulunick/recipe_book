@@ -21,6 +21,7 @@
 		"vite": "^7.2.6"
 	},
 	"dependencies": {
+		"@supabase/supabase-js": "^2.98.0",
 		"@sveltejs/adapter-vercel": "^6.3.2",
 		"lucide-svelte": "^0.576.0"
 	}

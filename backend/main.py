@@ -1,7 +1,7 @@
 import os
 import time
 from datetime import datetime, timezone
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
@@ -14,9 +14,26 @@ from schemas import (
 from utils import extract_video_id, get_video_metadata
 from ai_engine import extract_recipe_with_gemini
 from database import get_supabase_client
+from auth import get_current_user
 from logger import get_logger
 
 logger = get_logger(__name__)
+
+
+async def _verify_collection_owner(collection_id: int, user_id: str, supabase) -> None:
+    """컬렉션 소유권 검증 — 본인 소유가 아니면 403"""
+    result = supabase.table("user_collections").select("user_id").eq("id", collection_id).execute()
+    if not result.data:
+        raise HTTPException(
+            status_code=404,
+            detail=ErrorResponse(error_code="NOT_FOUND", message="컬렉션을 찾을 수 없습니다.").model_dump(),
+        )
+    if result.data[0]["user_id"] != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail=ErrorResponse(error_code="FORBIDDEN", message="접근 권한이 없습니다.").model_dump(),
+        )
+
 
 app = FastAPI(
     title="해먹당 API",
@@ -205,6 +222,7 @@ async def extract_recipe(request: ExtractRecipeRequest):
 @app.get("/collections/{user_id}")
 async def get_user_collections(
     user_id: str,
+    jwt_user_id: str = Depends(get_current_user),
     category: str | None = None,
     tag_id: int | None = None,
     is_favorite: bool | None = None,
@@ -222,6 +240,11 @@ async def get_user_collections(
     - q: 레시피 제목 검색
     """
     try:
+        if user_id != jwt_user_id:
+            raise HTTPException(
+                status_code=403,
+                detail=ErrorResponse(error_code="FORBIDDEN", message="접근 권한이 없습니다.").model_dump(),
+            )
         supabase = get_supabase_client()
         if not supabase:
             raise HTTPException(
@@ -308,7 +331,7 @@ async def get_user_collections(
 
 
 @app.post("/collections")
-async def save_to_collection(request: CollectionRequest):
+async def save_to_collection(request: CollectionRequest, jwt_user_id: str = Depends(get_current_user)):
     try:
         supabase = get_supabase_client()
         if not supabase:
@@ -321,6 +344,7 @@ async def save_to_collection(request: CollectionRequest):
             )
 
         data = request.model_dump()
+        data["user_id"] = jwt_user_id
         result = supabase.table("user_collections").upsert(data).execute()
 
         if not result.data:
@@ -349,7 +373,7 @@ async def save_to_collection(request: CollectionRequest):
 
 
 @app.delete("/collections/{collection_id}")
-async def delete_from_collection(collection_id: int):
+async def delete_from_collection(collection_id: int, jwt_user_id: str = Depends(get_current_user)):
     """보관함에서 레시피 삭제"""
     try:
         supabase = get_supabase_client()
@@ -362,6 +386,7 @@ async def delete_from_collection(collection_id: int):
                 ).model_dump(),
             )
 
+        await _verify_collection_owner(collection_id, jwt_user_id, supabase)
         supabase.table("user_collections").delete().eq("id", collection_id).execute()
         return {"status": "deleted"}
 
@@ -380,7 +405,7 @@ async def delete_from_collection(collection_id: int):
 
 
 @app.patch("/collections/{collection_id}")
-async def update_collection(collection_id: int, request: CollectionUpdateRequest):
+async def update_collection(collection_id: int, request: CollectionUpdateRequest, jwt_user_id: str = Depends(get_current_user)):
     """보관함 메모(custom_tip) 수정"""
     try:
         supabase = get_supabase_client()
@@ -393,6 +418,7 @@ async def update_collection(collection_id: int, request: CollectionUpdateRequest
                 ).model_dump(),
             )
 
+        await _verify_collection_owner(collection_id, jwt_user_id, supabase)
         supabase.table("user_collections").update({"custom_tip": request.custom_tip}).eq("id", collection_id).execute()
         return {"status": "updated"}
 
@@ -412,7 +438,7 @@ async def update_collection(collection_id: int, request: CollectionUpdateRequest
 
 # --- 즐겨찾기 토글 ---
 @app.put("/collections/{collection_id}/favorite")
-async def toggle_favorite(collection_id: int):
+async def toggle_favorite(collection_id: int, jwt_user_id: str = Depends(get_current_user)):
     """즐겨찾기 토글 — 현재 값 반전"""
     try:
         supabase = get_supabase_client()
@@ -425,11 +451,16 @@ async def toggle_favorite(collection_id: int):
                 ).model_dump(),
             )
 
-        current = supabase.table("user_collections").select("is_favorite").eq("id", collection_id).execute()
+        current = supabase.table("user_collections").select("user_id,is_favorite").eq("id", collection_id).execute()
         if not current.data:
             raise HTTPException(
                 status_code=404,
                 detail=ErrorResponse(error_code="NOT_FOUND", message="컬렉션을 찾을 수 없습니다.").model_dump(),
+            )
+        if current.data[0]["user_id"] != jwt_user_id:
+            raise HTTPException(
+                status_code=403,
+                detail=ErrorResponse(error_code="FORBIDDEN", message="접근 권한이 없습니다.").model_dump(),
             )
 
         new_value = not current.data[0]["is_favorite"]
@@ -452,7 +483,7 @@ async def toggle_favorite(collection_id: int):
 
 # --- 별점 설정 ---
 @app.put("/collections/{collection_id}/rating")
-async def set_rating(collection_id: int, request: RatingRequest):
+async def set_rating(collection_id: int, request: RatingRequest, jwt_user_id: str = Depends(get_current_user)):
     """별점 설정 (1~5)"""
     try:
         supabase = get_supabase_client()
@@ -465,6 +496,7 @@ async def set_rating(collection_id: int, request: RatingRequest):
                 ).model_dump(),
             )
 
+        await _verify_collection_owner(collection_id, jwt_user_id, supabase)
         result = supabase.table("user_collections").update({"my_rating": request.rating}).eq("id", collection_id).execute()
         if not result.data:
             raise HTTPException(
@@ -489,7 +521,7 @@ async def set_rating(collection_id: int, request: RatingRequest):
 
 # --- 만들어봤어요 기록 ---
 @app.post("/collections/{collection_id}/cooked")
-async def record_cooked(collection_id: int, request: CookedRequest):
+async def record_cooked(collection_id: int, request: CookedRequest, jwt_user_id: str = Depends(get_current_user)):
     """요리 기록 — cooked_count +1, last_cooked_at 업데이트, 선택적 별점"""
     try:
         supabase = get_supabase_client()
@@ -502,11 +534,16 @@ async def record_cooked(collection_id: int, request: CookedRequest):
                 ).model_dump(),
             )
 
-        current = supabase.table("user_collections").select("cooked_count").eq("id", collection_id).execute()
+        current = supabase.table("user_collections").select("user_id,cooked_count").eq("id", collection_id).execute()
         if not current.data:
             raise HTTPException(
                 status_code=404,
                 detail=ErrorResponse(error_code="NOT_FOUND", message="컬렉션을 찾을 수 없습니다.").model_dump(),
+            )
+        if current.data[0]["user_id"] != jwt_user_id:
+            raise HTTPException(
+                status_code=403,
+                detail=ErrorResponse(error_code="FORBIDDEN", message="접근 권한이 없습니다.").model_dump(),
             )
 
         new_count = (current.data[0]["cooked_count"] or 0) + 1
@@ -536,7 +573,7 @@ async def record_cooked(collection_id: int, request: CookedRequest):
 
 # --- 카테고리 수동 변경 ---
 @app.put("/collections/{collection_id}/category")
-async def override_category(collection_id: int, request: CategoryOverrideRequest):
+async def override_category(collection_id: int, request: CategoryOverrideRequest, jwt_user_id: str = Depends(get_current_user)):
     """카테고리 수동 변경 — category_override 설정 (None이면 AI 분류로 복원)"""
     try:
         supabase = get_supabase_client()
@@ -549,6 +586,7 @@ async def override_category(collection_id: int, request: CategoryOverrideRequest
                 ).model_dump(),
             )
 
+        await _verify_collection_owner(collection_id, jwt_user_id, supabase)
         result = supabase.table("user_collections").update({"category_override": request.category}).eq("id", collection_id).execute()
         if not result.data:
             raise HTTPException(
@@ -573,9 +611,14 @@ async def override_category(collection_id: int, request: CategoryOverrideRequest
 
 # --- 태그 목록 조회 ---
 @app.get("/tags/{user_id}", response_model=list[CollectionTag])
-async def get_user_tags(user_id: str):
+async def get_user_tags(user_id: str, jwt_user_id: str = Depends(get_current_user)):
     """사용자의 태그 목록 조회"""
     try:
+        if user_id != jwt_user_id:
+            raise HTTPException(
+                status_code=403,
+                detail=ErrorResponse(error_code="FORBIDDEN", message="접근 권한이 없습니다.").model_dump(),
+            )
         supabase = get_supabase_client()
         if not supabase:
             raise HTTPException(
@@ -611,7 +654,7 @@ async def get_user_tags(user_id: str):
 
 # --- 태그 생성 ---
 @app.post("/tags", response_model=CollectionTag)
-async def create_tag(request: TagCreate):
+async def create_tag(request: TagCreate, jwt_user_id: str = Depends(get_current_user)):
     """새 태그 생성"""
     try:
         supabase = get_supabase_client()
@@ -624,7 +667,9 @@ async def create_tag(request: TagCreate):
                 ).model_dump(),
             )
 
-        result = supabase.table("collection_tags").insert(request.model_dump()).execute()
+        data = request.model_dump()
+        data["user_id"] = jwt_user_id
+        result = supabase.table("collection_tags").insert(data).execute()
         if not result.data:
             raise HTTPException(
                 status_code=400,
@@ -657,7 +702,7 @@ async def create_tag(request: TagCreate):
 
 # --- 태그 삭제 ---
 @app.delete("/tags/{tag_id}")
-async def delete_tag(tag_id: int):
+async def delete_tag(tag_id: int, jwt_user_id: str = Depends(get_current_user)):
     """태그 삭제 (연결된 collection_tag_items는 CASCADE 자동 삭제)"""
     try:
         supabase = get_supabase_client()
@@ -670,6 +715,12 @@ async def delete_tag(tag_id: int):
                 ).model_dump(),
             )
 
+        tag = supabase.table("collection_tags").select("user_id").eq("id", tag_id).execute()
+        if tag.data and tag.data[0]["user_id"] != jwt_user_id:
+            raise HTTPException(
+                status_code=403,
+                detail=ErrorResponse(error_code="FORBIDDEN", message="접근 권한이 없습니다.").model_dump(),
+            )
         supabase.table("collection_tags").delete().eq("id", tag_id).execute()
         return {"deleted": True}
 
@@ -689,7 +740,7 @@ async def delete_tag(tag_id: int):
 
 # --- 태그 부착/해제 (전체 덮어쓰기) ---
 @app.put("/collections/{collection_id}/tags")
-async def update_collection_tags(collection_id: int, request: CollectionTagUpdate):
+async def update_collection_tags(collection_id: int, request: CollectionTagUpdate, jwt_user_id: str = Depends(get_current_user)):
     """컬렉션에 태그 부착/해제 — tag_ids로 전체 덮어쓰기"""
     try:
         supabase = get_supabase_client()
@@ -702,6 +753,7 @@ async def update_collection_tags(collection_id: int, request: CollectionTagUpdat
                 ).model_dump(),
             )
 
+        await _verify_collection_owner(collection_id, jwt_user_id, supabase)
         # 기존 태그 연결 모두 삭제
         supabase.table("collection_tag_items").delete().eq("collection_id", collection_id).execute()
 

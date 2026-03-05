@@ -1,6 +1,6 @@
-# 마레픽 (My Recipe Pick) 프로젝트 명세서
+# 해먹당 (My Recipe Pick) 프로젝트 명세서
 
-## 🥗 프로젝트: 마레픽 (My Recipe Pick)
+## 🥗 프로젝트: 해먹당 (My Recipe Pick)
 
 ## 🛠 1. 최종 기술 스택 (Updated)
 
