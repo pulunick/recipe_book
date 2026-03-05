@@ -130,13 +130,13 @@ async def health_check():
 
 @app.post("/extract-recipe", response_model=Recipe)
 @limiter.limit("5/minute;30/day")
-async def extract_recipe(request_obj: Request, request: ExtractRecipeRequest):
+async def extract_recipe(request: Request, body: ExtractRecipeRequest):
     start_time = time.time()
     success = False
 
     try:
-        youtube_url = request.youtube_url
-        logger.info("레시피 추출 요청 수신: %s (모드: %s)", youtube_url, request.mode)
+        youtube_url = body.youtube_url
+        logger.info("레시피 추출 요청 수신: %s (모드: %s)", youtube_url, body.mode)
         supabase = get_supabase_client()
 
         # 1. Video ID 추출 (정규식 우선, yt-dlp fallback)
@@ -161,7 +161,7 @@ async def extract_recipe(request_obj: Request, request: ExtractRecipeRequest):
             )
 
         # 2. 캐시 체크 (force_refresh=True면 건너뜀)
-        if supabase and not request.force_refresh:
+        if supabase and not body.force_refresh:
             try:
                 existing = supabase.table("recipes").select("*").eq("video_id", video_id).execute()
                 if existing.data:
@@ -169,7 +169,7 @@ async def extract_recipe(request_obj: Request, request: ExtractRecipeRequest):
                     return Recipe(**existing.data[0])
             except Exception as db_err:
                 logger.warning("DB 조회 실패: %s", db_err)
-        elif request.force_refresh:
+        elif body.force_refresh:
             logger.info("force_refresh=True → 캐시 무시, 재분석 시작 (video_id: %s)", video_id)
 
         # 3. 메타데이터 조회 (oEmbed API — 봇 차단 없음)
@@ -198,7 +198,7 @@ async def extract_recipe(request_obj: Request, request: ExtractRecipeRequest):
                 recipe_data = recipe.model_dump(exclude={"id", "is_recipe", "non_recipe_reason"})
                 recipe_data["video_url"] = youtube_url
                 recipe_data["video_id"] = video_id
-                if request.force_refresh:
+                if body.force_refresh:
                     result = supabase.table("recipes").upsert(recipe_data, on_conflict="video_id").execute()
                     logger.info("DB upsert 완료 (video_id: %s)", video_id)
                 else:
@@ -231,7 +231,7 @@ async def extract_recipe(request_obj: Request, request: ExtractRecipeRequest):
             supabase = get_supabase_client()
             if supabase:
                 supabase.table("analysis_logs").insert({
-                    "video_url": request.youtube_url,
+                    "video_url": body.youtube_url,
                     "raw_response": None,
                     "processing_time_ms": processing_time_ms,
                     "success": success,
