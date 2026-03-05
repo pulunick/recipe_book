@@ -1,4 +1,4 @@
-import type { Recipe, CollectionItem, CollectionTag, RecipeOverride } from './types';
+import type { Recipe, CollectionItem, CollectionTag, RecipeOverride, RecipePublicItem } from './types';
 import { getSession } from '$lib/stores/auth.svelte';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -67,6 +67,13 @@ export async function getCollections(): Promise<CollectionItem[]> {
 		headers: getAuthHeaders()
 	});
 	return handleResponse<CollectionItem[]>(response);
+}
+
+export async function getCollectionItem(collectionId: number): Promise<CollectionItem> {
+	const response = await fetch(`${API_BASE}/collections/item/${collectionId}`, {
+		headers: getAuthHeaders()
+	});
+	return handleResponse<CollectionItem>(response);
 }
 
 export async function deleteFromCollection(collectionId: number): Promise<void> {
@@ -160,4 +167,27 @@ export async function setCollectionTags(collectionId: number, tagIds: number[]):
 		body: JSON.stringify({ tag_ids: tagIds })
 	});
 	await handleResponse(response);
+}
+
+export async function getRecipeCategories(): Promise<string[]> {
+	const response = await fetch(`${API_BASE}/recipes/categories`);
+	return handleResponse<string[]>(response);
+}
+
+export interface PublicRecipesParams {
+	category?: string;
+	q?: string;
+	page?: number;
+	limit?: number;
+}
+
+export async function getPublicRecipes(params: PublicRecipesParams = {}): Promise<RecipePublicItem[]> {
+	const query = new URLSearchParams();
+	if (params.category) query.set('category', params.category);
+	if (params.q) query.set('q', params.q);
+	if (params.page) query.set('page', String(params.page));
+	if (params.limit) query.set('limit', String(params.limit));
+	const response = await fetch(`${API_BASE}/recipes?${query.toString()}`);
+	const data = await handleResponse<{ items: RecipePublicItem[]; total: number; has_more: boolean }>(response);
+	return data.items;
 }

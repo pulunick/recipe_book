@@ -8,21 +8,10 @@ class ExtractRecipeRequest(BaseModel):
     mode: str = Field("fast", description="분석 모드: 'fast'(빠른 분석) 또는 'precise'(정밀 분석)")
     force_refresh: bool = Field(False, description="캐시 무시하고 강제 재분석")
 
-    @field_validator("youtube_url")
-    @classmethod
-    def validate_youtube_url(cls, v: str) -> str:
-        v = v.strip()
-        pattern = r"(https?://)?(www\.)?(youtube\.com|youtu\.be|m\.youtube\.com)/.+"
-        if not re.match(pattern, v):
-            raise ValueError("유효한 유튜브 URL이 아닙니다.")
-        return v
 
-    @field_validator("mode")
-    @classmethod
-    def validate_mode(cls, v: str) -> str:
-        if v not in ("fast", "precise"):
-            raise ValueError("mode는 'fast' 또는 'precise'만 가능합니다.")
-        return v
+class ExtractRecipeFromTextRequest(BaseModel):
+    text: str = Field(..., min_length=50, max_length=5000, description="레시피 텍스트 (50~5,000자)")
+    title: Optional[str] = Field(None, max_length=100, description="레시피 제목 (선택, 없으면 AI 자동 생성)")
 
 
 class ErrorResponse(BaseModel):
@@ -152,3 +141,27 @@ class CollectionListItem(BaseModel):
     created_at: Optional[str] = None
     recipe: Optional[Dict] = None
     tags: Optional[List[CollectionTag]] = None
+
+
+# --- 탐색 탭 응답 스키마 ---
+
+class RecipePublicItem(BaseModel):
+    """탐색 탭에 표시되는 공개 레시피 카드 정보"""
+    id: int
+    title: str
+    summary: Optional[str] = None
+    category: Optional[str] = None
+    cooking_time: Optional[str] = None
+    difficulty: Optional[str] = None
+    servings: Optional[str] = None
+    video_id: Optional[str] = None
+    channel_name: Optional[str] = None
+    created_at: Optional[str] = None
+    collection_count: int = 0
+
+
+class RecipesListResponse(BaseModel):
+    """GET /recipes 페이지네이션 응답 래퍼"""
+    items: List[RecipePublicItem]
+    total: int
+    has_more: bool

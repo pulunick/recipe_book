@@ -226,3 +226,124 @@ async def extract_recipe_with_gemini(
     result_recipe = Recipe(**parsed)
     result_recipe.video_id = video_id
     return result_recipe
+
+
+def _build_text_prompt(text: str, title: str | None) -> str:
+    """텍스트 입력용 분석 프롬프트 생성"""
+    title_hint = f"\n    [사용자 제공 제목]: {title}" if title else ""
+
+    return f"""
+    당신은 자유형식 텍스트를 분석하여 데이터베이스에 저장할 구조화된 레시피 데이터를 추출하는 'AI 요리 데이터 분석가'입니다.
+    아래 [입력 텍스트]를 바탕으로, 다음 규칙에 맞춰 완벽한 JSON 데이터를 생성하세요.
+    {title_hint}
+
+    [입력 텍스트]
+    {text}
+
+    [필수 지침]
+    1. 구어체, 반말, 메모 형식, 블로그 문체 등 어떤 형식이든 표준 레시피 형식으로 변환하세요.
+    2. "대충", "적당히" 같은 표현은 "약간", "적당량" 등으로 표준화하되, 원래 뉘앙스를 살리세요.
+    3. **[중요]** 입력 텍스트가 요리 레시피가 아닌 경우(예: 일상 대화, 뉴스, 관계없는 글),
+       `is_recipe`를 `false`로 설정하고 그 이유를 `non_recipe_reason`에 구체적으로 적으십시오.
+    4. 제목이 사용자 제공 제목이 있으면 그것을 우선 사용하되, 순수 요리명으로 정제하세요.
+       제목이 없으면 텍스트 내용에서 요리명을 추출하세요.
+
+    [데이터 구조화 가이드]
+    1. **Ingredients (재료)**:
+       - 모든 재료를 하나씩 분리하여 객체로 만드세요.
+       - `amount`는 수치(String)로, `unit`은 단위(String)로 명확히 분리하세요.
+       - `category`는 '주재료', '부재료', '양념', '소스', '토핑' 등으로 분류하세요.
+       - **[amount null 절대 금지]** 모든 재료의 `amount` 필드는 반드시 문자열 값이어야 합니다.
+         구체적 양을 알 수 없는 경우 "약간", "적당량", "취향껏" 중 적절한 표현을 사용하세요.
+    2. **Steps (조리 과정)**:
+       - 각 단계를 순서대로 분리하세요.
+       - `timer` 필드에는 구체적인 시간이 언급된 경우에만 기입하세요.
+       - **[핵심 정보 강조]** `description` 안에서 요리 성공에 결정적인 정보는 `**텍스트**` 형식으로 감싸세요.
+         강조 대상: 시간·온도, 중요 기술, 주의사항. 단계당 최대 1~2곳만 강조하세요.
+    3. **Flavor (맛 분석)**: saltiness, sweetness, spiciness, sourness, oiliness를 1~5점으로 평가.
+    4. **Category**: 한식, 양식, 중식, 일식, 동남아, 국/찌개, 볶음, 구이, 찜, 반찬, 디저트, 음료, 간식, 다이어트, 간편식 중 하나.
+    5. **Servings**: 텍스트에서 언급된 분량. 없으면 null.
+    6. **Cooking Time**: 총 조리 시간. 명시 없으면 steps 기반으로 추정.
+    7. **Difficulty**: "쉬움"(20분 이내, 기술 불필요), "보통"(20~60분), "어려움"(60분 초과 또는 복잡한 기술) 중 하나.
+
+    [결과 포맷 (JSON)]
+    {{{{
+        "is_recipe": true,
+        "non_recipe_reason": null,
+        "title": "순수 요리명",
+        "summary": "서술형 요약문...",
+        "ingredients": [
+            {{{{
+                "name": "재료명",
+                "amount": "수량",
+                "unit": "단위",
+                "category": "카테고리"
+            }}}}
+        ],
+        "steps": [
+            {{{{
+                "step_number": 1,
+                "description": "조리 단계 설명",
+                "timer": null
+            }}}}
+        ],
+        "flavor": {{{{
+            "saltiness": 3,
+            "sweetness": 2,
+            "spiciness": 1,
+            "sourness": 1,
+            "oiliness": 2
+        }}}},
+        "tip": "꿀팁 (없으면 null)",
+        "category": "한식",
+        "servings": "2인분",
+        "cooking_time": "30분",
+        "difficulty": "보통"
+    }}}}
+
+    * 레시피가 아닌 경우:
+    {{{{
+        "is_recipe": false,
+        "non_recipe_reason": "레시피가 아닌 이유",
+        "title": "알 수 없음",
+        "summary": "",
+        "ingredients": [],
+        "steps": [],
+        "flavor": {{{{"saltiness": 1, "sweetness": 1, "spiciness": 1, "sourness": 1, "oiliness": 1}}}},
+        "tip": null,
+        "category": null,
+        "servings": null,
+        "cooking_time": null,
+        "difficulty": null
+    }}}}
+    """
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=2, min=4, max=30),
+    retry=retry_if_exception_type((ConnectionError, TimeoutError)),
+    before_sleep=lambda retry_state: logger.warning(
+        "Gemini 텍스트 분석 재시도 %d/%d...", retry_state.attempt_number, 3
+    ),
+)
+async def extract_recipe_from_text(text: str, title: str | None = None) -> Recipe:
+    """자유형식 텍스트를 Gemini로 분석하여 구조화된 레시피로 변환.
+
+    YouTube URL 없이 텍스트만으로 레시피를 추출한다.
+    캐싱 없음 — 매번 새로 분석.
+    """
+    client = _get_client()
+    prompt = _build_text_prompt(text, title)
+
+    logger.info("Gemini 텍스트 레시피 분석 시작 (title: %s, 길이: %d자)", title or "(없음)", len(text))
+
+    response = await client.aio.models.generate_content(
+        model=MODEL,
+        contents=[prompt],
+    )
+
+    logger.info("Gemini 텍스트 분석 응답 수신 완료")
+    parsed = _extract_json_from_text(response.text)
+    result_recipe = Recipe(**parsed)
+    return result_recipe

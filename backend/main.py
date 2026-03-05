@@ -5,26 +5,19 @@ from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
 
 from schemas import (
     Recipe, CollectionRequest, CollectionUpdateRequest, ExtractRecipeRequest, ErrorResponse,
     TagCreate, CollectionTag, CollectionTagUpdate, RatingRequest, CookedRequest, CategoryOverrideRequest,
-    CollectionListItem,
+    CollectionListItem, RecipePublicItem, RecipesListResponse, ExtractRecipeFromTextRequest,
 )
 from utils import extract_video_id, get_video_metadata
-from ai_engine import extract_recipe_with_gemini
+from ai_engine import extract_recipe_with_gemini, extract_recipe_from_text
 from database import get_supabase_client
 from auth import get_current_user
 from logger import get_logger
 
 logger = get_logger(__name__)
-
-# --- slowapi Rate Limiter ---
-limiter = Limiter(key_func=get_remote_address)
-
 
 async def _verify_collection_owner(collection_id: int, user_id: str, supabase) -> None:
     """컬렉션 소유권 검증 — 본인 소유가 아니면 403"""
@@ -47,23 +40,9 @@ app = FastAPI(
         400: {"model": ErrorResponse},
         403: {"model": ErrorResponse},
         422: {"model": ErrorResponse},
-        429: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },
 )
-app.state.limiter = limiter
-
-
-@app.exception_handler(RateLimitExceeded)
-async def rate_limit_handler(_request: Request, exc: RateLimitExceeded):
-    return JSONResponse(
-        status_code=429,
-        content=ErrorResponse(
-            error_code="RATE_LIMIT_EXCEEDED",
-            message="요청 횟수가 너무 많습니다. 잠시 후 다시 시도해 주세요.",
-            detail=str(exc.detail),
-        ).model_dump(),
-    )
 
 # --- CORS 설정 (환경변수 기반) ---
 allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5180,http://localhost:80,https://recipe-book-gray-five.vercel.app")
@@ -129,7 +108,6 @@ async def health_check():
 
 
 @app.post("/extract-recipe", response_model=Recipe)
-@limiter.limit("5/minute;30/day")
 async def extract_recipe(request: Request, body: ExtractRecipeRequest):
     start_time = time.time()
     success = False
@@ -276,9 +254,11 @@ async def get_user_collections(
                 ).model_dump(),
             )
 
+        # recipe는 카드/검색에 필요한 컬럼만 선택 (steps/flavor 제외, ingredients는 재료 검색용 포함)
+        RECIPE_CARD_COLS = "id,title,category,cooking_time,difficulty,servings,video_id,channel_name,ingredients"
         query = (
             supabase.table("user_collections")
-            .select("*, recipe:recipes(*), tags:collection_tag_items(tag:collection_tags(*))")
+            .select(f"*, recipe:recipes({RECIPE_CARD_COLS}), tags:collection_tag_items(tag:collection_tags(*))")
             .eq("user_id", user_id)
         )
 
@@ -348,6 +328,52 @@ async def get_user_collections(
                 message="보관함 조회 중 오류가 발생했습니다.",
                 detail=str(e),
             ).model_dump(),
+        )
+
+
+@app.get("/collections/item/{collection_id}")
+async def get_collection_item(collection_id: int, jwt_user_id: str = Depends(get_current_user)):
+    """단일 컬렉션 상세 조회 — 레시피 전체 데이터 포함 (상세 페이지용)"""
+    try:
+        supabase = get_supabase_client()
+        if not supabase:
+            raise HTTPException(
+                status_code=500,
+                detail=ErrorResponse(error_code="DB_CONNECTION_FAILED", message="데이터베이스 연결에 실패했습니다.").model_dump(),
+            )
+
+        result = (
+            supabase.table("user_collections")
+            .select("*, recipe:recipes(*), tags:collection_tag_items(tag:collection_tags(*))")
+            .eq("id", collection_id)
+            .single()
+            .execute()
+        )
+        if not result.data:
+            raise HTTPException(
+                status_code=404,
+                detail=ErrorResponse(error_code="NOT_FOUND", message="컬렉션을 찾을 수 없습니다.").model_dump(),
+            )
+
+        item = result.data
+        if item["user_id"] != jwt_user_id:
+            raise HTTPException(
+                status_code=403,
+                detail=ErrorResponse(error_code="FORBIDDEN", message="접근 권한이 없습니다.").model_dump(),
+            )
+
+        # tags 중첩 구조 평탄화
+        raw_tags = item.get("tags") or []
+        item["tags"] = [t["tag"] for t in raw_tags if t.get("tag")]
+        return item
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("컬렉션 상세 조회 오류 (id: %s): %s", collection_id, e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=ErrorResponse(error_code="FETCH_FAILED", message="컬렉션 조회 중 오류가 발생했습니다.", detail=str(e)).model_dump(),
         )
 
 
@@ -815,6 +841,139 @@ async def update_collection_tags(collection_id: int, request: CollectionTagUpdat
                 detail=str(e),
             ).model_dump(),
         )
+
+
+# --- 텍스트 → 레시피 변환 ---
+@app.post("/extract-recipe-from-text", response_model=Recipe)
+async def extract_recipe_from_text_endpoint(request: Request, body: ExtractRecipeFromTextRequest):
+    """자유형식 텍스트를 AI가 구조화된 레시피로 변환 (캐싱 없음, 매번 새로 분석)
+
+    - 구어체, 메모, 블로그 복붙 등 모든 텍스트 형식 지원
+    - 50자 미만이거나 레시피와 무관한 텍스트는 거부
+    - 변환 결과는 DB에 저장되지 않음 — 프론트에서 확인 후 수동 저장
+    """
+    try:
+        logger.info("텍스트 레시피 변환 요청 (길이: %d자, 제목: %s)", len(body.text), body.title or "(없음)")
+
+        recipe = await extract_recipe_from_text(body.text, body.title)
+
+        if not recipe.is_recipe:
+            logger.info("레시피 텍스트 아님: %s", recipe.non_recipe_reason)
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponse(
+                    error_code="NOT_RECIPE",
+                    message=f"레시피 내용이 아닙니다: {recipe.non_recipe_reason}",
+                ).model_dump(),
+            )
+
+        # DB 저장은 하지 않음 — 프론트에서 편집 후 /collections로 별도 저장
+        # source 필드는 DB 저장 시점에 'text'로 기록 (collections 저장 흐름에서 처리)
+        return recipe
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("텍스트 레시피 변환 중 오류: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=ErrorResponse(
+                error_code="EXTRACTION_FAILED",
+                message="레시피 변환 중 오류가 발생했습니다.",
+                detail=str(e),
+            ).model_dump(),
+        )
+
+
+# --- 탐색 탭: 공개 레시피 목록 ---
+@app.get("/recipes", response_model=RecipesListResponse)
+async def get_public_recipes(
+    request: Request,
+    sort: str = "recent",
+    limit: int = 20,
+    page: int = 1,
+    q: str | None = None,
+    category: str | None = None,
+):
+    """공개 레시피 목록 조회 — 탐색 탭용 (인증 불필요)
+
+    - sort: recent (최신순) | popular (보관함 저장 수 기준)
+    - limit: 페이지당 항목 수 (기본 20)
+    - page: 페이지 번호 (기본 1)
+    - q: 레시피 제목 또는 재료명 검색
+    - category: 카테고리 필터
+    """
+    try:
+        supabase = get_supabase_client()
+        if not supabase:
+            raise HTTPException(
+                status_code=500,
+                detail=ErrorResponse(
+                    error_code="DB_CONNECTION_FAILED",
+                    message="데이터베이스 연결에 실패했습니다.",
+                ).model_dump(),
+            )
+
+        offset = (page - 1) * limit
+
+        query = (
+            supabase.table("recipes")
+            .select(
+                "id, title, summary, category, cooking_time, difficulty, servings, video_id, channel_name, created_at, collection_count",
+                count="exact",
+            )
+            .eq("is_public", True)
+        )
+
+        # 카테고리 필터
+        if category:
+            query = query.eq("category", category)
+
+        # 제목 + 재료 검색 (ingredients는 JSONB → ::text 캐스팅으로 포함 여부 확인)
+        if q:
+            safe_q = q.replace("%", "\\%").replace("_", "\\_")
+            query = query.or_(f"title.ilike.%{safe_q}%,ingredients::text.ilike.%{safe_q}%")
+
+        # 정렬
+        if sort == "popular":
+            query = query.order("collection_count", desc=True).order("created_at", desc=True)
+        else:
+            query = query.order("created_at", desc=True)
+
+        result = query.range(offset, offset + limit - 1).execute()
+
+        items = result.data or []
+        total = result.count if result.count is not None else len(items)
+
+        return RecipesListResponse(
+            items=items,
+            total=total,
+            has_more=(offset + limit) < total,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("공개 레시피 목록 조회 오류: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=ErrorResponse(
+                error_code="FETCH_FAILED",
+                message="레시피 목록 조회 중 오류가 발생했습니다.",
+                detail=str(e),
+            ).model_dump(),
+        )
+
+
+# --- 탐색 탭: 카테고리 목록 ---
+@app.get("/recipes/categories", response_model=list[str])
+async def get_recipe_categories():
+    """공개 레시피에 실제 사용된 카테고리 목록 (빈도 순)"""
+    supabase = get_supabase_client()
+    result = supabase.rpc("get_recipe_categories").execute()
+    if result.data:
+        return [row["category"] for row in result.data]
+    return []
 
 
 if __name__ == "__main__":

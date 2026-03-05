@@ -4,6 +4,7 @@
 	import { onMount } from 'svelte';
 	import type { Recipe } from '$lib/types';
 	import { extractRecipe, saveToCollection } from '$lib/api';
+	import { isLoggedIn, openLoginModal } from '$lib/stores/auth.svelte';
 	import FlavorProfile from '$lib/components/FlavorProfile.svelte';
 	import IngredientList from '$lib/components/IngredientList.svelte';
 	import StepTimeline from '$lib/components/StepTimeline.svelte';
@@ -17,14 +18,35 @@
 	let saveStatus = $state<'' | 'saving' | 'saved' | 'error'>('');
 	let isReanalyzing = $state(false);
 	let showToast = $state(false);
+	let pageLoading = $state(false);
 
-	// state 없이 직접 URL 접근한 경우 홈으로 리다이렉트
-	onMount(() => {
-		if (!recipe) goto('/');
+	onMount(async () => {
+		if (recipe) return;
+
+		const id = page.params.id;
+		// 11자리 YouTube video ID 패턴이면 캐시된 레시피 재로드
+		if (/^[a-zA-Z0-9_-]{11}$/.test(id)) {
+			pageLoading = true;
+			const url = `https://www.youtube.com/watch?v=${id}`;
+			try {
+				recipe = await extractRecipe(url);
+				sourceUrl = url;
+			} catch {
+				goto('/');
+			} finally {
+				pageLoading = false;
+			}
+		} else {
+			goto('/');
+		}
 	});
 
 	async function handleSave() {
 		if (!recipe?.id) return;
+		if (!isLoggedIn()) {
+			openLoginModal(`/?save_recipe_id=${recipe.id}`);
+			return;
+		}
 		saveStatus = 'saving';
 		try {
 			await saveToCollection(recipe.id);
@@ -57,7 +79,12 @@
 	<title>{displayTitle} | 해먹당</title>
 </svelte:head>
 
-{#if recipe}
+{#if pageLoading}
+<div class="page-loading">
+	<span class="loading-spinner"></span>
+	<p>레시피 불러오는 중...</p>
+</div>
+{:else if recipe}
 <main class="page-wrap">
 	<section class="recipe-page">
 		<div class="recipe-top-bar">
@@ -332,5 +359,30 @@
 			border-radius: 8px;
 			padding: 0.75rem 1rem;
 		}
+	}
+
+	.page-loading {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 12px;
+		min-height: 60vh;
+		color: var(--color-soft-brown);
+		font-size: 0.9rem;
+	}
+
+	.loading-spinner {
+		width: 32px;
+		height: 32px;
+		border: 3px solid var(--color-light-line);
+		border-top-color: var(--color-terracotta);
+		border-radius: 50%;
+		animation: spin 0.7s linear infinite;
+		display: block;
+	}
+
+	@keyframes spin {
+		to { transform: rotate(360deg); }
 	}
 </style>

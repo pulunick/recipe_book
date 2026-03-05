@@ -22,15 +22,15 @@ export interface FlavorProfile {
 export interface Recipe {
 	id: number | null;
 	title: string;
-	summary: string;
-	ingredients: Ingredient[];
-	steps: RecipeStep[];
-	flavor: FlavorProfile;
-	tip: string | null;
+	summary?: string | null;
+	ingredients?: Ingredient[];
+	steps?: RecipeStep[];
+	flavor?: FlavorProfile | null;
+	tip?: string | null;
 	category: string | null;
-	video_url: string | null;
+	video_url?: string | null;
 	video_id: string | null;
-	video_title: string | null;
+	video_title?: string | null;
 	channel_name: string | null;
 	servings: string | null;
 	cooking_time: string | null;
@@ -81,3 +81,16 @@ export interface CollectionTag {
 export type AnalysisMode = 'fast' | 'precise';
 
 export type PageStatus = 'IDLE' | 'LOADING' | 'ERROR';
+
+export interface RecipePublicItem {
+	id: number;
+	title: string;
+	summary: string;
+	category: string | null;
+	cooking_time: string | null;
+	difficulty: string | null;
+	servings: string | null;
+	video_id: string | null;
+	channel_name: string | null;
+	created_at: string;
+}

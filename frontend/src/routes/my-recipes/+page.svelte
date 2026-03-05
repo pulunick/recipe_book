@@ -122,10 +122,13 @@
 	const filteredCollections = $derived.by(() => {
 		let result = collections;
 
-		// 검색
+		// 제목 + 재료명 검색
 		if (searchQuery.trim()) {
 			const q = searchQuery.trim().toLowerCase();
-			result = result.filter(c => c.recipe.title.toLowerCase().includes(q));
+			result = result.filter(c => {
+				if (c.recipe.title.toLowerCase().includes(q)) return true;
+				return (c.recipe.ingredients ?? []).some(ing => ing.name.toLowerCase().includes(q));
+			});
 		}
 
 		// 필터 (전체 / 즐겨찾기 / 카테고리)
@@ -237,266 +240,179 @@
 
 <Toast message={toastMsg} show={showToast} type={toastType} ondismiss={() => (showToast = false)} />
 
-<div class="page-layout">
-	<!-- ── 데스크탑 사이드바 ── -->
-	<aside class="sidebar">
-		<div class="sidebar-section">
-			<p class="sidebar-label">레시피 보기</p>
+<div class="page-wrap">
+	<!-- ── 검색바 헤더 ── -->
+	<div class="search-header">
+		<div class="search-bar">
+			<svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+				<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+			</svg>
+			<input
+				type="search"
+				class="search-input"
+				placeholder="내 레시피 검색..."
+				bind:value={searchQuery}
+			/>
+		</div>
+	</div>
+
+	<!-- ── 필터 탭 ── -->
+	<div class="filter-tabs">
+		<button
+			class="filter-tab"
+			class:active={selectedFilter === 'all' && selectedTagId === null}
+			onclick={() => selectFilter('all')}
+		>전체 <span class="tab-count">{collections.length}</span></button>
+		<button
+			class="filter-tab"
+			class:active={selectedFilter === 'favorites'}
+			onclick={() => selectFilter('favorites')}
+		>⭐ 즐겨찾기</button>
+		{#each categories as cat}
 			<button
-				class="sidebar-item"
-				class:active={selectedFilter === 'all' && selectedTagId === null}
-				onclick={() => selectFilter('all')}
-			>
-				전체 <span class="count-badge">{collections.length}</span>
-			</button>
+				class="filter-tab"
+				class:active={selectedFilter === cat && selectedTagId === null}
+				onclick={() => selectFilter(cat)}
+			>{cat}</button>
+		{/each}
+		{#each allTags as tag}
 			<button
-				class="sidebar-item fav-item"
-				class:active={selectedFilter === 'favorites'}
-				onclick={() => selectFilter('favorites')}
-			>
-				⭐ 즐겨찾기 <span class="count-badge">{favoriteCount}</span>
+				class="filter-tab tag-tab"
+				class:active={selectedTagId === tag.id}
+				style:--tag-color={tag.color}
+				onclick={() => selectTag(tag.id)}
+			>{tag.name}</button>
+		{/each}
+	</div>
+
+	{#if useMock}
+		<div class="mock-notice">
+			⚠️ 서버에 연결할 수 없어 샘플 데이터를 표시 중입니다
+		</div>
+	{/if}
+
+	<!-- ── 콘텐츠 영역 ── -->
+	{#if loading}
+		<div class="status-center">불러오는 중...</div>
+	{:else if error}
+		<div class="status-center error">{error}</div>
+	{:else if collections.length === 0}
+		<div class="empty-state" in:fade>
+			<p class="empty-icon">📖</p>
+			<h2>아직 레시피북이 비어있어요</h2>
+			<p>유튜브 요리 영상 링크를 붙여넣으면 첫 레시피가 생겨요</p>
+			<a href="/" class="cta-btn">첫 레시피 정리하러 가기</a>
+		</div>
+	{:else if filteredCollections.length === 0}
+		<div class="status-center" in:fade>
+			<p>조건에 맞는 레시피가 없어요</p>
+			<button class="reset-btn" onclick={() => { selectedFilter = 'all'; selectedTagId = null; searchQuery = ''; }}>
+				필터 초기화
 			</button>
 		</div>
-
-		{#if categories.length > 0}
-			<div class="sidebar-section">
-				<p class="sidebar-label">카테고리</p>
-				{#each categories as cat}
-					<button
-						class="sidebar-item"
-						class:active={selectedFilter === cat && selectedTagId === null}
-						onclick={() => selectFilter(cat)}
-					>
-						{cat}
-						<span class="count-badge">
-							{collections.filter(c => (c.category_override ?? c.recipe.category) === cat).length}
-						</span>
-					</button>
-				{/each}
-			</div>
-		{/if}
-
-		{#if allTags.length > 0}
-			<div class="sidebar-section">
-				<p class="sidebar-label">내 태그</p>
-				{#each allTags as tag}
-					<button
-						class="sidebar-tag"
-						class:active={selectedTagId === tag.id}
-						style:--tag-color={tag.color}
-						onclick={() => selectTag(tag.id)}
-					>
-						<span class="tag-dot" style:background={tag.color}></span>
-						{tag.name}
-					</button>
-				{/each}
-			</div>
-		{/if}
-	</aside>
-
-	<!-- ── 메인 콘텐츠 ── -->
-	<main class="main-content">
-		<!-- 상단 헤더 -->
-		<div class="content-header">
-			<h1 class="page-title">내 레시피북</h1>
-			<div class="header-actions">
-				<input
-					type="search"
-					class="search-input"
-					placeholder="레시피 검색..."
-					bind:value={searchQuery}
+	{:else}
+		<div class="card-grid" in:fade>
+			{#each filteredCollections as item (item.id)}
+				<RecipeCard
+					{item}
+					onfavorite={handleFavorite}
 				/>
-			</div>
-		</div>
-
-		<!-- 모바일 수평 탭 -->
-		<div class="mobile-tabs">
-			<button
-				class="mobile-tab"
-				class:active={selectedFilter === 'all' && selectedTagId === null}
-				onclick={() => selectFilter('all')}
-			>전체</button>
-			<button
-				class="mobile-tab"
-				class:active={selectedFilter === 'favorites'}
-				onclick={() => selectFilter('favorites')}
-			>⭐ 즐겨찾기</button>
-			{#each categories as cat}
-				<button
-					class="mobile-tab"
-					class:active={selectedFilter === cat && selectedTagId === null}
-					onclick={() => selectFilter(cat)}
-				>{cat}</button>
-			{/each}
-			{#each allTags as tag}
-				<button
-					class="mobile-tab tag-tab"
-					class:active={selectedTagId === tag.id}
-					style:--tag-color={tag.color}
-					onclick={() => selectTag(tag.id)}
-				>{tag.name}</button>
 			{/each}
 		</div>
-
-		{#if useMock}
-			<div class="mock-notice">
-				⚠️ 서버에 연결할 수 없어 샘플 데이터를 표시 중입니다
-			</div>
-		{/if}
-
-		<!-- 콘텐츠 영역 -->
-		{#if loading}
-			<div class="status-center">불러오는 중...</div>
-		{:else if error}
-			<div class="status-center error">{error}</div>
-		{:else if collections.length === 0}
-			<div class="empty-state" in:fade>
-				<p class="empty-icon">📖</p>
-				<h2>아직 레시피북이 비어있어요</h2>
-				<p>유튜브 요리 영상 링크를 붙여넣으면 첫 레시피가 생겨요</p>
-				<a href="/" class="cta-btn">첫 레시피 정리하러 가기</a>
-			</div>
-		{:else if filteredCollections.length === 0}
-			<div class="status-center" in:fade>
-				<p>조건에 맞는 레시피가 없어요</p>
-				<button class="reset-btn" onclick={() => { selectedFilter = 'all'; selectedTagId = null; searchQuery = ''; }}>
-					필터 초기화
-				</button>
-			</div>
-		{:else}
-			<div class="card-grid" in:fade>
-				{#each filteredCollections as item (item.id)}
-					<RecipeCard
-						{item}
-						onfavorite={handleFavorite}
-					/>
-				{/each}
-			</div>
-		{/if}
-	</main>
+	{/if}
 </div>
 
 <style>
-	/* 전체 레이아웃: 사이드바 + 메인 */
-	.page-layout {
-		display: grid;
-		grid-template-columns: 200px 1fr;
-		gap: 2rem;
-		max-width: 1100px;
-		margin: 0 auto;
-		padding: 2rem var(--page-padding-desktop);
-		min-height: calc(100vh - 80px);
-		align-items: start;
+	.page-wrap {
+		display: flex;
+		flex-direction: column;
+		padding: 0 12px 1rem;
 	}
 
-	/* ── 사이드바 ── */
-	.sidebar {
+	/* ── 검색바 ── */
+	.search-header {
 		position: sticky;
-		top: 1.5rem;
-		display: flex;
-		flex-direction: column;
-		gap: 1.5rem;
+		top: 0;
+		background: var(--color-paper);
+		z-index: 10;
+		padding: 10px 0 8px;
 	}
-	.sidebar-section {
-		display: flex;
-		flex-direction: column;
-		gap: 0.15rem;
-	}
-	.sidebar-label {
-		font-size: 0.7rem;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.8px;
-		color: var(--color-soft-brown);
-		padding: 0 0.5rem;
-		margin-bottom: 0.3rem;
-	}
-	.sidebar-item {
+	.search-bar {
+		position: relative;
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
-		padding: 0.4rem 0.5rem;
-		border-radius: 8px;
-		border: none;
-		background: none;
-		font-size: 0.9rem;
+	}
+	.search-icon {
+		position: absolute;
+		left: 12px;
 		color: var(--color-soft-brown);
-		text-align: left;
-		width: 100%;
-	}
-	.sidebar-item:hover { background: var(--color-cream); color: var(--color-warm-brown); }
-	.sidebar-item.active {
-		background: color-mix(in srgb, var(--color-terracotta) 12%, transparent);
-		color: var(--color-terracotta);
-		font-weight: 600;
-	}
-	.count-badge {
-		font-size: 0.75rem;
-		background: var(--color-light-line);
-		color: var(--color-soft-brown);
-		padding: 0.05rem 0.4rem;
-		border-radius: 10px;
-	}
-	.sidebar-item.active .count-badge {
-		background: color-mix(in srgb, var(--color-terracotta) 20%, transparent);
-		color: var(--color-terracotta);
-	}
-	.sidebar-tag {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		padding: 0.35rem 0.5rem;
-		border-radius: 8px;
-		border: none;
-		background: none;
-		font-size: 0.88rem;
-		color: var(--color-soft-brown);
-		text-align: left;
-		width: 100%;
-	}
-	.sidebar-tag:hover { background: var(--color-cream); color: var(--color-warm-brown); }
-	.sidebar-tag.active {
-		background: color-mix(in srgb, var(--tag-color) 15%, transparent);
-		color: color-mix(in srgb, var(--tag-color) 80%, #333);
-		font-weight: 600;
-	}
-	.tag-dot {
-		width: 10px;
-		height: 10px;
-		border-radius: 50%;
-		flex-shrink: 0;
-	}
-
-	/* ── 메인 콘텐츠 ── */
-	.main-content { min-width: 0; }
-
-	.content-header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		margin-bottom: 1.2rem;
-		gap: 1rem;
-	}
-	.page-title {
-		font-size: 1.6rem;
-		font-weight: 700;
-		white-space: nowrap;
+		pointer-events: none;
 	}
 	.search-input {
-		border: 1px solid var(--color-light-line);
-		border-radius: 8px;
-		padding: 0.45rem 0.8rem;
-		font-size: 0.875rem;
+		width: 100%;
+		padding: 0.6rem 1rem 0.6rem 2.4rem;
+		border: 1.5px solid var(--color-light-line);
+		border-radius: 12px;
+		font-size: 0.9rem;
 		font-family: inherit;
 		color: var(--color-warm-brown);
 		background: white;
 		outline: none;
-		width: 200px;
+		transition: border-color 0.15s;
 	}
 	.search-input:focus { border-color: var(--color-terracotta); }
 
-	/* 모바일 탭 (데스크탑에선 숨김) */
-	.mobile-tabs { display: none; }
+	/* ── 필터 탭 ── */
+	.filter-tabs {
+		display: flex;
+		gap: 0.4rem;
+		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
+		padding: 0 0 8px;
+		margin-bottom: 12px;
+		scrollbar-width: none;
+	}
+	.filter-tabs::-webkit-scrollbar { display: none; }
+
+	.filter-tab {
+		flex-shrink: 0;
+		display: flex;
+		align-items: center;
+		gap: 0.3rem;
+		padding: 0.32rem 0.85rem;
+		border-radius: 20px;
+		border: 1.5px solid var(--color-light-line);
+		background: white;
+		font-size: 0.82rem;
+		font-family: inherit;
+		color: var(--color-soft-brown);
+		white-space: nowrap;
+		cursor: pointer;
+		transition: all 0.15s;
+	}
+	.filter-tab:hover { background: var(--color-cream); }
+	.filter-tab.active {
+		background: var(--color-terracotta);
+		color: white;
+		border-color: var(--color-terracotta);
+		font-weight: 600;
+	}
+	.filter-tab.tag-tab.active {
+		background: color-mix(in srgb, var(--tag-color) 80%, transparent);
+		border-color: var(--tag-color);
+	}
+	.tab-count {
+		font-size: 0.72rem;
+		background: rgba(255,255,255,0.25);
+		border-radius: 10px;
+		padding: 0 0.3rem;
+		min-width: 18px;
+		text-align: center;
+	}
+	.filter-tab:not(.active) .tab-count {
+		background: var(--color-light-line);
+		color: var(--color-soft-brown);
+	}
 
 	/* 목업 배너 */
 	.mock-notice {
@@ -506,15 +422,15 @@
 		border: 1px dashed var(--color-light-line);
 		border-radius: 8px;
 		padding: 0.4rem 0.8rem;
-		margin-bottom: 1rem;
+		margin-bottom: 12px;
 		text-align: center;
 	}
 
-	/* 카드 그리드 */
+	/* ── 카드 그리드 ── */
 	.card-grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-		gap: 1.2rem;
+		grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+		gap: 10px;
 	}
 
 	/* 상태 */
@@ -522,6 +438,9 @@
 		text-align: center;
 		padding: 5rem 0;
 		color: var(--color-soft-brown);
+		display: flex;
+		flex-direction: column;
+		align-items: center;
 	}
 	.status-center.error { color: var(--color-muted-red); }
 	.reset-btn {
@@ -532,6 +451,8 @@
 		padding: 0.4rem 1rem;
 		font-size: 0.85rem;
 		color: var(--color-soft-brown);
+		font-family: inherit;
+		cursor: pointer;
 	}
 	.reset-btn:hover { border-color: var(--color-soft-brown); }
 
@@ -543,88 +464,19 @@
 	}
 	.empty-icon { font-size: 3rem; margin-bottom: 1rem; }
 	.empty-state h2 {
-		font-size: 1.3rem;
+		font-size: 1.2rem;
 		margin-bottom: 0.8rem;
 		color: var(--color-warm-brown);
 	}
-	.empty-state p { line-height: 1.7; margin-bottom: 1.5rem; }
+	.empty-state p { line-height: 1.7; margin-bottom: 1.5rem; font-size: 0.9rem; }
 	.cta-btn {
 		display: inline-block;
 		background: var(--color-terracotta);
 		color: white;
-		padding: 0.75rem 2rem;
+		padding: 0.65rem 1.8rem;
 		border-radius: 10px;
 		font-weight: 600;
+		font-size: 0.9rem;
 	}
 	.cta-btn:hover { background: #b5633f; color: white; }
-
-	/* ── 모바일 반응형 ── */
-	@media (max-width: 767px) {
-		.page-layout {
-			grid-template-columns: 1fr;
-			padding: 1rem var(--page-padding-mobile);
-			gap: 0;
-		}
-
-		/* 사이드바 → 숨김 (탭으로 대체) */
-		.sidebar { display: none; }
-
-		/* 모바일 탭 노출 */
-		.mobile-tabs {
-			display: flex;
-			gap: 0.4rem;
-			overflow-x: auto;
-			-webkit-overflow-scrolling: touch;
-			padding-bottom: 0.5rem;
-			margin-bottom: 1rem;
-		}
-		.mobile-tabs::-webkit-scrollbar { display: none; }
-
-		.mobile-tab {
-			flex-shrink: 0;
-			padding: 0.35rem 0.9rem;
-			border-radius: 20px;
-			border: 1px solid var(--color-light-line);
-			background: white;
-			font-size: 0.82rem;
-			color: var(--color-soft-brown);
-			white-space: nowrap;
-		}
-		.mobile-tab:hover { background: var(--color-cream); }
-		.mobile-tab.active {
-			background: var(--color-terracotta);
-			color: white;
-			border-color: var(--color-terracotta);
-			font-weight: 600;
-		}
-		.mobile-tab.tag-tab.active {
-			background: color-mix(in srgb, var(--tag-color) 80%, transparent);
-			border-color: var(--tag-color);
-			color: white;
-		}
-
-		.content-header {
-			flex-wrap: wrap;
-			position: sticky;
-			top: 0;
-			background: var(--color-bg, #faf7f2);
-			z-index: 10;
-			padding-top: 0.5rem;
-			padding-bottom: 0.5rem;
-		}
-		.search-input { width: 100%; }
-		.page-title { font-size: 1.4rem; }
-
-		.mobile-tab {
-			min-height: 40px;
-			display: flex;
-			align-items: center;
-		}
-
-		/* 카드 그리드: 모바일 1열 */
-		.card-grid {
-			grid-template-columns: 1fr;
-			gap: 1rem;
-		}
-	}
 </style>

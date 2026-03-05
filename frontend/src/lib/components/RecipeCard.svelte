@@ -126,7 +126,7 @@
 	.card-link {
 		position: absolute;
 		inset: 0;
-		z-index: 0;
+		z-index: 1;
 	}
 
 	/* 썸네일 */
@@ -190,7 +190,7 @@
 		box-shadow: 0 1px 4px rgba(0,0,0,0.1);
 		filter: grayscale(1);
 		transition: filter 0.2s, transform 0.2s;
-		z-index: 1;
+		z-index: 2;
 	}
 	.fav-btn.active { filter: grayscale(0); }
 	.fav-btn:hover { transform: scale(1.15); }

@@ -55,7 +55,33 @@ docker compose up          # backend on :8000, frontend (nginx) on :80
 
 ### Frontend (`frontend/`)
 
-SvelteKit project (Svelte 5, adapter-auto). Currently scaffolded — pages and components need to be built.
+SvelteKit project (Svelte 5, adapter-auto).
+
+#### 레이아웃 구조
+- `max-width: 480px` 중앙 고정 (데스크탑도 모바일 앱 형태)
+- 슬림 헤더: 로고(좌) + 로그인/프로필(우)만 표시
+- 바텀 네비게이션 5탭: `탐색(홈) | 내레시피 | [+] | 장바구니 | 마이`
+- [+] 중앙 버튼 → AddRecipeSheet (유튜브 분석 / 텍스트 작성 선택)
+- AI 어시스턴트 FAB: `/my-recipes/[id]` 전용 (요리 질문, 재료 대체, 단위 변환)
+
+#### 라우팅
+| 경로 | 페이지 | 비로그인 |
+|------|--------|----------|
+| `/` | 탐색(홈) — 공개 레시피 | 허용 |
+| `/my-recipes` | 내 레시피 서랍 | 로그인 필요 |
+| `/my-recipes/[id]` | 레시피 상세 + AI FAB | 로그인 필요 |
+| `/my-recipes/[id]/cook` | 쿠킹 모드 (BottomNav 숨김) | 로그인 필요 |
+| `/cart` | 장바구니 | 로그인 필요 |
+| `/my` | 마이페이지 | 로그인 필요 |
+| `/recipe/[id]` | 임시 분석 결과 | 허용 |
+| `/auth/callback` | OAuth 콜백 | — |
+
+#### 주요 컴포넌트
+- **BottomNav.svelte** — 하단 고정 네비게이션 (쿠킹 모드에서 숨김)
+- **AddRecipeSheet.svelte** — [+] 탭 바텀시트 (YouTube 분석 / 텍스트 작성)
+- **AiAssistantFab.svelte** — AI 어시스턴트 플로팅 버튼 + 채팅 패널
+
+상세 명세: `.agents/specs/navigation-spec.md`
 
 ### Database (Supabase / PostgreSQL)
 
