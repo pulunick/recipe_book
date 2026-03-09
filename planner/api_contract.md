@@ -1,311 +1,238 @@
 # API 엔드포인트 명세
 
+*최종 수정: 2026-03-05 (v0.5.0)*
+
+---
+
 ## 1. 개요
 
-- **Base URL**: `http://localhost:8000` (개발), Docker 배포 시 `:8000`
+- **Base URL**: `http://localhost:8000` (개발) / Railway (프로덕션)
 - **Content-Type**: `application/json`
-- **인증**: 현재 미구현 (2단계에서 `Authorization: Bearer <JWT>` 추가 예정)
-- **CORS**: `ALLOWED_ORIGINS` 환경변수로 설정 (기본: `http://localhost:5173,http://localhost:80`)
+- **인증**: `Authorization: Bearer <Supabase JWT>` (인증 필요 엔드포인트)
+- **CORS**: `ALLOWED_ORIGINS` 환경변수 (기본: localhost:5180, Vercel 프로덕션 URL)
 
 ---
 
-## 2. 현재 구현된 엔드포인트
+## 2. 레시피 추출
 
-### 2.1 `GET /` — 헬스체크
+### `POST /extract-recipe` — 유튜브 URL 레시피 분석
 
-서버 상태 확인용.
+**인증**: 불필요 (미인증 허용)
 
-**Response** `200 OK`
-
+**Request**
 ```json
 {
-  "message": "Recipe AI Extraction API is running!"
+  "youtube_url": "https://www.youtube.com/watch?v=VIDEO_ID",
+  "mode": "fast",
+  "force_refresh": false
 }
 ```
 
----
-
-### 2.2 `POST /extract-recipe` — 레시피 추출
-
-YouTube URL로부터 AI 기반 레시피 데이터를 추출한다.
-
-#### Request
-
-```json
-{
-  "youtube_url": "https://www.youtube.com/watch?v=VIDEO_ID"
-}
-```
-
-| 필드          | 타입   | 필수 | 설명                                                      |
-| ------------- | ------ | ---- | --------------------------------------------------------- |
-| `youtube_url` | string | O    | 유효한 YouTube URL (youtube.com, youtu.be, m.youtube.com) |
-
-#### Validation
-
-- URL 형식 검증: `(https?://)?(www\.)?(youtube\.com|youtu\.be|m\.youtube\.com)/.+`
-
-#### Response `200 OK` — 성공 (Recipe)
-
+**Response `200`**
 ```json
 {
   "id": 1,
-  "is_recipe": true,
-  "non_recipe_reason": null,
   "title": "김치찌개 만들기",
-  "summary": "돼지고기 목살을 활용한 깊은 맛의 김치찌개입니다...",
-  "ingredients": [
-    {
-      "name": "김치",
-      "amount": "200",
-      "unit": "g",
-      "category": "주재료"
-    },
-    {
-      "name": "돼지고기 목살",
-      "amount": "150",
-      "unit": "g",
-      "category": "주재료"
-    }
-  ],
-  "steps": [
-    {
-      "step_number": 1,
-      "description": "김치를 적당한 크기로 썰어 준비합니다.",
-      "timer": null
-    },
-    {
-      "step_number": 2,
-      "description": "냄비에 참기름을 두르고 돼지고기를 볶습니다.",
-      "timer": "3분"
-    }
-  ],
-  "flavor": {
-    "saltiness": 4,
-    "sweetness": 1,
-    "spiciness": 3,
-    "sourness": 2,
-    "oiliness": 3
-  },
-  "tip": "묵은지를 사용하면 더 깊은 맛을 낼 수 있습니다.",
-  "video_url": "https://www.youtube.com/watch?v=VIDEO_ID",
-  "video_id": "VIDEO_ID"
+  "summary": "...",
+  "ingredients": [{ "name": "김치", "amount": "200", "unit": "g", "category": "주재료" }],
+  "steps": [{ "step_number": 1, "description": "...", "timer": "3분" }],
+  "flavor": { "saltiness": 4, "sweetness": 1, "spiciness": 3, "sourness": 2, "oiliness": 3 },
+  "tip": "...",
+  "category": "국/찌개",
+  "video_url": "...",
+  "video_id": "VIDEO_ID",
+  "video_title": "...",
+  "channel_name": "..."
 }
 ```
 
-#### Response 스키마 상세
-
-**Recipe**
-| 필드 | 타입 | 설명 |
-|------|------|------|
-| `id` | int / null | DB ID (캐시 히트 시 존재, 새 추출 시 저장 후 설정) |
-| `is_recipe` | bool | 항상 true (false면 400 에러로 반환) |
-| `non_recipe_reason` | string / null | 레시피 아닌 경우 사유 |
-| `title` | string | 레시피 제목 |
-| `summary` | string | 요리 개요 |
-| `ingredients` | Ingredient[] | 재료 목록 |
-| `steps` | RecipeStep[] | 조리 과정 |
-| `flavor` | FlavorProfile | 맛 5축 지표 |
-| `tip` | string / null | 전문가 팁 |
-| `category` | string / null | 레시피 카테고리 (한식, 양식, 중식, 일식, 동남아, 국/찌개, 볶음, 구이, 찜, 반찬, 디저트, 음료, 간식, 다이어트, 간편식) |
-| `video_url` | string / null | YouTube URL |
-| `video_id` | string / null | YouTube 영상 ID |
-
-**Ingredient**
-| 필드 | 타입 | 설명 |
-|------|------|------|
-| `name` | string | 재료명 |
-| `amount` | string / null | 수량 |
-| `unit` | string / null | 단위 |
-| `category` | string | 카테고리 (주재료, 부재료, 양념, 소스, 토핑 등) |
-
-**RecipeStep**
-| 필드 | 타입 | 설명 |
-|------|------|------|
-| `step_number` | int | 순서 번호 |
-| `description` | string | 조리 설명 |
-| `timer` | string / null | 타이머 (예: "10분", "30초") |
-
-**FlavorProfile**
-| 필드 | 타입 | 범위 | 설명 |
-|------|------|------|------|
-| `saltiness` | int | 1-5 | 짠맛 |
-| `sweetness` | int | 1-5 | 단맛 |
-| `spiciness` | int | 1-5 | 매운맛 |
-| `sourness` | int | 1-5 | 신맛 |
-| `oiliness` | int | 1-5 | 기름진 정도 |
-
-#### 에러 응답
-
-모든 에러는 다음 구조를 따른다:
-
-```json
-{
-  "error_code": "ERROR_CODE",
-  "message": "사용자 친화적 메시지",
-  "detail": "개발자용 상세 정보 (선택)"
-}
-```
-
-| HTTP 상태 | error_code          | 발생 조건                               |
-| --------- | ------------------- | --------------------------------------- |
-| `400`     | `INVALID_URL`       | 유효한 YouTube URL이 아닌 경우          |
-| `400`     | `NOT_RECIPE`        | AI 분석 결과 레시피 영상이 아닌 경우    |
-| `403`     | `ACCESS_DENIED`     | 멤버십 전용 / 비공개 / 로그인 필요 영상 |
-| `422`     | `VALIDATION_ERROR`  | Pydantic 모델 검증 실패                 |
-| `500`     | `EXTRACTION_FAILED` | 레시피 추출 중 예상치 못한 오류         |
-| `500`     | `INTERNAL_ERROR`    | 서버 내부 오류                          |
+**에러**
+| HTTP | error_code | 조건 |
+|------|-----------|------|
+| 400 | `INVALID_URL` | YouTube URL 형식 오류 |
+| 400 | `NOT_RECIPE` | 레시피 영상 아님 |
+| 403 | `ACCESS_DENIED` | 비공개/멤버십 영상 |
+| 500 | `NO_DATA_AVAILABLE` | 자막·오디오 모두 없음 |
+| 500 | `EXTRACTION_FAILED` | AI 추출 오류 |
 
 ---
 
-### 2.3 `POST /collections` — 보관함 저장
+### `POST /extract-recipe-from-text` — 텍스트 레시피 변환
 
-사용자의 개인 보관함에 레시피를 저장한다.
+**인증**: 불필요
 
-#### Request
+**Request**
+```json
+{ "text": "재료: 달걀 2개...\n조리법: 1. 팬에..." }
+```
 
+**Response**: 위 `/extract-recipe`와 동일 (DB 저장 없음, `id: null`)
+
+---
+
+## 3. 공개 레시피 탐색
+
+### `GET /recipes` — 공개 레시피 목록
+
+**인증**: 불필요
+
+**Query Parameters**
+| 파라미터 | 타입 | 설명 |
+|----------|------|------|
+| `sort` | string | `recent`(기본) / `popular` |
+| `category` | string | 카테고리 필터 |
+| `q` | string | 제목 + 재료명 검색 |
+| `page` | int | 페이지 (기본 1) |
+| `limit` | int | 페이지당 개수 (기본 20) |
+
+**Response `200`**
 ```json
 {
-  "user_id": "00000000-0000-0000-0000-000000000000",
-  "recipe_id": 1,
-  "custom_tip": "고추장 1큰술 더 넣으면 맛있음",
-  "ingredient_adjustments": {
-    "excluded": ["고수"],
-    "scale": 0.8
+  "items": [
+    {
+      "id": 1, "title": "...", "summary": "...", "category": "국/찌개",
+      "cooking_time": "30분", "difficulty": "쉬움", "servings": "2인분",
+      "video_id": "...", "channel_name": "...", "created_at": "...",
+      "collection_count": 42
+    }
+  ],
+  "total": 100,
+  "has_more": true
+}
+```
+
+---
+
+### `GET /recipes/categories` — 카테고리 목록
+
+**인증**: 불필요
+
+**Response `200`**: `["국/찌개", "한식", ...]` (실제 사용 카테고리 빈도순)
+
+---
+
+## 4. 사용자 보관함 (인증 필수)
+
+### `POST /collections` — 보관함 저장
+
+**Request**
+```json
+{ "user_id": "uuid", "recipe_id": 1, "custom_tip": "..." }
+```
+
+**Response `200`**: `{ "status": "success", "collection_id": 5 }`
+
+---
+
+### `GET /collections/{user_id}` — 보관함 목록
+
+카드 표시에 필요한 컬럼만 포함 (steps/flavor 제외, ingredients 포함).
+
+**Response `200`**: `CollectionItem[]`
+
+---
+
+### `GET /collections/item/{collection_id}` — 단일 아이템 상세 ✅ v0.5.0 신규
+
+전체 recipe 데이터 포함 (상세 페이지용).
+
+**Response `200`**: `CollectionItem` (recipe 전체 포함)
+
+**에러**: 403 (타인의 컬렉션 접근 시)
+
+---
+
+### `DELETE /collections/{collection_id}` — 보관함 삭제
+
+**Response `200`**: `{ "status": "deleted" }`
+
+---
+
+### `PATCH /collections/{collection_id}` — 보관함 수정
+
+**Request**
+```json
+{
+  "custom_tip": "...",
+  "recipe_override": {
+    "ingredients": [{ "name": "...", "amount": "...", "unit": "...", "category": "...", "note": "" }],
+    "steps": [{ "order": 1, "description": "...", "timer_minutes": null, "note": "" }],
+    "tip": "..."
   }
 }
 ```
+`recipe_override: null` 전송 시 원본으로 복원.
 
-| 필드                     | 타입          | 필수 | 설명           |
-| ------------------------ | ------------- | ---- | -------------- |
-| `user_id`                | string (UUID) | O    | 사용자 ID      |
-| `recipe_id`              | int           | O    | 레시피 ID      |
-| `custom_tip`             | string / null | X    | 개인 메모      |
-| `ingredient_adjustments` | object / null | X    | 재료 가감 정보 |
+**Response `200`**: `{ "status": "updated" }`
 
-#### Response `200 OK`
+---
 
-```json
-{
-  "status": "success",
-  "message": "보관함에 저장되었습니다."
+### `PUT /collections/{collection_id}/favorite` — 즐겨찾기 토글
+
+**Response `200`**: `{ "status": "ok", "is_favorite": true }`
+
+---
+
+### `PUT /collections/{collection_id}/rating` — 별점 설정
+
+**Request**: `{ "rating": 4 }` (1-5)
+
+**Response `200`**: `{ "status": "ok" }`
+
+---
+
+### `POST /collections/{collection_id}/cooked` — 요리 기록
+
+**Request**: `{ "rating": 4 }` (optional)
+
+**Response `200`**: `{ "status": "ok", "cooked_count": 3 }`
+
+---
+
+## 5. 태그 (인증 필수)
+
+### `GET /tags/{user_id}` — 태그 목록
+
+**Response `200`**: `[{ "id": 1, "name": "자주 해먹음", "color": "#FF6B6B" }]`
+
+---
+
+### `POST /tags` — 태그 생성
+
+**Request**: `{ "user_id": "uuid", "name": "...", "color": "#FF6B6B" }`
+
+**Response `200`**: `{ "id": 1, "name": "...", "color": "..." }`
+
+---
+
+### `DELETE /tags/{tag_id}` — 태그 삭제
+
+**Response `200`**: `{ "status": "deleted" }`
+
+---
+
+### `PUT /collections/{collection_id}/tags` — 태그 일괄 설정
+
+**Request**: `{ "tag_ids": [1, 3] }`
+
+**Response `200`**: `{ "status": "ok" }`
+
+---
+
+## 6. CollectionItem 스키마
+
+```typescript
+interface CollectionItem {
+  id: number;
+  recipe: Recipe;            // 상세 페이지: full / 목록: 카드용 컬럼만
+  custom_tip: string | null;
+  recipe_override: RecipeOverride | null;
+  is_favorite: boolean;
+  my_rating: number | null;  // 1-5
+  cooked_count: number;
+  last_cooked_at: string | null;
+  category_override: string | null;
+  tags: CollectionTag[];
+  created_at: string;
 }
 ```
-
-#### 에러 응답
-
-| HTTP 상태 | error_code             | 발생 조건                    |
-| --------- | ---------------------- | ---------------------------- |
-| `500`     | `DB_CONNECTION_FAILED` | Supabase 연결 실패           |
-| `400`     | `SAVE_FAILED`          | 저장 실패 (데이터 반환 없음) |
-| `500`     | `INTERNAL_ERROR`       | 서버 내부 오류               |
-
-#### 동작 특성
-
-- `upsert` 사용: 같은 (user_id, recipe_id) 쌍이 있으면 업데이트
-
----
-
-## 3. 신규 구현된 엔드포인트 (2026-02-25)
-
-### 3.1 `DELETE /collections/{collection_id}` — 보관함 삭제 ✅ 구현 완료
-
-#### Request
-
-```
-DELETE /collections/1
-```
-
-#### Response `200 OK`
-
-```json
-{ "status": "deleted" }
-```
-
-#### 에러 응답
-
-| HTTP 상태 | error_code             | 발생 조건          |
-| --------- | ---------------------- | ------------------ |
-| `500`     | `DB_CONNECTION_FAILED` | Supabase 연결 실패 |
-| `500`     | `DELETE_FAILED`        | 삭제 중 오류       |
-
----
-
-### 3.2 `PATCH /collections/{collection_id}` — 보관함 메모 수정 ✅ 구현 완료
-
-#### Request
-
-```json
-{ "custom_tip": "고추장 1큰술 더 넣으면 더 맛있음" }
-```
-
-| 필드         | 타입          | 필수 | 설명              |
-| ------------ | ------------- | ---- | ----------------- |
-| `custom_tip` | string / null | X    | 수정할 개인 메모  |
-
-#### Response `200 OK`
-
-```json
-{ "status": "updated" }
-```
-
-#### 에러 응답
-
-| HTTP 상태 | error_code             | 발생 조건          |
-| --------- | ---------------------- | ------------------ |
-| `500`     | `DB_CONNECTION_FAILED` | Supabase 연결 실패 |
-| `500`     | `UPDATE_FAILED`        | 수정 중 오류       |
-
----
-
-## 4. 미구현 / 향후 예정 엔드포인트
-
-### 4.1 `GET /recipes/{recipe_id}` — 개별 레시피 조회 (P1)
-
-**우선순위**: P1 (보관함에서 레시피 상세 보기 시 필요)
-
----
-
-### 4.2 인증 관련 엔드포인트 (P2)
-
-> `auth.py`에 스켈레톤 존재. Supabase Auth 연동 시 구현 예정.
-
-| 엔드포인트                     | 설명                                                              |
-| ------------------------------ | ----------------------------------------------------------------- |
-| 미정 (Supabase Auth 직접 사용) | 회원가입/로그인은 프론트엔드에서 Supabase Auth SDK 직접 호출 가능 |
-| `GET /me`                      | 현재 로그인 사용자 정보 반환 (JWT 검증)                           |
-
-**참고**: Supabase Auth를 사용하면 별도 회원가입/로그인 API 없이 프론트엔드에서 직접 처리 가능. 백엔드는 JWT 검증(`require_auth` dependency)만 담당.
-
----
-
-## 4. 공통 에러 구조
-
-### ErrorResponse 모델
-
-```python
-class ErrorResponse(BaseModel):
-    error_code: str    # 프로그래밍용 에러 코드
-    message: str       # 사용자 친화적 메시지 (한국어)
-    detail: str | None # 개발자용 상세 정보
-```
-
-### 전체 에러 코드 목록
-
-| error_code             | HTTP | 설명                           |
-| ---------------------- | ---- | ------------------------------ |
-| `INVALID_URL`          | 400  | YouTube URL 형식 오류          |
-| `NOT_RECIPE`           | 400  | 레시피 영상이 아님             |
-| `ACCESS_DENIED`        | 403  | 접근 불가 영상 (멤버십/비공개) |
-| `VALIDATION_ERROR`     | 422  | 요청 데이터 형식 오류          |
-| `DB_CONNECTION_FAILED` | 500  | DB 연결 실패                   |
-| `SAVE_FAILED`          | 400  | 보관함 저장 실패               |
-| `DELETE_FAILED`        | 500  | 보관함 삭제 실패               |
-| `UPDATE_FAILED`        | 500  | 보관함 수정 실패               |
-| `EXTRACTION_FAILED`    | 500  | AI 추출 중 오류                |
-| `INTERNAL_ERROR`       | 500  | 서버 내부 오류                 |
-
----
-
-_이 문서는 초안이며, 팀 리뷰를 통해 수정될 예정입니다._
-_최종 수정: 2026-02-25_

@@ -1,70 +1,77 @@
-# 🚀 레시피 AI 현재 구현 기능 명세서 (Implemented Features)
+# 해먹당 — 구현 기능 명세서 (Implemented Features)
 
-본 문서는 현재 시스템에서 구현 완료되어 바로 사용 가능한 핵심 기능과 기술적 특징을 정리합니다.
-
----
-
-## 1. 핵심 기능 (Core Features)
-
-### 1.1 AI 기반 레시피 고밀도 분석
-
-- **멀티모달 소스 분석**: 유튜브 URL 입력 시 영상의 오디오 트랙과 제목/설명(메타데이터)을 동시에 분석.
-- **구조화된 데이터 추출**: 비정형 영상 데이터를 정교한 JSON 형식으로 변환.
-  - **재료**: 주재료/양념 등 카테고리 분류 및 정확한 수량/단위 분리.
-  - **조리법**: 단계별 설명 및 구체적인 타이머 정보(분/초) 추출.
-  - **맛 분석**: 짠맛, 단맛, 매운맛, 신맛, 기름짐의 5대 지표 수치화(1~5단계).
-  - **전문가 팁**: 영상 내 숨겨진 조리 팁과 보관법 명소화.
-
-### 1.2 지능형 필터링 및 유효성 검사
-
-- **레시피 영상 판단**: 입력된 영상이 실제 조리 과정이 포함된 레시피 영상인지 AI가 1차 판단.
-  - 먹방, 뉴스, 노래 등 부적합 영상은 거절 사유와 함께 차단.
-  - 부적합 영상은 데이터베이스에 저장하지 않아 저장 공간 및 품질 유지.
-
-### 1.3 스마트 캐싱 시스템
-
-- **Video ID 기반 식별**: 다양한 링크 형태(`youtu.be`, `youtube.com` 등)에 관계없이 영상 고유의 ID를 추출하여 중복 식별.
-- **분석 비용 최적화**: 이미 분석된 영상은 AI 요청 없이 DB에서 즉시 로드 (1초 이내 결과 반환).
-
-### 1.4 개인화 보관함 (Personalization)
-
-- **내 보관함 담기**: 분석된 레시피를 개인 계정에 저장.
-- **재료 가감 커스텀**: 저장 시 특정 재료(예: 고수)를 목록에서 제외 처리 가능.
-- **커스텀 메모 (My Tip)**: AI가 준 정보 외에 본인만의 조리 노하우나 피드백을 추가 기록.
-
-### 1.5 모듈화된 백엔드 구조 (Modular Architecture)
-
-- **분리된 관심사**: API 엔드포인트(`main.py`), AI 분석 엔진(`ai_engine.py`), 유틸리티(`utils.py`)로 로직을 분리하여 유지보수성 향상.
-- **안정적인 파일 관리**: 임시 오디오 파일 생성부터 AI 분석 후 자동 삭제까지의 생명주기를 엄격히 관리.
+현재 시스템에서 구현 완료된 핵심 기능. *최종 수정: 2026-03-05 (v0.5.0)*
 
 ---
 
-## 2. 사용자 인터페이스 (UI/UX)
+## 1. 핵심 기능
 
-- **NotebookLM 스타일**: 깔끔하고 전문적인 리포트 형식의 디자인.
-- **인터랙티브 요소**:
-  - 재료별 체크박스를 통한 실시간 제외 항목 선택.
-  - 맛 지표 배지 시스템으로 특징 한눈에 파악.
-  - 조리 시간(타이머) 강조 표시.
-- **전면 한국어화**: 모든 UI 메시지, 오류 내역, AI 분석 결과가 한국어로 제공.
+### 1.1 AI 레시피 분석 (POST /extract-recipe)
+- Gemini 2.5 Flash 유튜브 URL 직접 분석 (오디오 없이 URL만 전달)
+- 구조화 출력: 재료(이름/수량/단위/카테고리), 조리 단계(타이머 포함), 맛 5축(짠/단/맵/신/기름), 꿀팁, 15개 카테고리 자동 분류
+- `is_recipe` 플래그로 먹방·브이로그 자동 거절
+- `video_id` 기반 캐싱 (동일 영상 재분석 방지)
+- `force_refresh=true`로 강제 재분석 가능
+
+### 1.2 Google OAuth 로그인
+- Supabase Auth Google Provider 연동
+- `signInWithOAuth` → `/auth/callback` → 페이지 이동
+- 미인증 접근 시 로그인 모달 + 홈 redirect
+
+### 1.3 백엔드 JWT 인증
+- `/collections/*`, `/tags/*` 엔드포인트에 `Depends(get_current_user)` 적용
+- `Authorization: Bearer <Supabase JWT>` 헤더 필수
+
+### 1.4 개인 레시피북 (user_collections)
+- 레시피 저장/삭제
+- 커스텀 메모 (`custom_tip`)
+- **레시피 편집 모드** (`recipe_override` JSONB): 재료/단계/꿀팁 인라인 수정, 수정 항목 강조, 원본 복원
+- 즐겨찾기 (`is_favorite`)
+- 별점 (`my_rating` 1-5)
+- 요리 기록 (`cooked_count`, `last_cooked_at`), "단골 레시피 🏆" 뱃지
+- 컬러 태그 시스템 (`collection_tags`, `collection_tag_items`)
+
+### 1.5 공개 레시피 탐색 (GET /recipes)
+- 전체 공개 레시피 목록 (인기순/최신순)
+- 카테고리 필터, 제목+재료 검색 (`q` 파라미터)
+- 페이지네이션 (`page`)
+- 카테고리 목록 DB 동적 조회 (`GET /recipes/categories`)
 
 ---
 
-## 3. 기술 스택 (Tech Stack)
+## 2. UI/UX
 
-| 구분               | 기술                                         |
-| :----------------- | :------------------------------------------- |
-| **Backend**        | Python (FastAPI), Pydantic (v2)              |
-| **AI Engine**      | Gemini 1.5 Flash (Multimodal Audio Input)    |
-| **Media**          | yt-dlp (Audio & Metadata Extraction), FFmpeg |
-| **Database**       | PostgreSQL (Supabase), JSONB Storage         |
-| **Frontend**       | Vanilla JS, HTML5, CSS3                      |
-| **Infrastructure** | Docker, Docker Compose                       |
+- **바텀 네비게이션 5탭**: 탐색 / 내레시피 / [+] / 장바구니 / 마이
+- **AddRecipeSheet**: + 버튼 → 바텀시트 [유튜브 URL 분석 / 직접 작성]
+- **백그라운드 분석**: 분석 중 앱 탐색 가능, 완료 시 팝업 알림
+- **RecipeCard**: 썸네일, 재료 미리보기 접기/펼치기, 즐겨찾기 버튼, 카테고리 뱃지
+- **StepTimeline**: 클릭으로 완료 체크, 타이머 배지
+- **IngredientList**: 체크박스, 체크 항목 하단 자동 이동
+- **FlavorProfile**: 레이더 차트 (5축)
+- **VideoCard**: 원본 영상 유튜브 썸네일 카드
+- **ScrollToTop**: 300px 이상 스크롤 시 우측 하단 ↑ 버튼
+- **Toast**: 작업 완료/오류 알림
+- 브랜드 컬러: Terracotta, Cream, Soft Brown, Dusty Blue
 
 ---
 
-## 4. 향후 확장 가능성
+## 3. 기술 스택
 
-- **1인분 자동 환산**: 인원수 선택 시 재료 함량 자동 계산 기능.
-- **맛 프로필 매칭**: 유저의 평소 입맛과 레시피의 맛 지표 비교 분석.
-- **냉장고 연동**: 부족한 재료 자동 체크 및 쇼핑 리스트 생성.
+| 구분 | 기술 |
+|------|------|
+| Backend | Python 3.11, FastAPI |
+| AI | Gemini 2.5 Flash (URL 직접 분석) |
+| Media | yt-dlp (메타데이터), FFmpeg |
+| Database | PostgreSQL (Supabase), JSONB |
+| Frontend | SvelteKit 5, Svelte 5 Runes, TypeScript |
+| Auth | Supabase Auth (Google OAuth) |
+| Infrastructure | Docker Compose, Railway (백엔드), Vercel (프론트) |
+
+---
+
+## 4. 성능 최적화
+
+- `collection_count` 컬럼 캐싱 + 트리거 자동 갱신 (인기순 집계 쿼리 제거)
+- `pg_trgm` GIN 인덱스 (제목 ILIKE 검색 최적화)
+- 목록 API: 카드에 필요한 컬럼만 fetch (steps/flavor 제외)
+- 상세 페이지: `GET /collections/item/{id}` 단일 호출 (전체 컬렉션 재fetch 제거)

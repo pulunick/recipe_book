@@ -111,9 +111,17 @@
 	const displayIngredients = $derived(
 		isEditMode ? editIngredients : (item.recipe_override?.ingredients ?? recipe.ingredients)
 	);
-	const displaySteps = $derived(
-		isEditMode ? editSteps : (item.recipe_override?.steps ?? recipe.steps)
-	);
+	const displaySteps = $derived.by((): RecipeStep[] => {
+		const overrideSteps = item.recipe_override?.steps;
+		if (overrideSteps) {
+			return overrideSteps.map((s, i) => ({
+				step_number: s.order ?? i + 1,
+				description: s.description,
+				timer: s.timer_minutes != null ? `${s.timer_minutes}분` : null
+			}));
+		}
+		return recipe.steps ?? [];
+	});
 	const displayTip = $derived(
 		isEditMode ? editTip : (item.recipe_override?.tip ?? recipe.tip)
 	);
@@ -520,7 +528,7 @@
 					ingredients={displayIngredients as Ingredient[]}
 					storageKey={recipe.video_id ?? String(recipe.id ?? '')}
 				/>
-				<StepTimeline steps={displaySteps as RecipeStep[]} />
+				<StepTimeline steps={displaySteps} />
 
 				{#if displayTip}
 					<div class="tip-section">
