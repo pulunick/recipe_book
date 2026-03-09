@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { isLoggedIn, openLoginModal } from '$lib/stores/auth.svelte';
 	import { getAnalysis, startAnalysis } from '$lib/stores/analysis.svelte';
 
@@ -41,8 +42,8 @@
 			openLoginModal();
 			return;
 		}
-		// 추후 텍스트 작성 라우트로 이동
 		handleClose();
+		goto('/write');
 	}
 
 	function getVideoId(url: string): string | null {

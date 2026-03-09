@@ -169,6 +169,25 @@ export async function setCollectionTags(collectionId: number, tagIds: number[]):
 	await handleResponse(response);
 }
 
+export async function extractRecipeFromText(text: string, title?: string): Promise<Recipe> {
+	const response = await fetch(`${API_BASE}/extract-recipe-from-text`, {
+		method: 'POST',
+		headers: getAuthHeaders(),
+		body: JSON.stringify({ text, title: title || null })
+	});
+	return handleResponse<Recipe>(response);
+}
+
+export async function saveTextRecipe(recipe: Recipe, customTip?: string): Promise<number> {
+	const response = await fetch(`${API_BASE}/collections/text-recipe`, {
+		method: 'POST',
+		headers: getAuthHeaders(),
+		body: JSON.stringify({ recipe, custom_tip: customTip || null })
+	});
+	const data = await handleResponse<{ status: string; collection_id: number }>(response);
+	return data.collection_id;
+}
+
 export async function getRecipeCategories(): Promise<string[]> {
 	const response = await fetch(`${API_BASE}/recipes/categories`);
 	return handleResponse<string[]>(response);

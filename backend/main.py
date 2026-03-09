@@ -10,6 +10,7 @@ from schemas import (
     Recipe, CollectionRequest, CollectionUpdateRequest, ExtractRecipeRequest, ErrorResponse,
     TagCreate, CollectionTag, CollectionTagUpdate, RatingRequest, CookedRequest, CategoryOverrideRequest,
     CollectionListItem, RecipePublicItem, RecipesListResponse, ExtractRecipeFromTextRequest,
+    SaveTextRecipeRequest,
 )
 from utils import extract_video_id, get_video_metadata
 from ai_engine import extract_recipe_with_gemini, extract_recipe_from_text
@@ -882,6 +883,62 @@ async def extract_recipe_from_text_endpoint(request: Request, body: ExtractRecip
                 message="레시피 변환 중 오류가 발생했습니다.",
                 detail=str(e),
             ).model_dump(),
+        )
+
+
+# --- 텍스트 레시피 저장 ---
+@app.post("/collections/text-recipe")
+async def save_text_recipe(request: SaveTextRecipeRequest, jwt_user_id: str = Depends(get_current_user)):
+    """분석된 텍스트 레시피를 recipes 테이블에 저장 후 컬렉션에 추가
+
+    - source='text', is_public=False 로 recipes 저장 (탐색 탭에 노출 안 됨)
+    - video_id 없음 (텍스트 레시피는 캐싱 키 없음)
+    - Flutter 앱에서도 동일 엔드포인트 사용 가능
+    """
+    try:
+        supabase = get_supabase_client()
+        if not supabase:
+            raise HTTPException(
+                status_code=500,
+                detail=ErrorResponse(error_code="DB_CONNECTION_FAILED", message="데이터베이스 연결에 실패했습니다.").model_dump(),
+            )
+
+        # 저장 불필요 or 오염 방지 필드 제거
+        recipe_data = {k: v for k, v in request.recipe.items() if k not in ("id", "is_recipe", "non_recipe_reason")}
+        recipe_data["source"] = "text"
+        recipe_data["is_public"] = False
+        recipe_data["video_id"] = None
+        recipe_data["video_url"] = None
+
+        recipe_result = supabase.table("recipes").insert(recipe_data).execute()
+        if not recipe_result.data:
+            raise HTTPException(
+                status_code=500,
+                detail=ErrorResponse(error_code="SAVE_FAILED", message="레시피 저장에 실패했습니다.").model_dump(),
+            )
+        recipe_id = recipe_result.data[0]["id"]
+
+        collection_result = supabase.table("user_collections").insert({
+            "user_id": jwt_user_id,
+            "recipe_id": recipe_id,
+            "custom_tip": request.custom_tip,
+        }).execute()
+        if not collection_result.data:
+            raise HTTPException(
+                status_code=500,
+                detail=ErrorResponse(error_code="SAVE_FAILED", message="컬렉션 저장에 실패했습니다.").model_dump(),
+            )
+        collection_id = collection_result.data[0]["id"]
+        logger.info("텍스트 레시피 저장 완료 (recipe_id: %s, collection_id: %s)", recipe_id, collection_id)
+        return {"status": "success", "collection_id": collection_id, "recipe_id": recipe_id}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("텍스트 레시피 저장 오류: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=ErrorResponse(error_code="INTERNAL_ERROR", message="레시피 저장 중 오류가 발생했습니다.", detail=str(e)).model_dump(),
         )
 
 

@@ -20,6 +20,12 @@
 
 	// 헤더 숨김 조건: OAuth 콜백
 	const hideHeader = $derived(page.url.pathname.startsWith('/auth/callback'));
+	// BottomNav 숨김 조건: 쿠킹 모드, 텍스트 작성 페이지
+	const hideBottomNav = $derived(
+		page.url.pathname.startsWith('/auth/callback') ||
+		page.url.pathname.startsWith('/write') ||
+		page.url.pathname.endsWith('/cook')
+	);
 
 	onMount(() => {
 		initAuth();
@@ -53,7 +59,7 @@
 	<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&family=Nanum+Myeongjo&display=swap" rel="stylesheet">
 </svelte:head>
 
-<div class="app-shell">
+<div class="app-shell" class:no-bottom-nav={hideBottomNav}>
 	{#if !hideHeader}
 		<header class="slim-header">
 			<a href="/" class="logo">
@@ -89,7 +95,9 @@
 		{@render children()}
 	</main>
 
-	<BottomNav onAddClick={() => (sheetOpen = true)} />
+	{#if !hideBottomNav}
+		<BottomNav onAddClick={() => (sheetOpen = true)} />
+	{/if}
 </div>
 
 <LoginModal />
@@ -256,8 +264,12 @@
 	/* 페이지 콘텐츠 */
 	.page-content {
 		flex: 1;
-		/* 바텀 네비 높이만큼 하단 여백 */
 		padding-bottom: calc(60px + env(safe-area-inset-bottom));
+	}
+
+	/* BottomNav 없는 페이지 (/write, /cook 등) */
+	.app-shell.no-bottom-nav .page-content {
+		padding-bottom: 0;
 	}
 
 	/* 분석 완료/에러 팝업 */

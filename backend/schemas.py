@@ -165,3 +165,9 @@ class RecipesListResponse(BaseModel):
     items: List[RecipePublicItem]
     total: int
     has_more: bool
+
+
+class SaveTextRecipeRequest(BaseModel):
+    """텍스트 레시피 저장 — 이미 분석된 Recipe 데이터를 DB에 저장"""
+    recipe: Dict = Field(..., description="extract-recipe-from-text로 분석된 레시피 데이터")
+    custom_tip: Optional[str] = Field(None, description="개인 메모")
