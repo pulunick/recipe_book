@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import type { Recipe } from '$lib/types';
-	import { extractRecipe, saveToCollection } from '$lib/api';
+	import { extractRecipe, saveToCollection, checkCollection } from '$lib/api';
 	import { isLoggedIn, openLoginModal } from '$lib/stores/auth.svelte';
 	import FlavorProfile from '$lib/components/FlavorProfile.svelte';
 	import IngredientList from '$lib/components/IngredientList.svelte';
@@ -16,21 +16,35 @@
 	let recipe = $state<Recipe | null>(page.state.recipe ?? null);
 	let sourceUrl = $state<string>(page.state.sourceUrl ?? '');
 	let saveStatus = $state<'' | 'saving' | 'saved' | 'error'>('');
+	let savedCollectionId = $state<number | null>(null);
 	let isReanalyzing = $state(false);
 	let showToast = $state(false);
 	let pageLoading = $state(false);
 
 	onMount(async () => {
-		if (recipe) return;
+		if (recipe) {
+			// navigation state로 온 경우: 이미 저장 여부 백그라운드 체크
+			if (isLoggedIn() && recipe.id) {
+				checkCollection(recipe.id).then(id => {
+					if (id !== null) { savedCollectionId = id; saveStatus = 'saved'; }
+				}).catch(() => {});
+			}
+			return;
+		}
 
 		const id = page.params.id;
-		// 11자리 YouTube video ID 패턴이면 캐시된 레시피 재로드
 		if (id && /^[a-zA-Z0-9_-]{11}$/.test(id)) {
 			pageLoading = true;
 			const url = `https://www.youtube.com/watch?v=${id}`;
 			try {
 				recipe = await extractRecipe(url);
 				sourceUrl = url;
+				// 로그인 상태면 이미 저장 여부 확인
+				if (isLoggedIn() && recipe?.id) {
+					checkCollection(recipe.id).then(id => {
+						if (id !== null) { savedCollectionId = id; saveStatus = 'saved'; }
+					}).catch(() => {});
+				}
 			} catch {
 				goto('/');
 			} finally {
@@ -47,9 +61,14 @@
 			openLoginModal(`/?save_recipe_id=${recipe.id}`);
 			return;
 		}
+		if (saveStatus === 'saved' && savedCollectionId) {
+			goto(`/my-recipes/${savedCollectionId}`, { state: { justAdded: true } });
+			return;
+		}
 		saveStatus = 'saving';
 		try {
-			await saveToCollection(recipe.id);
+			const collectionId = await saveToCollection(recipe.id);
+			savedCollectionId = collectionId;
 			saveStatus = 'saved';
 			showToast = true;
 		} catch {
@@ -97,10 +116,11 @@
 				{/if}
 				<button
 					class="save-btn"
+					class:is-saved={saveStatus === 'saved'}
 					onclick={handleSave}
-					disabled={saveStatus === 'saving' || saveStatus === 'saved'}
+					disabled={saveStatus === 'saving'}
 				>
-					{#if saveStatus === 'saved'}추가됨 ✓
+					{#if saveStatus === 'saved'}내 레시피 보러가기 →
 					{:else if saveStatus === 'saving'}추가 중...
 					{:else if saveStatus === 'error'}다시 시도
 					{:else}<span class="bookmark-icon" aria-hidden="true"></span>레시피북에 추가
@@ -163,10 +183,11 @@
 		<div class="recipe-bottom-bar">
 			<button
 				class="save-btn-bottom"
+				class:is-saved={saveStatus === 'saved'}
 				onclick={handleSave}
-				disabled={saveStatus === 'saving' || saveStatus === 'saved'}
+				disabled={saveStatus === 'saving'}
 			>
-				{#if saveStatus === 'saved'}레시피북에 추가됨 ✓
+				{#if saveStatus === 'saved'}내 레시피 보러가기 →
 				{:else if saveStatus === 'saving'}추가하는 중...
 				{:else if saveStatus === 'error'}다시 시도
 				{:else}<span class="bookmark-icon" aria-hidden="true"></span>내 레시피북에 추가
@@ -256,13 +277,22 @@
 		border-radius: 8px;
 		font-size: 0.9rem;
 		font-weight: 600;
+		cursor: pointer;
+		font-family: inherit;
+		transition: background 0.15s;
 	}
 	.save-btn:hover:not(:disabled), .save-btn-bottom:hover:not(:disabled) {
 		background: #b5633f;
 	}
+	.save-btn.is-saved, .save-btn-bottom.is-saved {
+		background: var(--color-sage, #7a9e7e);
+	}
+	.save-btn.is-saved:hover, .save-btn-bottom.is-saved:hover {
+		background: #5f8463;
+	}
 	.save-btn:disabled, .save-btn-bottom:disabled {
 		opacity: 0.6;
-		cursor: default;
+		cursor: not-allowed;
 	}
 
 	.recipe-card {
