@@ -13,18 +13,22 @@
 	import VideoCard from '$lib/components/VideoCard.svelte';
 	import ScrollToTop from '$lib/components/ScrollToTop.svelte';
 	import Toast from '$lib/components/Toast.svelte';
-	import { UtensilsCrossed } from 'lucide-svelte';
-	import type { RecipeOverride, IngredientOverride, StepOverride, RecipeStep, Ingredient } from '$lib/types';
+	import { UtensilsCrossed, Star } from 'lucide-svelte';
+	import type { RecipeOverride, IngredientOverride, StepOverride, RecipeStep, Ingredient, RecipeAuthorUpdate } from '$lib/types';
+	import { getUser } from '$lib/stores/auth.svelte';
 	import {
 		extractRecipe,
 		deleteFromCollection,
 		updateCollection,
 		updateCollectionWithOverride,
+		updateTextRecipe,
+		toggleFavorite,
 		setRating,
 		recordCooked,
 		getTags,
 		createTag,
-		setCollectionTags
+		setCollectionTags,
+		addCartFromCollection
 	} from '$lib/api';
 
 	let { data }: { data: PageData } = $props();
@@ -57,26 +61,28 @@
 	let editIngredients = $state<IngredientOverride[]>([]);
 	let editSteps = $state<StepOverride[]>([]);
 	let editTip = $state<string>('');
+	let editIsPublic = $state<boolean>(false);
 	// 원본 복원 시 true로 설정
 	let restoreOriginal = $state(false);
 
 	// 편집 모드 진입: 현재 표시 중인 데이터(override 우선)로 초기화
 	function enterEditMode() {
 		const override = item.recipe_override;
-		editIngredients = (override?.ingredients ?? recipe.ingredients).map((ing) => ({
+		editIngredients = (override?.ingredients ?? recipe.ingredients ?? []).map((ing) => ({
 			name: ing.name,
 			amount: ing.amount ?? '',
 			unit: ing.unit ?? '',
 			category: ing.category,
 			note: (ing as IngredientOverride).note ?? ''
 		}));
-		editSteps = (override?.steps ?? recipe.steps).map((s, i) => ({
+		editSteps = (override?.steps ?? recipe.steps ?? []).map((s, i) => ({
 			order: (s as StepOverride).order ?? (s as RecipeStep).step_number ?? i + 1,
 			description: s.description,
 			timer_minutes: (s as StepOverride).timer_minutes ?? null,
 			note: (s as StepOverride).note ?? ''
 		}));
 		editTip = override?.tip ?? recipe.tip ?? '';
+		editIsPublic = recipe.is_public ?? false;
 		restoreOriginal = false;
 		isEditMode = true;
 	}
@@ -88,18 +94,52 @@
 	async function saveEdit() {
 		isSavingEdit = true;
 		try {
-			let override: RecipeOverride | null = null;
-			if (!restoreOriginal) {
-				override = {
-					ingredients: editIngredients,
-					steps: editSteps,
-					tip: editTip || undefined
+			if (isTextRecipeAuthor && !restoreOriginal) {
+				// 텍스트 레시피 작성자 → recipes 테이블 직접 업데이트
+				const updateData: RecipeAuthorUpdate = {
+					ingredients: editIngredients.map(ing => ({
+						name: ing.name,
+						amount: ing.amount || null,
+						unit: ing.unit || null,
+						category: ing.category
+					})),
+					steps: editSteps.map((s, i) => ({
+						step_number: s.order ?? i + 1,
+						description: s.description,
+						timer: s.timer_minutes != null ? `${s.timer_minutes}분` : null
+					})),
+					tip: editTip || null,
+					is_public: editIsPublic
 				};
+				await updateTextRecipe(recipe.id!, updateData);
+				item = {
+					...item,
+					recipe: {
+						...recipe,
+						ingredients: updateData.ingredients,
+						steps: updateData.steps,
+						tip: updateData.tip,
+						is_public: editIsPublic
+					},
+					recipe_override: null
+				};
+				isEditMode = false;
+				triggerToast('레시피가 업데이트됐어요.');
+			} else {
+				// YouTube 레시피 또는 비작성자 → recipe_override 사용
+				let override: RecipeOverride | null = null;
+				if (!restoreOriginal) {
+					override = {
+						ingredients: editIngredients,
+						steps: editSteps,
+						tip: editTip || undefined
+					};
+				}
+				await updateCollectionWithOverride(item.id, item.custom_tip, override);
+				item = { ...item, recipe_override: override };
+				isEditMode = false;
+				triggerToast(restoreOriginal ? '원본 레시피로 복원됐어요.' : '수정사항이 저장됐어요.');
 			}
-			await updateCollectionWithOverride(item.id, item.custom_tip, override);
-			item = { ...item, recipe_override: override };
-			isEditMode = false;
-			triggerToast(restoreOriginal ? '원본 레시피로 복원됐어요.' : '수정사항이 저장됐어요.');
 		} catch {
 			triggerToast('저장 중 오류가 발생했습니다.');
 		} finally {
@@ -126,18 +166,19 @@
 		isEditMode ? editTip : (item.recipe_override?.tip ?? recipe.tip)
 	);
 	const hasOverride = $derived(item.recipe_override != null);
+	const isTextRecipeAuthor = $derived(recipe.source === 'text' && recipe.author_user_id === getUser()?.id);
 
 	// 재료/단계 수정 여부 비교 (원본 대비)
 	function isIngredientModified(idx: number): boolean {
 		if (!item.recipe_override?.ingredients) return false;
-		const orig = recipe.ingredients[idx];
+		const orig = recipe.ingredients?.[idx];
 		const ov = item.recipe_override.ingredients[idx];
 		if (!orig || !ov) return true;
 		return orig.name !== ov.name || (orig.amount ?? '') !== ov.amount || (orig.unit ?? '') !== ov.unit;
 	}
 	function isStepModified(idx: number): boolean {
 		if (!item.recipe_override?.steps) return false;
-		const orig = recipe.steps[idx];
+		const orig = recipe.steps?.[idx];
 		const ov = item.recipe_override.steps[idx];
 		if (!orig || !ov) return true;
 		return orig.description !== ov.description;
@@ -158,6 +199,21 @@
 			triggerToast(e instanceof Error ? e.message : '재분석 중 오류가 발생했습니다.');
 		} finally {
 			isReanalyzing = false;
+		}
+	}
+
+	// 장바구니 담기 상태
+	let isAddingToCart = $state(false);
+
+	async function handleAddToCart() {
+		isAddingToCart = true;
+		try {
+			const result = await addCartFromCollection(item.id);
+			triggerToast(`재료 ${result.count}개를 장바구니에 담았어요! 🛒`);
+		} catch (e) {
+			triggerToast(e instanceof Error ? e.message : '장바구니 담기에 실패했습니다.');
+		} finally {
+			isAddingToCart = false;
 		}
 	}
 
@@ -182,6 +238,23 @@
 			triggerToast('레시피북에 추가됐어요!');
 		}
 	});
+
+	// 즐겨찾기 토글
+	let isTogglingFavorite = $state(false);
+	async function handleFavorite() {
+		if (isTogglingFavorite) return;
+		isTogglingFavorite = true;
+		const prev = item.is_favorite;
+		item = { ...item, is_favorite: !prev };
+		try {
+			await toggleFavorite(item.id);
+		} catch {
+			item = { ...item, is_favorite: prev };
+			triggerToast('즐겨찾기 변경 중 오류가 발생했습니다.');
+		} finally {
+			isTogglingFavorite = false;
+		}
+	}
 
 	// 별점 변경
 	async function handleRating(rating: number) {
@@ -339,10 +412,18 @@
 		{#if isEditMode}
 			<div class="edit-banner">
 				<span class="edit-banner-text">✎ 수정 중</span>
-				<label class="restore-label">
-					<input type="checkbox" bind:checked={restoreOriginal} />
-					원본으로 복원
-				</label>
+				{#if !isTextRecipeAuthor}
+					<label class="restore-label">
+						<input type="checkbox" bind:checked={restoreOriginal} />
+						원본으로 복원
+					</label>
+				{/if}
+				{#if isTextRecipeAuthor}
+					<label class="public-toggle-label">
+						<input type="checkbox" bind:checked={editIsPublic} />
+						{editIsPublic ? '전체공개' : '나만보기'}
+					</label>
+				{/if}
 				<div class="edit-banner-actions">
 					<button class="btn-save-edit" onclick={saveEdit} disabled={isSavingEdit}>
 						{isSavingEdit ? '저장 중...' : '변경 저장'}
@@ -353,6 +434,17 @@
 		{/if}
 
 		<article class="recipe-card">
+			<button
+				class="btn-favorite"
+				class:is-favorite={item.is_favorite}
+				onclick={handleFavorite}
+				disabled={isTogglingFavorite}
+				aria-label={item.is_favorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+				title={item.is_favorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+			>
+				<Star size={22} fill={item.is_favorite ? 'currentColor' : 'none'} />
+			</button>
+
 			<h1 class="recipe-title">{recipe.title}{recipe.channel_name ? ` - ${recipe.channel_name}` : ''}</h1>
 
 			{#if sourceLine}
@@ -387,6 +479,9 @@
 				<div class="cooked-area">
 					<button class="btn-cooked" onclick={handleCooked} disabled={isCooking}>
 						{isCooking ? '기록 중...' : '오늘 요리했어요'} <UtensilsCrossed size={16} />
+					</button>
+					<button class="btn-add-cart" onclick={handleAddToCart} disabled={isAddingToCart}>
+						{isAddingToCart ? '담는 중...' : '🛒 재료 담기'}
 					</button>
 					<span class="cooked-count">{item.cooked_count}회 요리</span>
 					{#if item.last_cooked_at}
@@ -423,7 +518,9 @@
 				<p class="recipe-summary">{recipe.summary}</p>
 			{/if}
 
-			<FlavorProfile flavor={recipe.flavor} />
+			{#if recipe.flavor}
+				<FlavorProfile flavor={recipe.flavor} />
+			{/if}
 
 			{#if isEditMode && !restoreOriginal}
 				<!-- 재료 편집 모드 -->
@@ -577,9 +674,9 @@
 
 			<VideoCard
 				videoId={recipe.video_id}
-				videoUrl={recipe.video_url}
+				videoUrl={recipe.video_url ?? null}
 				channelName={recipe.channel_name}
-				videoTitle={recipe.video_title}
+				videoTitle={recipe.video_title ?? null}
 			/>
 		</article>
 	</section>
@@ -694,10 +791,39 @@
 	.btn-cancel:disabled { opacity: 0.6; cursor: not-allowed; }
 
 	.recipe-card {
+		position: relative;
 		background: white;
 		border-radius: 12px;
 		padding: 2.5rem;
 		box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+	}
+
+	.btn-favorite {
+		position: absolute;
+		top: 1.2rem;
+		right: 1.2rem;
+		background: none;
+		border: none;
+		padding: 6px;
+		cursor: pointer;
+		color: var(--color-light-line);
+		border-radius: 50%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		transition: color 0.18s, transform 0.15s;
+	}
+	.btn-favorite:hover {
+		color: var(--color-terracotta);
+		transform: scale(1.15);
+	}
+	.btn-favorite.is-favorite {
+		color: var(--color-terracotta);
+	}
+	.btn-favorite:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+		transform: none;
 	}
 
 	.recipe-title {
@@ -763,6 +889,24 @@
 		background: color-mix(in srgb, var(--color-warm-yellow, #fff3cd) 80%, #f5a623);
 	}
 	.btn-cooked:disabled { opacity: 0.6; cursor: not-allowed; }
+
+	.btn-add-cart {
+		font-size: 0.82rem;
+		background: var(--color-cream);
+		border: 1px solid var(--color-light-line);
+		border-radius: 8px;
+		padding: 0.35rem 0.8rem;
+		cursor: pointer;
+		font-family: inherit;
+		color: var(--color-warm-brown);
+		transition: background 0.15s, border-color 0.15s;
+	}
+	.btn-add-cart:hover {
+		background: white;
+		border-color: var(--color-terracotta);
+		color: var(--color-terracotta);
+	}
+	.btn-add-cart:disabled { opacity: 0.6; cursor: not-allowed; }
 
 	.cooked-count {
 		font-size: 0.82rem;
@@ -989,6 +1133,15 @@
 		gap: 0.4rem;
 		font-size: 0.82rem;
 		color: var(--color-soft-brown);
+		cursor: pointer;
+	}
+	.public-toggle-label {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		font-size: 0.82rem;
+		font-weight: 600;
+		color: var(--color-terracotta, #c0714f);
 		cursor: pointer;
 	}
 	.edit-banner-actions {

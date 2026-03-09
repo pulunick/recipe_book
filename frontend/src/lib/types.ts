@@ -35,6 +35,9 @@ export interface Recipe {
 	servings: string | null;
 	cooking_time: string | null;
 	difficulty: string | null;
+	source?: string | null;
+	author_user_id?: string | null;
+	is_public?: boolean | null;
 }
 
 export interface IngredientOverride {
@@ -72,10 +75,41 @@ export interface CollectionItem {
 	tags: CollectionTag[];
 }
 
+export interface RecipeAuthorUpdate {
+	title?: string;
+	summary?: string;
+	ingredients?: Ingredient[];
+	steps?: RecipeStep[];
+	tip?: string | null;
+	servings?: string | null;
+	cooking_time?: string | null;
+	difficulty?: string | null;
+	is_public?: boolean;
+}
+
 export interface CollectionTag {
 	id: number;
 	name: string;
 	color: string;
+}
+
+// --- 장바구니 ---
+export interface CartItem {
+	id: number;
+	collection_id: number | null;
+	recipe_title: string | null;
+	ingredient_name: string;
+	amount: string | null;
+	unit: string | null;
+	category: string;
+	is_checked: boolean;
+	created_at: string;
+}
+
+export interface CartGroup {
+	collection_id: number | null;
+	recipe_title: string | null;
+	items: CartItem[];
 }
 
 export type AnalysisMode = 'fast' | 'precise';

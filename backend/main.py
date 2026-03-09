@@ -10,7 +10,7 @@ from schemas import (
     Recipe, CollectionRequest, CollectionUpdateRequest, ExtractRecipeRequest, ErrorResponse,
     TagCreate, CollectionTag, CollectionTagUpdate, RatingRequest, CookedRequest, CategoryOverrideRequest,
     CollectionListItem, RecipePublicItem, RecipesListResponse, ExtractRecipeFromTextRequest,
-    SaveTextRecipeRequest,
+    SaveTextRecipeRequest, CartItemResponse, CartGroupResponse, RecipeAuthorUpdateRequest,
 )
 from utils import extract_video_id, get_video_metadata
 from ai_engine import extract_recipe_with_gemini, extract_recipe_from_text
@@ -906,7 +906,8 @@ async def save_text_recipe(request: SaveTextRecipeRequest, jwt_user_id: str = De
         # 저장 불필요 or 오염 방지 필드 제거
         recipe_data = {k: v for k, v in request.recipe.items() if k not in ("id", "is_recipe", "non_recipe_reason")}
         recipe_data["source"] = "text"
-        recipe_data["is_public"] = False
+        recipe_data["is_public"] = request.is_public
+        recipe_data["author_user_id"] = jwt_user_id
         recipe_data["video_id"] = None
         recipe_data["video_url"] = None
 
@@ -939,6 +940,59 @@ async def save_text_recipe(request: SaveTextRecipeRequest, jwt_user_id: str = De
         raise HTTPException(
             status_code=500,
             detail=ErrorResponse(error_code="INTERNAL_ERROR", message="레시피 저장 중 오류가 발생했습니다.", detail=str(e)).model_dump(),
+        )
+
+
+# --- 텍스트 레시피 원본 수정 (작성자 전용) ---
+@app.patch("/recipes/{recipe_id}")
+async def update_text_recipe(recipe_id: int, request: RecipeAuthorUpdateRequest, jwt_user_id: str = Depends(get_current_user)):
+    """텍스트 레시피 원본 수정 — author_user_id가 요청자와 일치할 때만 허용.
+    탐색 탭에 공개된 경우 수정본이 즉시 반영됨.
+    """
+    try:
+        supabase = get_supabase_client()
+        if not supabase:
+            raise HTTPException(
+                status_code=500,
+                detail=ErrorResponse(error_code="DB_CONNECTION_FAILED", message="데이터베이스 연결에 실패했습니다.").model_dump(),
+            )
+
+        # 소유권 + source 확인
+        result = supabase.table("recipes").select("author_user_id,source").eq("id", recipe_id).execute()
+        if not result.data:
+            raise HTTPException(
+                status_code=404,
+                detail=ErrorResponse(error_code="NOT_FOUND", message="레시피를 찾을 수 없습니다.").model_dump(),
+            )
+
+        recipe_row = result.data[0]
+        if recipe_row.get("source") != "text":
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponse(error_code="NOT_TEXT_RECIPE", message="텍스트 레시피만 원본 수정이 가능합니다.").model_dump(),
+            )
+        if recipe_row.get("author_user_id") != jwt_user_id:
+            raise HTTPException(
+                status_code=403,
+                detail=ErrorResponse(error_code="FORBIDDEN", message="레시피 작성자만 수정할 수 있습니다.").model_dump(),
+            )
+
+        # 변경된 필드만 업데이트
+        update_data = {k: v for k, v in request.model_dump().items() if v is not None}
+        if not update_data:
+            return {"status": "no_changes"}
+
+        supabase.table("recipes").update(update_data).eq("id", recipe_id).execute()
+        logger.info("텍스트 레시피 원본 수정 완료 (recipe_id: %s)", recipe_id)
+        return {"status": "updated"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("레시피 원본 수정 오류 (id: %s): %s", recipe_id, e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=ErrorResponse(error_code="UPDATE_FAILED", message="레시피 수정 중 오류가 발생했습니다.", detail=str(e)).model_dump(),
         )
 
 
@@ -1031,6 +1085,257 @@ async def get_recipe_categories():
     if result.data:
         return [row["category"] for row in result.data]
     return []
+
+
+# ==============================
+# 장바구니 엔드포인트
+# ==============================
+
+@app.get("/cart", response_model=list[CartGroupResponse])
+async def get_cart(jwt_user_id: str = Depends(get_current_user)):
+    """내 장바구니 목록 (레시피별 그룹화)"""
+    try:
+        supabase = get_supabase_client()
+        if not supabase:
+            raise HTTPException(
+                status_code=500,
+                detail=ErrorResponse(error_code="DB_CONNECTION_FAILED", message="데이터베이스 연결에 실패했습니다.").model_dump(),
+            )
+
+        result = (
+            supabase.table("cart_items")
+            .select("*")
+            .eq("user_id", jwt_user_id)
+            .order("created_at", desc=False)   # 그룹 내 재료 순서 유지
+            .execute()
+        )
+        items = result.data or []
+
+        # 레시피별 그룹화 (collection_id 기준, 없으면 recipe_title 기준)
+        groups: dict = {}
+        for row in items:
+            key = row.get("collection_id") or row.get("recipe_title") or "기타"
+            if key not in groups:
+                groups[key] = {
+                    "collection_id": row.get("collection_id"),
+                    "recipe_title": row.get("recipe_title"),
+                    "items": [],
+                    "_max_created_at": "",
+                }
+            groups[key]["items"].append(row)
+            row_ts = row.get("created_at") or ""
+            if row_ts > groups[key]["_max_created_at"]:
+                groups[key]["_max_created_at"] = row_ts
+
+        # 최근 담은 그룹이 위로 오도록 정렬 (DESC)
+        sorted_groups = sorted(groups.values(), key=lambda g: g["_max_created_at"], reverse=True)
+        for g in sorted_groups:
+            g.pop("_max_created_at", None)
+
+        return sorted_groups
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("장바구니 조회 오류: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=ErrorResponse(error_code="FETCH_FAILED", message="장바구니 조회 중 오류가 발생했습니다.", detail=str(e)).model_dump(),
+        )
+
+
+@app.post("/cart/from-collection/{collection_id}")
+async def add_cart_from_collection(collection_id: int, jwt_user_id: str = Depends(get_current_user)):
+    """레시피 컬렉션의 재료를 장바구니에 추가 (기존 항목 교체)"""
+    try:
+        supabase = get_supabase_client()
+        if not supabase:
+            raise HTTPException(
+                status_code=500,
+                detail=ErrorResponse(error_code="DB_CONNECTION_FAILED", message="데이터베이스 연결에 실패했습니다.").model_dump(),
+            )
+
+        # 소유권 확인 + 레시피 조회
+        result = (
+            supabase.table("user_collections")
+            .select("*, recipe:recipes(title, ingredients)")
+            .eq("id", collection_id)
+            .single()
+            .execute()
+        )
+        if not result.data:
+            raise HTTPException(
+                status_code=404,
+                detail=ErrorResponse(error_code="NOT_FOUND", message="컬렉션을 찾을 수 없습니다.").model_dump(),
+            )
+
+        col = result.data
+        if col["user_id"] != jwt_user_id:
+            raise HTTPException(
+                status_code=403,
+                detail=ErrorResponse(error_code="FORBIDDEN", message="접근 권한이 없습니다.").model_dump(),
+            )
+
+        recipe = col.get("recipe") or {}
+        recipe_title = recipe.get("title", "")
+
+        # recipe_override 재료 우선, 없으면 원본 재료
+        override = col.get("recipe_override") or {}
+        ingredients = override.get("ingredients") or recipe.get("ingredients") or []
+
+        if not ingredients:
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponse(error_code="NO_INGREDIENTS", message="재료 정보가 없습니다.").model_dump(),
+            )
+
+        # 기존 이 컬렉션의 장바구니 항목 삭제 (교체)
+        supabase.table("cart_items").delete().eq("user_id", jwt_user_id).eq("collection_id", collection_id).execute()
+
+        # 새 항목 삽입
+        rows = [
+            {
+                "user_id": jwt_user_id,
+                "collection_id": collection_id,
+                "recipe_title": recipe_title,
+                "ingredient_name": ing.get("name", ""),
+                "amount": ing.get("amount"),
+                "unit": ing.get("unit"),
+                "category": ing.get("category") or "기타",
+                "is_checked": False,
+            }
+            for ing in ingredients
+            if ing.get("name")
+        ]
+
+        supabase.table("cart_items").insert(rows).execute()
+        logger.info("장바구니 추가 완료 (collection_id: %s, 재료 수: %d)", collection_id, len(rows))
+        return {"status": "added", "count": len(rows)}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("장바구니 추가 오류 (collection_id: %s): %s", collection_id, e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=ErrorResponse(error_code="INTERNAL_ERROR", message="장바구니 추가 중 오류가 발생했습니다.", detail=str(e)).model_dump(),
+        )
+
+
+@app.put("/cart/items/{item_id}/check")
+async def toggle_cart_item(item_id: int, jwt_user_id: str = Depends(get_current_user)):
+    """장바구니 아이템 체크/언체크 토글"""
+    try:
+        supabase = get_supabase_client()
+        if not supabase:
+            raise HTTPException(
+                status_code=500,
+                detail=ErrorResponse(error_code="DB_CONNECTION_FAILED", message="데이터베이스 연결에 실패했습니다.").model_dump(),
+            )
+
+        current = supabase.table("cart_items").select("user_id,is_checked").eq("id", item_id).execute()
+        if not current.data:
+            raise HTTPException(
+                status_code=404,
+                detail=ErrorResponse(error_code="NOT_FOUND", message="장바구니 항목을 찾을 수 없습니다.").model_dump(),
+            )
+        if current.data[0]["user_id"] != jwt_user_id:
+            raise HTTPException(
+                status_code=403,
+                detail=ErrorResponse(error_code="FORBIDDEN", message="접근 권한이 없습니다.").model_dump(),
+            )
+
+        new_value = not current.data[0]["is_checked"]
+        supabase.table("cart_items").update({"is_checked": new_value}).eq("id", item_id).execute()
+        return {"is_checked": new_value}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("장바구니 체크 토글 오류 (item_id: %s): %s", item_id, e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=ErrorResponse(error_code="UPDATE_FAILED", message="체크 업데이트 중 오류가 발생했습니다.", detail=str(e)).model_dump(),
+        )
+
+
+@app.delete("/cart/items/{item_id}")
+async def delete_cart_item(item_id: int, jwt_user_id: str = Depends(get_current_user)):
+    """장바구니 개별 아이템 삭제"""
+    try:
+        supabase = get_supabase_client()
+        if not supabase:
+            raise HTTPException(
+                status_code=500,
+                detail=ErrorResponse(error_code="DB_CONNECTION_FAILED", message="데이터베이스 연결에 실패했습니다.").model_dump(),
+            )
+
+        item = supabase.table("cart_items").select("user_id").eq("id", item_id).execute()
+        if item.data and item.data[0]["user_id"] != jwt_user_id:
+            raise HTTPException(
+                status_code=403,
+                detail=ErrorResponse(error_code="FORBIDDEN", message="접근 권한이 없습니다.").model_dump(),
+            )
+
+        supabase.table("cart_items").delete().eq("id", item_id).eq("user_id", jwt_user_id).execute()
+        return {"deleted": True}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("장바구니 항목 삭제 오류 (item_id: %s): %s", item_id, e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=ErrorResponse(error_code="DELETE_FAILED", message="삭제 중 오류가 발생했습니다.", detail=str(e)).model_dump(),
+        )
+
+
+@app.delete("/cart/checked")
+async def delete_checked_cart_items(jwt_user_id: str = Depends(get_current_user)):
+    """체크된 장바구니 항목 모두 삭제"""
+    try:
+        supabase = get_supabase_client()
+        if not supabase:
+            raise HTTPException(
+                status_code=500,
+                detail=ErrorResponse(error_code="DB_CONNECTION_FAILED", message="데이터베이스 연결에 실패했습니다.").model_dump(),
+            )
+
+        supabase.table("cart_items").delete().eq("user_id", jwt_user_id).eq("is_checked", True).execute()
+        return {"deleted": True}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("체크 항목 삭제 오류: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=ErrorResponse(error_code="DELETE_FAILED", message="삭제 중 오류가 발생했습니다.", detail=str(e)).model_dump(),
+        )
+
+
+@app.delete("/cart")
+async def clear_cart(jwt_user_id: str = Depends(get_current_user)):
+    """장바구니 전체 비우기"""
+    try:
+        supabase = get_supabase_client()
+        if not supabase:
+            raise HTTPException(
+                status_code=500,
+                detail=ErrorResponse(error_code="DB_CONNECTION_FAILED", message="데이터베이스 연결에 실패했습니다.").model_dump(),
+            )
+
+        supabase.table("cart_items").delete().eq("user_id", jwt_user_id).execute()
+        return {"cleared": True}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("장바구니 비우기 오류: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=ErrorResponse(error_code="DELETE_FAILED", message="장바구니 비우기 중 오류가 발생했습니다.", detail=str(e)).model_dump(),
+        )
 
 
 if __name__ == "__main__":

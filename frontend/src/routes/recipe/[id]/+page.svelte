@@ -25,7 +25,7 @@
 
 		const id = page.params.id;
 		// 11자리 YouTube video ID 패턴이면 캐시된 레시피 재로드
-		if (/^[a-zA-Z0-9_-]{11}$/.test(id)) {
+		if (id && /^[a-zA-Z0-9_-]{11}$/.test(id)) {
 			pageLoading = true;
 			const url = `https://www.youtube.com/watch?v=${id}`;
 			try {
@@ -130,12 +130,18 @@
 				<p class="recipe-summary">{recipe.summary}</p>
 			{/if}
 
-			<FlavorProfile flavor={recipe.flavor} />
-			<IngredientList
-				ingredients={recipe.ingredients}
-				storageKey={recipe.video_id ?? String(recipe.id ?? '')}
-			/>
-			<StepTimeline steps={recipe.steps} />
+			{#if recipe.flavor}
+				<FlavorProfile flavor={recipe.flavor} />
+			{/if}
+			{#if recipe.ingredients?.length}
+				<IngredientList
+					ingredients={recipe.ingredients}
+					storageKey={recipe.video_id ?? String(recipe.id ?? '')}
+				/>
+			{/if}
+			{#if recipe.steps?.length}
+				<StepTimeline steps={recipe.steps} />
+			{/if}
 
 			{#if recipe.tip}
 				<div class="tip-section">
@@ -148,9 +154,9 @@
 
 			<VideoCard
 				videoId={recipe.video_id}
-				videoUrl={recipe.video_url}
+				videoUrl={recipe.video_url ?? null}
 				channelName={recipe.channel_name}
-				videoTitle={recipe.video_title}
+				videoTitle={recipe.video_title ?? null}
 			/>
 		</article>
 

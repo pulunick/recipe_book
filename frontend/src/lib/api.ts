@@ -1,4 +1,4 @@
-import type { Recipe, CollectionItem, CollectionTag, RecipeOverride, RecipePublicItem } from './types';
+import type { Recipe, CollectionItem, CollectionTag, RecipeOverride, RecipePublicItem, CartGroup, RecipeAuthorUpdate } from './types';
 import { getSession } from '$lib/stores/auth.svelte';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -178,14 +178,72 @@ export async function extractRecipeFromText(text: string, title?: string): Promi
 	return handleResponse<Recipe>(response);
 }
 
-export async function saveTextRecipe(recipe: Recipe, customTip?: string): Promise<number> {
+export async function saveTextRecipe(recipe: Recipe, customTip?: string, isPublic = false): Promise<number> {
 	const response = await fetch(`${API_BASE}/collections/text-recipe`, {
 		method: 'POST',
 		headers: getAuthHeaders(),
-		body: JSON.stringify({ recipe, custom_tip: customTip || null })
+		body: JSON.stringify({ recipe, custom_tip: customTip || null, is_public: isPublic })
 	});
 	const data = await handleResponse<{ status: string; collection_id: number }>(response);
 	return data.collection_id;
+}
+
+export async function updateTextRecipe(recipeId: number, data: RecipeAuthorUpdate): Promise<void> {
+	const response = await fetch(`${API_BASE}/recipes/${recipeId}`, {
+		method: 'PATCH',
+		headers: getAuthHeaders(),
+		body: JSON.stringify(data)
+	});
+	await handleResponse(response);
+}
+
+// --- 장바구니 ---
+
+export async function getCart(): Promise<CartGroup[]> {
+	const response = await fetch(`${API_BASE}/cart`, {
+		headers: getAuthHeaders()
+	});
+	return handleResponse<CartGroup[]>(response);
+}
+
+export async function addCartFromCollection(collectionId: number): Promise<{ status: string; count: number }> {
+	const response = await fetch(`${API_BASE}/cart/from-collection/${collectionId}`, {
+		method: 'POST',
+		headers: getAuthHeaders()
+	});
+	return handleResponse<{ status: string; count: number }>(response);
+}
+
+export async function toggleCartItem(itemId: number): Promise<{ is_checked: boolean }> {
+	const response = await fetch(`${API_BASE}/cart/items/${itemId}/check`, {
+		method: 'PUT',
+		headers: getAuthHeaders()
+	});
+	return handleResponse<{ is_checked: boolean }>(response);
+}
+
+export async function deleteCartItem(itemId: number): Promise<void> {
+	const response = await fetch(`${API_BASE}/cart/items/${itemId}`, {
+		method: 'DELETE',
+		headers: getAuthHeaders()
+	});
+	await handleResponse(response);
+}
+
+export async function deleteCheckedCartItems(): Promise<void> {
+	const response = await fetch(`${API_BASE}/cart/checked`, {
+		method: 'DELETE',
+		headers: getAuthHeaders()
+	});
+	await handleResponse(response);
+}
+
+export async function clearCart(): Promise<void> {
+	const response = await fetch(`${API_BASE}/cart`, {
+		method: 'DELETE',
+		headers: getAuthHeaders()
+	});
+	await handleResponse(response);
 }
 
 export async function getRecipeCategories(): Promise<string[]> {

@@ -1,10 +1,8 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { extractRecipeFromText, saveTextRecipe } from '$lib/api';
-	import IngredientList from '$lib/components/IngredientList.svelte';
-	import StepTimeline from '$lib/components/StepTimeline.svelte';
 	import FlavorProfile from '$lib/components/FlavorProfile.svelte';
-	import type { Recipe } from '$lib/types';
+	import type { Recipe, Ingredient, RecipeStep } from '$lib/types';
 
 	type Step = 'input' | 'preview';
 	let step = $state<Step>('input');
@@ -16,9 +14,15 @@
 	let errorMsg = $state('');
 	let recipe = $state<Recipe | null>(null);
 
+	// 공개 여부
+	let isPublic = $state(false);
+
 	const MIN_LENGTH = 50;
 	const textLength = $derived(text.length);
 	const canAnalyze = $derived(textLength >= MIN_LENGTH && !isAnalyzing);
+
+	const CATEGORIES = ['주재료', '부재료', '양념', '육수', '기타'];
+	const DIFFICULTIES = ['쉬움', '보통', '어려움'];
 
 	async function handleAnalyze() {
 		if (!canAnalyze) return;
@@ -39,7 +43,7 @@
 		isSaving = true;
 		errorMsg = '';
 		try {
-			const collectionId = await saveTextRecipe(recipe);
+			const collectionId = await saveTextRecipe(recipe, undefined, isPublic);
 			goto(`/my-recipes/${collectionId}`, { state: { justAdded: true } });
 		} catch (e) {
 			errorMsg = e instanceof Error ? e.message : '저장 중 오류가 발생했습니다.';
@@ -55,6 +59,54 @@
 			goto('/my-recipes');
 		}
 	}
+
+	// --- 재료 편집 ---
+	function addIngredient() {
+		if (!recipe) return;
+		recipe = {
+			...recipe,
+			ingredients: [...(recipe.ingredients ?? []), { name: '', amount: null, unit: null, category: '기타' }]
+		};
+	}
+
+	function removeIngredient(i: number) {
+		if (!recipe) return;
+		recipe = { ...recipe, ingredients: (recipe.ingredients ?? []).filter((_, idx) => idx !== i) };
+	}
+
+	function updateIngredient(i: number, field: keyof Ingredient, value: string) {
+		if (!recipe?.ingredients) return;
+		const updated = recipe.ingredients.map((ing, idx) =>
+			idx === i ? { ...ing, [field]: value || null } : ing
+		);
+		recipe = { ...recipe, ingredients: updated };
+	}
+
+	// --- 단계 편집 ---
+	function addStep() {
+		if (!recipe) return;
+		const steps = recipe.steps ?? [];
+		recipe = {
+			...recipe,
+			steps: [...steps, { step_number: steps.length + 1, description: '', timer: null }]
+		};
+	}
+
+	function removeStep(i: number) {
+		if (!recipe) return;
+		const updated = (recipe.steps ?? [])
+			.filter((_, idx) => idx !== i)
+			.map((s, idx) => ({ ...s, step_number: idx + 1 }));
+		recipe = { ...recipe, steps: updated };
+	}
+
+	function updateStep(i: number, value: string) {
+		if (!recipe?.steps) return;
+		recipe = {
+			...recipe,
+			steps: recipe.steps.map((s, idx) => idx === i ? { ...s, description: value } : s)
+		};
+	}
 </script>
 
 <svelte:head>
@@ -69,7 +121,7 @@
 			</svg>
 		</button>
 		<h1 class="write-title">
-			{step === 'input' ? '레시피 작성' : '미리보기'}
+			{step === 'input' ? '레시피 작성' : 'AI 변환 결과'}
 		</h1>
 		{#if step === 'preview'}
 			<button class="save-btn-header" onclick={handleSave} disabled={isSaving}>
@@ -92,7 +144,7 @@
 						id="recipe-title"
 						class="field-input"
 						type="text"
-						placeholder="예: 엄마 김치찌개 레시피"
+						placeholder="제목이 없으면 AI가 자동으로 생성해드려요."
 						maxlength="100"
 						bind:value={title}
 					/>
@@ -138,44 +190,148 @@
 		{:else if step === 'preview' && recipe}
 			<div class="preview-section">
 				<div class="preview-notice">
-					<span class="notice-icon">✨</span>
-					<span>AI가 구조화한 결과예요. 저장 후 편집할 수 있어요.</span>
+					<span class="notice-icon">✏️</span>
+					<span>AI가 변환한 결과예요. 저장 전에 바로 수정할 수 있어요.</span>
 				</div>
 
 				<div class="preview-card">
-					<h2 class="preview-recipe-title">{recipe.title}</h2>
+					<!-- 제목 -->
+					<input
+						class="edit-title"
+						type="text"
+						bind:value={recipe.title}
+						placeholder="레시피 제목"
+						maxlength="100"
+					/>
 
-					{#if recipe.servings || recipe.cooking_time || recipe.difficulty}
-						<div class="meta-chips">
-							{#if recipe.servings}<span class="meta-chip">👥 {recipe.servings}</span>{/if}
-							{#if recipe.cooking_time}<span class="meta-chip">⏱ {recipe.cooking_time}</span>{/if}
-							{#if recipe.difficulty}<span class="meta-chip">{recipe.difficulty}</span>{/if}
+					<!-- 기본 정보 -->
+					<div class="meta-edit-row">
+						<div class="meta-field">
+							<label class="meta-label" for="edit-servings">인분</label>
+							<input id="edit-servings" class="meta-input" type="text" bind:value={recipe.servings} placeholder="예: 2인분" />
 						</div>
-					{/if}
+						<div class="meta-field">
+							<label class="meta-label" for="edit-cooking-time">시간</label>
+							<input id="edit-cooking-time" class="meta-input" type="text" bind:value={recipe.cooking_time} placeholder="예: 30분" />
+						</div>
+						<div class="meta-field">
+							<label class="meta-label" for="edit-difficulty">난이도</label>
+							<select id="edit-difficulty" class="meta-select" bind:value={recipe.difficulty}>
+								<option value={null}>-</option>
+								{#each DIFFICULTIES as d}
+									<option value={d}>{d}</option>
+								{/each}
+							</select>
+						</div>
+					</div>
 
-					{#if recipe.summary}
-						<p class="preview-summary">{recipe.summary}</p>
-					{/if}
+					<!-- 요약 -->
+					<div class="edit-section">
+						<p class="edit-section-label">한 줄 소개</p>
+						<textarea
+							class="edit-summary"
+							bind:value={recipe.summary}
+							placeholder="레시피 한 줄 소개"
+							rows="2"
+						></textarea>
+					</div>
 
+					<!-- 맛 프로파일 (읽기 전용) -->
 					{#if recipe.flavor}
 						<FlavorProfile flavor={recipe.flavor} />
 					{/if}
 
-					{#if recipe.ingredients && recipe.ingredients.length > 0}
-						<IngredientList ingredients={recipe.ingredients} storageKey="write-preview" />
-					{/if}
-
-					{#if recipe.steps && recipe.steps.length > 0}
-						<StepTimeline steps={recipe.steps} />
-					{/if}
-
-					{#if recipe.tip}
-						<div class="tip-card">
-							<span class="tip-label">✦ 꿀팁</span>
-							<p>{recipe.tip}</p>
+					<!-- 재료 -->
+					<div class="edit-section">
+						<div class="edit-section-header">
+							<p class="edit-section-label">재료</p>
+							<button class="btn-add-row" onclick={addIngredient}>+ 추가</button>
 						</div>
-					{/if}
+						<div class="ingredients-edit">
+							{#each (recipe.ingredients ?? []) as ing, i (i)}
+								<div class="ing-row">
+									<input
+										class="ing-input ing-name"
+										type="text"
+										value={ing.name}
+										placeholder="재료명"
+										oninput={(e) => updateIngredient(i, 'name', (e.target as HTMLInputElement).value)}
+									/>
+									<input
+										class="ing-input ing-amount"
+										type="text"
+										value={ing.amount ?? ''}
+										placeholder="수량"
+										oninput={(e) => updateIngredient(i, 'amount', (e.target as HTMLInputElement).value)}
+									/>
+									<input
+										class="ing-input ing-unit"
+										type="text"
+										value={ing.unit ?? ''}
+										placeholder="단위"
+										oninput={(e) => updateIngredient(i, 'unit', (e.target as HTMLInputElement).value)}
+									/>
+									<select
+										class="ing-select"
+										value={ing.category}
+										onchange={(e) => updateIngredient(i, 'category', (e.target as HTMLSelectElement).value)}
+									>
+										{#each CATEGORIES as c}
+											<option value={c}>{c}</option>
+										{/each}
+									</select>
+									<button class="btn-remove-row" onclick={() => removeIngredient(i)} aria-label="삭제">×</button>
+								</div>
+							{/each}
+						</div>
+					</div>
+
+					<!-- 조리 순서 -->
+					<div class="edit-section">
+						<div class="edit-section-header">
+							<p class="edit-section-label">만드는 법</p>
+							<button class="btn-add-row" onclick={addStep}>+ 추가</button>
+						</div>
+						<div class="steps-edit">
+							{#each (recipe.steps ?? []) as s, i (i)}
+								<div class="step-row">
+									<span class="step-num">{i + 1}</span>
+									<textarea
+										class="step-textarea"
+										value={s.description}
+										placeholder="조리 단계 설명"
+										rows="2"
+										oninput={(e) => updateStep(i, (e.target as HTMLTextAreaElement).value)}
+									></textarea>
+									<button class="btn-remove-row" onclick={() => removeStep(i)} aria-label="삭제">×</button>
+								</div>
+							{/each}
+						</div>
+					</div>
+
+					<!-- 꿀팁 -->
+					<div class="edit-section">
+						<p class="edit-section-label">꿀팁 <span class="optional">(선택)</span></p>
+						<textarea
+							class="edit-tip"
+							bind:value={recipe.tip}
+							placeholder="보관법, 변형 레시피, 주의사항 등"
+							rows="3"
+						></textarea>
+					</div>
 				</div>
+
+				<!-- 공개 여부 토글 -->
+				<label class="public-toggle">
+					<div class="toggle-switch" class:on={isPublic}>
+						<input type="checkbox" bind:checked={isPublic} />
+						<span class="toggle-knob"></span>
+					</div>
+					<div class="toggle-text">
+						<span class="toggle-label">{isPublic ? '탐색 탭에 공개' : '나만 보기 (비공개)'}</span>
+						<span class="toggle-desc">{isPublic ? '다른 사용자들도 이 레시피를 볼 수 있어요' : '나만 볼 수 있어요'}</span>
+					</div>
+				</label>
 
 				{#if errorMsg}
 					<p class="error-msg">{errorMsg}</p>
@@ -213,7 +369,7 @@
 		border-bottom: 1px solid var(--color-light-line);
 		background: var(--color-paper);
 		position: sticky;
-		top: 48px; /* slim-header 높이 */
+		top: 48px;
 		z-index: 10;
 		flex-shrink: 0;
 	}
@@ -384,12 +540,12 @@
 	}
 	@keyframes spin { to { transform: rotate(360deg); } }
 
-	/* 미리보기 단계 */
+	/* 미리보기/편집 단계 */
 	.preview-section {
-		padding: 16px 16px 40px;
+		padding: 16px 16px 48px;
 		display: flex;
 		flex-direction: column;
-		gap: 16px;
+		gap: 14px;
 	}
 
 	.preview-notice {
@@ -407,63 +563,265 @@
 	.preview-card {
 		background: white;
 		border-radius: 16px;
-		padding: 20px;
+		padding: 18px 16px;
 		box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-	}
-
-	.preview-recipe-title {
-		font-size: 1.3rem;
-		font-weight: 700;
-		color: var(--color-warm-brown);
-		margin-bottom: 10px;
-		text-align: center;
-	}
-
-	.meta-chips {
 		display: flex;
-		justify-content: center;
-		flex-wrap: wrap;
-		gap: 6px;
-		margin-bottom: 14px;
-	}
-	.meta-chip {
-		font-size: 0.8rem;
-		color: var(--color-soft-brown);
-		background: var(--color-cream);
-		border-radius: 12px;
-		padding: 3px 10px;
+		flex-direction: column;
+		gap: 16px;
 	}
 
-	.preview-summary {
-		font-size: 0.9rem;
-		color: var(--color-soft-brown);
-		text-align: center;
-		line-height: 1.6;
-		margin-bottom: 16px;
-	}
-
-	.tip-card {
-		margin-top: 20px;
-		border-left: 4px solid var(--color-terracotta);
-		background: var(--color-cream);
-		padding: 12px 14px;
-		border-radius: 0 8px 8px 0;
-	}
-	.tip-label {
-		display: block;
-		font-size: 0.72rem;
+	/* 제목 편집 */
+	.edit-title {
+		width: 100%;
+		font-size: 1.2rem;
 		font-weight: 700;
-		color: var(--color-terracotta);
-		letter-spacing: 0.06em;
-		margin-bottom: 6px;
+		color: var(--color-warm-brown);
+		border: none;
+		border-bottom: 1.5px solid var(--color-light-line);
+		border-radius: 0;
+		padding: 4px 0 8px;
+		font-family: inherit;
+		background: transparent;
+		box-sizing: border-box;
+		transition: border-color 0.15s;
 	}
-	.tip-card p {
+	.edit-title:focus { outline: none; border-bottom-color: var(--color-terracotta); }
+
+	/* 기본 정보 편집 */
+	.meta-edit-row {
+		display: flex;
+		gap: 8px;
+	}
+
+	.meta-field {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+	}
+
+	.meta-label {
+		font-size: 0.7rem;
+		font-weight: 700;
+		color: var(--color-soft-brown);
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+	}
+
+	.meta-input,
+	.meta-select {
+		width: 100%;
+		padding: 7px 8px;
+		border: 1.5px solid var(--color-light-line);
+		border-radius: 8px;
+		font-size: 0.82rem;
+		font-family: inherit;
+		color: var(--color-warm-brown);
+		background: var(--color-paper);
+		box-sizing: border-box;
+		transition: border-color 0.15s;
+	}
+	.meta-input:focus,
+	.meta-select:focus { outline: none; border-color: var(--color-terracotta); }
+
+	/* 섹션 공통 */
+	.edit-section {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+
+	.edit-section-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.edit-section-label {
+		font-size: 0.78rem;
+		font-weight: 700;
+		color: var(--color-soft-brown);
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
 		margin: 0;
+	}
+
+	.btn-add-row {
+		font-size: 0.75rem;
+		font-weight: 600;
+		color: var(--color-terracotta);
+		background: none;
+		border: none;
+		padding: 0;
+		cursor: pointer;
+		font-family: inherit;
+	}
+
+	/* 요약 */
+	.edit-summary,
+	.edit-tip {
+		width: 100%;
+		padding: 10px 12px;
+		border: 1.5px solid var(--color-light-line);
+		border-radius: 10px;
+		font-size: 0.88rem;
+		line-height: 1.6;
+		font-family: inherit;
+		color: var(--color-warm-brown);
+		background: var(--color-paper);
+		resize: vertical;
+		box-sizing: border-box;
+		transition: border-color 0.15s;
+	}
+	.edit-summary:focus,
+	.edit-tip:focus { outline: none; border-color: var(--color-terracotta); }
+
+	/* 재료 편집 */
+	.ingredients-edit {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+	}
+
+	.ing-row {
+		display: grid;
+		grid-template-columns: 1fr 60px 52px 72px 28px;
+		gap: 4px;
+		align-items: center;
+	}
+
+	.ing-input,
+	.ing-select {
+		padding: 7px 8px;
+		border: 1.5px solid var(--color-light-line);
+		border-radius: 8px;
+		font-size: 0.82rem;
+		font-family: inherit;
+		color: var(--color-warm-brown);
+		background: white;
+		box-sizing: border-box;
+		min-width: 0;
+		transition: border-color 0.15s;
+	}
+	.ing-input:focus,
+	.ing-select:focus { outline: none; border-color: var(--color-terracotta); }
+
+	/* 단계 편집 */
+	.steps-edit {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+
+	.step-row {
+		display: grid;
+		grid-template-columns: 26px 1fr 28px;
+		gap: 6px;
+		align-items: flex-start;
+	}
+
+	.step-num {
+		width: 26px;
+		height: 26px;
+		background: var(--color-terracotta);
+		color: white;
+		border-radius: 50%;
+		font-size: 0.75rem;
+		font-weight: 700;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		margin-top: 6px;
+	}
+
+	.step-textarea {
+		padding: 8px 10px;
+		border: 1.5px solid var(--color-light-line);
+		border-radius: 8px;
+		font-size: 0.88rem;
+		line-height: 1.6;
+		font-family: inherit;
+		color: var(--color-warm-brown);
+		background: white;
+		resize: vertical;
+		box-sizing: border-box;
+		transition: border-color 0.15s;
+	}
+	.step-textarea:focus { outline: none; border-color: var(--color-terracotta); }
+
+	.btn-remove-row {
+		background: none;
+		border: none;
+		padding: 0;
+		cursor: pointer;
+		color: var(--color-light-line);
+		font-size: 1.1rem;
+		line-height: 1;
+		transition: color 0.15s;
+		margin-top: 6px;
+	}
+	.btn-remove-row:hover { color: var(--color-soft-brown); }
+
+	/* 공개 여부 토글 */
+	.public-toggle {
+		display: flex;
+		align-items: center;
+		gap: 14px;
+		background: white;
+		border-radius: 14px;
+		padding: 14px 16px;
+		box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+		cursor: pointer;
+	}
+
+	.toggle-switch {
+		position: relative;
+		width: 44px;
+		height: 26px;
+		flex-shrink: 0;
+	}
+	.toggle-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+
+	.toggle-knob {
+		position: absolute;
+		inset: 0;
+		background: var(--color-light-line);
+		border-radius: 13px;
+		transition: background 0.2s;
+		cursor: pointer;
+	}
+	.toggle-knob::after {
+		content: '';
+		position: absolute;
+		top: 3px;
+		left: 3px;
+		width: 20px;
+		height: 20px;
+		background: white;
+		border-radius: 50%;
+		transition: transform 0.2s;
+		box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+	}
+	.toggle-switch.on .toggle-knob { background: var(--color-terracotta); }
+	.toggle-switch.on .toggle-knob::after { transform: translateX(18px); }
+
+	.toggle-text {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+	.toggle-label {
 		font-size: 0.9rem;
-		line-height: 1.7;
+		font-weight: 700;
 		color: var(--color-warm-brown);
 	}
+	.toggle-desc {
+		font-size: 0.75rem;
+		color: var(--color-soft-brown);
+	}
 
+	/* 하단 액션 */
 	.preview-actions {
 		display: flex;
 		gap: 10px;

@@ -167,7 +167,43 @@ class RecipesListResponse(BaseModel):
     has_more: bool
 
 
+class RecipeAuthorUpdateRequest(BaseModel):
+    """텍스트 레시피 원본 수정 — 작성자(author_user_id)만 가능"""
+    title: Optional[str] = Field(None, max_length=100)
+    summary: Optional[str] = None
+    ingredients: Optional[List] = None
+    steps: Optional[List] = None
+    tip: Optional[str] = None
+    servings: Optional[str] = None
+    cooking_time: Optional[str] = None
+    difficulty: Optional[str] = None
+    is_public: Optional[bool] = None
+
+
 class SaveTextRecipeRequest(BaseModel):
     """텍스트 레시피 저장 — 이미 분석된 Recipe 데이터를 DB에 저장"""
     recipe: Dict = Field(..., description="extract-recipe-from-text로 분석된 레시피 데이터")
     custom_tip: Optional[str] = Field(None, description="개인 메모")
+    is_public: bool = Field(False, description="탐색 탭 공개 여부 (기본 비공개)")
+
+
+# --- 장바구니 스키마 ---
+
+class CartItemResponse(BaseModel):
+    """장바구니 개별 재료 아이템"""
+    id: int
+    collection_id: Optional[int] = None
+    recipe_title: Optional[str] = None
+    ingredient_name: str
+    amount: Optional[str] = None
+    unit: Optional[str] = None
+    category: str = "기타"
+    is_checked: bool = False
+    created_at: Optional[str] = None
+
+
+class CartGroupResponse(BaseModel):
+    """레시피별로 묶은 장바구니 그룹"""
+    collection_id: Optional[int]
+    recipe_title: Optional[str]
+    items: List[CartItemResponse]
