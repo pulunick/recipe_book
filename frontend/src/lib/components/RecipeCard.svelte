@@ -35,9 +35,16 @@
 			<div class="thumb-placeholder">🍳</div>
 		{/if}
 
-		<!-- 좌상단: 요리 시간만 -->
-		{#if item.recipe.cooking_time}
-			<span class="thumb-badge">⏱ {item.recipe.cooking_time}</span>
+		<!-- 좌상단: 요리 시간 + 난이도 -->
+		{#if item.recipe.cooking_time || item.recipe.difficulty}
+			<div class="thumb-meta">
+				{#if item.recipe.cooking_time}
+					<span class="thumb-badge">⏱ {item.recipe.cooking_time}</span>
+				{/if}
+				{#if item.recipe.difficulty}
+					<span class="thumb-badge">{item.recipe.difficulty}</span>
+				{/if}
+			</div>
 		{/if}
 
 		<!-- 즐겨찾기 버튼 -->
@@ -133,11 +140,16 @@
 		color: var(--color-light-line);
 	}
 
-	/* 요리 시간 뱃지 */
-	.thumb-badge {
+	/* 요리 시간 + 난이도 오버레이 */
+	.thumb-meta {
 		position: absolute;
 		top: 0.4rem;
 		left: 0.4rem;
+		display: flex;
+		gap: 0.25rem;
+		z-index: 1;
+	}
+	.thumb-badge {
 		background: rgba(0,0,0,0.52);
 		color: white;
 		font-size: 0.68rem;
