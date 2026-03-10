@@ -259,6 +259,9 @@
 								{#if item.difficulty}
 									<span class="meta-chip">{DIFFICULTY_LABEL[item.difficulty] ?? item.difficulty}</span>
 								{/if}
+								{#if item.calories}
+									<span class="meta-chip calories-chip">🔥 {item.calories}kcal</span>
+								{/if}
 							</div>
 							{#if item.channel_name}
 								<p class="card-channel">
@@ -705,6 +708,7 @@
 		width: 11px;
 		height: 11px;
 	}
+	.meta-chip.calories-chip { color: #b84c00; background: #fff0e6; font-weight: 600; }
 
 	.card-channel {
 		font-size: 0.72rem;

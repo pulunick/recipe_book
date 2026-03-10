@@ -56,6 +56,7 @@ class Recipe(BaseModel):
     cooking_time: Optional[str] = Field(None, description="총 조리 시간 (예: '30분', '1시간 30분')")
     difficulty: Optional[str] = Field(None, description="난이도: '쉬움', '보통', '어려움' 중 하나")
     category: Optional[str] = Field(None, description="레시피 카테고리 (예: 한식, 양식, 국/찌개 등)")
+    calories: Optional[int] = Field(None, description="1인분 기준 칼로리 (kcal)")
     video_url: Optional[str] = Field(None, description="유튜브 영상 URL")
     video_id: Optional[str] = Field(None, description="유튜브 영상 고유 ID")
     video_title: Optional[str] = Field(None, description="유튜브 영상 원본 제목")
@@ -162,6 +163,7 @@ class RecipePublicItem(BaseModel):
     collection_count: int = 0
     my_collection_id: Optional[int] = None  # 로그인 시: 내 보관함에 있으면 collection_id, 없으면 None
     source: Optional[str] = None  # 'youtube' | 'text'
+    calories: Optional[int] = None
 
 
 class RecipesListResponse(BaseModel):
@@ -181,6 +183,7 @@ class RecipeAuthorUpdateRequest(BaseModel):
     servings: Optional[str] = None
     cooking_time: Optional[str] = None
     difficulty: Optional[str] = None
+    calories: Optional[int] = None
     is_public: Optional[bool] = None
 
 

@@ -113,6 +113,11 @@ def _build_prompt(metadata: dict) -> str:
          - **보통**: 조리 시간 20~60분 또는 중간 정도의 기술 필요
          - **어려움**: 조리 시간 60분 초과 또는 복잡한 기술(반죽, 정밀 온도 조절 등) 필요
        - 반드시 "쉬움", "보통", "어려움" 중 하나만 사용하세요.
+    8. **Calories (칼로리)**:
+       - 완성된 요리의 **1인분 기준** 예상 칼로리를 kcal 단위 정수로 기록하세요.
+       - 재료와 조리법을 바탕으로 합리적으로 추정하세요.
+       - 영상/설명란에 명시된 값이 있으면 그대로 사용, 없으면 추정값을 기입하세요.
+       - 레시피 영상이 아닌 경우 null.
 
     [title 필드 — 순수 요리명만 작성]
     - title에는 **순수 요리명만** 작성하세요. 짧고 명확하게.
@@ -165,7 +170,8 @@ def _build_prompt(metadata: dict) -> str:
         "category": "한식",
         "servings": "2인분",
         "cooking_time": "30분",
-        "difficulty": "보통"
+        "difficulty": "보통",
+        "calories": 350
     }}}}
 
     * 만약 레시피 영상이 아니면:
@@ -181,7 +187,8 @@ def _build_prompt(metadata: dict) -> str:
         "category": null,
         "servings": null,
         "cooking_time": null,
-        "difficulty": null
+        "difficulty": null,
+        "calories": null
     }}}}
     """
 
@@ -266,6 +273,7 @@ def _build_text_prompt(text: str, title: str | None) -> str:
     5. **Servings**: 텍스트에서 언급된 분량. 없으면 null.
     6. **Cooking Time**: 총 조리 시간. 명시 없으면 steps 기반으로 추정.
     7. **Difficulty**: "쉬움"(20분 이내, 기술 불필요), "보통"(20~60분), "어려움"(60분 초과 또는 복잡한 기술) 중 하나.
+    8. **Calories**: 완성 요리의 1인분 기준 예상 칼로리(kcal, 정수). 재료 기반 추정값. 레시피가 아니면 null.
 
     [결과 포맷 (JSON)]
     {{{{
@@ -299,7 +307,8 @@ def _build_text_prompt(text: str, title: str | None) -> str:
         "category": "한식",
         "servings": "2인분",
         "cooking_time": "30분",
-        "difficulty": "보통"
+        "difficulty": "보통",
+        "calories": 350
     }}}}
 
     * 레시피가 아닌 경우:
@@ -315,7 +324,8 @@ def _build_text_prompt(text: str, title: str | None) -> str:
         "category": null,
         "servings": null,
         "cooking_time": null,
-        "difficulty": null
+        "difficulty": null,
+        "calories": null
     }}}}
     """
 

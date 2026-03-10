@@ -469,6 +469,9 @@
 					{#if recipe.difficulty}
 						<span class="meta-chip difficulty-{recipe.difficulty === '쉬움' ? 'easy' : recipe.difficulty === '보통' ? 'medium' : 'hard'}">{recipe.difficulty}</span>
 					{/if}
+					{#if recipe.calories}
+						<span class="meta-chip calories-chip">🔥 {recipe.calories}kcal</span>
+					{/if}
 				</div>
 			{/if}
 
@@ -956,6 +959,7 @@
 	.meta-chip.difficulty-easy { color: #1e7e34; background: #d4edda; font-weight: 600; }
 	.meta-chip.difficulty-medium { color: #856404; background: #fff3cd; font-weight: 600; }
 	.meta-chip.difficulty-hard { color: #a94442; background: #fde8e8; font-weight: 600; }
+	.meta-chip.calories-chip { color: #b84c00; background: #fff0e6; font-weight: 600; }
 
 	.recipe-summary {
 		color: var(--color-soft-brown);
