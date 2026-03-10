@@ -263,7 +263,7 @@
 		<div class="shop-bar-inner">
 			<span class="shop-bar-label">
 				{#if checkedCount > 0}
-					체크 <strong>{checkedCount}</strong> / 전체 <strong>{totalCount}개</strong>
+					선택 <strong>{checkedCount}</strong> / 전체 <strong>{totalCount}개</strong>
 				{:else}
 					전체 <strong>{totalCount}개</strong> 재료
 				{/if}
@@ -512,7 +512,7 @@
 	/* 하단 구매 바 */
 	.shop-bar {
 		position: fixed;
-		bottom: calc(60px + env(safe-area-inset-bottom));
+		bottom: calc(72px + env(safe-area-inset-bottom));
 		left: 50%;
 		transform: translateX(-50%);
 		width: calc(100% - 32px);
@@ -548,7 +548,7 @@
 	}
 
 	.btn-shop-secondary {
-		padding: 8px 14px;
+		padding: 0 14px;
 		background: none;
 		color: var(--color-terracotta);
 		border: 1.5px solid var(--color-terracotta);
@@ -559,7 +559,9 @@
 		cursor: pointer;
 		white-space: nowrap;
 		transition: background 0.15s, color 0.15s;
-		height: 38px;
+		height: 40px;
+		display: inline-flex;
+		align-items: center;
 	}
 	.btn-shop-secondary:hover {
 		background: color-mix(in srgb, var(--color-terracotta) 10%, white);
@@ -569,15 +571,18 @@
 		padding: 0 16px;
 		background: var(--color-terracotta);
 		color: white;
-		border: none;
+		border: 1.5px solid var(--color-terracotta);
 		border-radius: 10px;
-		font-size: 0.88rem;
+		font-size: 0.85rem;
 		font-weight: 700;
 		font-family: inherit;
 		cursor: pointer;
 		white-space: nowrap;
 		transition: opacity 0.15s;
-		height: 38px;
+		height: 40px;
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
 	}
 	.btn-shop:hover { opacity: 0.88; }
 

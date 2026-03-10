@@ -390,12 +390,12 @@
 				</span>
 				{#if !isEditMode}
 					<div class="top-bar-actions">
-						<button class="btn-edit-recipe" onclick={enterEditMode}>
-							레시피 수정
-						</button>
-						<button class="btn-reanalyze" onclick={handleReanalyze} disabled={isReanalyzing}>
-							{isReanalyzing ? '분석 중...' : '다시 분석'}
-						</button>
+						<button class="btn-top-action edit" onclick={enterEditMode}>레시피 수정</button>
+						{#if recipe.video_id}
+							<button class="btn-top-action reanalyze" onclick={handleReanalyze} disabled={isReanalyzing}>
+								{isReanalyzing ? '분석 중...' : '다시 분석'}
+							</button>
+						{/if}
 						{#if isConfirmingDelete}
 							<span class="confirm-delete">
 								정말?
@@ -405,7 +405,7 @@
 								<button class="btn-cancel" onclick={() => isConfirmingDelete = false} disabled={isDeleting}>취소</button>
 							</span>
 						{:else}
-							<button class="btn-delete" onclick={() => isConfirmingDelete = true}>삭제</button>
+							<button class="btn-top-action delete" onclick={() => isConfirmingDelete = true}>삭제</button>
 						{/if}
 					</div>
 				{/if}
@@ -472,31 +472,29 @@
 				</div>
 			{/if}
 
-			<!-- 별점 + 요리횟수 -->
-			<div class="meta-row">
-				<div class="rating-area">
-					<StarRating rating={item.my_rating} onchange={handleRating} />
-					{#if item.my_rating}
-						<span class="rating-label">{item.my_rating}점</span>
-					{:else}
-						<span class="rating-label muted">별점을 매겨보세요</span>
-					{/if}
-				</div>
-
-				<div class="cooked-area">
+			<!-- 활동 블록: 별점 + 요리 기록 -->
+			<div class="activity-block">
+				<div class="activity-top">
+					<div class="rating-area">
+						<StarRating rating={item.my_rating} onchange={handleRating} />
+						{#if item.my_rating}
+							<span class="rating-label">{item.my_rating}점</span>
+						{:else}
+							<span class="rating-label muted">별점을 매겨보세요</span>
+						{/if}
+					</div>
 					<button class="btn-cooked" onclick={handleCooked} disabled={isCooking}>
-						{isCooking ? '기록 중...' : '오늘 요리했어요'} <UtensilsCrossed size={16} />
+						{isCooking ? '기록 중...' : '오늘 요리했어요'} <UtensilsCrossed size={15} />
 					</button>
-					<button class="btn-add-cart" onclick={handleAddToCart} disabled={isAddingToCart}>
-						{isAddingToCart ? '담는 중...' : '🛒 재료 담기'}
-					</button>
-					<span class="cooked-count">{item.cooked_count}회 요리</span>
-					{#if item.last_cooked_at}
-						<span class="last-cooked">
-							마지막: {new Date(item.last_cooked_at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
-						</span>
-					{/if}
 				</div>
+				{#if item.cooked_count > 0 || item.last_cooked_at}
+					<div class="activity-stats">
+						<span class="cooked-count">{item.cooked_count}회 요리</span>
+						{#if item.last_cooked_at}
+							<span class="last-cooked">· 마지막 {new Date(item.last_cooked_at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}</span>
+						{/if}
+					</div>
+				{/if}
 			</div>
 
 			<!-- 태그 영역 -->
@@ -628,6 +626,11 @@
 						</button>
 					</div>
 				{/if}
+				<div class="cart-btn-row">
+					<button class="btn-add-cart-inline" onclick={handleAddToCart} disabled={isAddingToCart}>
+						{isAddingToCart ? '담는 중...' : '🛒 재료 담기'}
+					</button>
+				</div>
 				<IngredientList
 					ingredients={displayIngredients as Ingredient[]}
 					storageKey={recipe.video_id ?? String(recipe.id ?? '')}
@@ -746,38 +749,6 @@
 		gap: 0.5rem;
 	}
 
-	.btn-reanalyze {
-		font-size: 0.85rem;
-		font-weight: 500;
-		color: var(--color-soft-brown);
-		background: none;
-		border: 1.5px solid var(--color-light-line);
-		border-radius: 8px;
-		padding: 0.5rem 1rem;
-		cursor: pointer;
-		font-family: inherit;
-		transition: border-color 0.15s, color 0.15s;
-	}
-	.btn-reanalyze:hover:not(:disabled) {
-		border-color: var(--color-soft-brown);
-		color: var(--color-warm-brown);
-	}
-	.btn-reanalyze:disabled { opacity: 0.6; cursor: not-allowed; }
-
-	.btn-delete {
-		font-size: 0.82rem;
-		color: var(--color-muted-red, #c0392b);
-		background: none;
-		border: 1px solid var(--color-muted-red, #c0392b);
-		border-radius: 6px;
-		padding: 0.3rem 0.7rem;
-		cursor: pointer;
-		transition: background 0.15s, color 0.15s;
-	}
-	.btn-delete:hover {
-		background: var(--color-muted-red, #c0392b);
-		color: white;
-	}
 
 	.confirm-delete {
 		display: flex;
@@ -873,16 +844,28 @@
 		opacity: 0.8;
 	}
 
-	/* 별점 + 요리횟수 메타 영역 */
-	.meta-row {
+	/* 활동 블록 */
+	.activity-block {
+		background: var(--color-cream);
+		border-radius: 10px;
+		padding: 0.8rem 1rem;
+		margin-bottom: 1rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+	.activity-top {
 		display: flex;
 		align-items: center;
-		justify-content: center;
-		gap: 2rem;
-		flex-wrap: wrap;
-		margin-bottom: 1rem;
-		padding: 0.8rem 0;
-		border-bottom: 1px solid var(--color-light-line);
+		justify-content: space-between;
+		gap: 0.5rem;
+	}
+	.activity-stats {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		padding-top: 0.4rem;
+		border-top: 1px solid rgba(0,0,0,0.06);
 	}
 
 	.rating-area {
@@ -899,13 +882,6 @@
 		color: var(--color-soft-brown);
 		font-weight: 400;
 		opacity: 0.7;
-	}
-
-	.cooked-area {
-		display: flex;
-		align-items: center;
-		gap: 0.6rem;
-		flex-wrap: wrap;
 	}
 	.btn-cooked {
 		font-size: 0.82rem;
@@ -928,26 +904,32 @@
 	}
 	.btn-cooked:disabled { opacity: 0.6; cursor: not-allowed; }
 
-	.btn-add-cart {
-		font-size: 0.82rem;
-		background: var(--color-cream);
-		border: 1px solid var(--color-light-line);
-		border-radius: 8px;
-		padding: 0 0.8rem;
-		height: 34px;
+	/* 재료 담기 버튼 (재료 섹션 위) */
+	.cart-btn-row {
+		display: flex;
+		justify-content: flex-end;
+		margin-bottom: 0.5rem;
+	}
+	.btn-add-cart-inline {
+		font-size: 0.78rem;
+		font-weight: 600;
+		background: none;
+		border: 1.5px solid var(--color-light-line);
+		border-radius: 20px;
+		padding: 0.3rem 0.85rem;
 		cursor: pointer;
 		font-family: inherit;
-		color: var(--color-warm-brown);
+		color: var(--color-soft-brown);
 		display: inline-flex;
 		align-items: center;
-		transition: background 0.15s, border-color 0.15s;
+		gap: 0.3rem;
+		transition: border-color 0.15s, color 0.15s;
 	}
-	.btn-add-cart:hover {
-		background: white;
+	.btn-add-cart-inline:hover {
 		border-color: var(--color-terracotta);
 		color: var(--color-terracotta);
 	}
-	.btn-add-cart:disabled { opacity: 0.6; cursor: not-allowed; }
+	.btn-add-cart-inline:disabled { opacity: 0.6; cursor: not-allowed; }
 
 	.cooked-count {
 		font-size: 0.82rem;
@@ -1134,22 +1116,27 @@
 	.btn-cancel-memo:disabled { opacity: 0.6; cursor: not-allowed; }
 
 
-	/* 레시피 수정 버튼 */
-	.btn-edit-recipe {
+	/* 상단 액션 버튼 통일 스타일 */
+	.btn-top-action {
+		height: 34px;
+		padding: 0 0.9rem;
 		font-size: 0.82rem;
-		color: var(--color-terracotta, #c0714f);
-		background: none;
-		border: 1px solid var(--color-terracotta, #c0714f);
-		border-radius: 6px;
-		padding: 0.3rem 0.7rem;
-		cursor: pointer;
 		font-weight: 600;
+		border-radius: 8px;
+		border: 1.5px solid;
+		cursor: pointer;
+		font-family: inherit;
+		display: inline-flex;
+		align-items: center;
 		transition: background 0.15s, color 0.15s;
 	}
-	.btn-edit-recipe:hover {
-		background: var(--color-terracotta, #c0714f);
-		color: white;
-	}
+	.btn-top-action.edit { color: var(--color-terracotta); border-color: var(--color-terracotta); background: none; }
+	.btn-top-action.edit:hover { background: var(--color-terracotta); color: white; }
+	.btn-top-action.reanalyze { color: var(--color-soft-brown); border-color: var(--color-light-line); background: none; }
+	.btn-top-action.reanalyze:hover:not(:disabled) { border-color: var(--color-soft-brown); color: var(--color-warm-brown); }
+	.btn-top-action.reanalyze:disabled { opacity: 0.6; cursor: not-allowed; }
+	.btn-top-action.delete { color: #c62828; border-color: #ef9a9a; background: none; }
+	.btn-top-action.delete:hover { background: #ffebee; }
 
 	/* 편집 배너 */
 	.edit-banner {
@@ -1365,11 +1352,11 @@
 		.recipe-card { padding: 1.5rem; }
 		.recipe-title { font-size: 1.4rem; }
 		.back-link { min-height: 44px; display: flex; align-items: center; }
-		.btn-delete { min-height: 40px; padding: 0.4rem 0.9rem; }
+		.btn-top-action { height: 38px; }
 		.btn-confirm { min-height: 40px; padding: 0.4rem 0.9rem; }
 		.btn-cancel { min-height: 40px; padding: 0.4rem 0.9rem; }
 		.btn-save { min-height: 44px; padding: 0.6rem 1.2rem; }
-		.meta-row { gap: 1rem; }
+		.activity-block { gap: 0.6rem; }
 		.btn-cooked { min-height: 40px; padding: 0.4rem 0.9rem; }
 		.edit-ingredient-fields { flex-direction: column; }
 		.name-input, .amount-input, .unit-input, .note-input { width: 100%; }

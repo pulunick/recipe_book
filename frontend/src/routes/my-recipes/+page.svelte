@@ -339,7 +339,7 @@
 	.page-wrap {
 		display: flex;
 		flex-direction: column;
-		padding: 0 12px 1rem;
+		padding: 0 12px calc(90px + env(safe-area-inset-bottom));
 	}
 
 	/* ── 검색바 ── */
