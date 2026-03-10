@@ -159,6 +159,7 @@ class RecipePublicItem(BaseModel):
     created_at: Optional[str] = None
     collection_count: int = 0
     my_collection_id: Optional[int] = None  # 로그인 시: 내 보관함에 있으면 collection_id, 없으면 None
+    source: Optional[str] = None  # 'youtube' | 'text'
 
 
 class RecipesListResponse(BaseModel):

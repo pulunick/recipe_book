@@ -42,3 +42,42 @@ SvelteKit UI 구현, TypeScript 코드 작성, 컴포넌트 분리, 스타일링
 - QA 검증 결과는 해당 팀원에게 **직접 메시지**로 피드백
 - 구현 완료 시 Planner에게 리뷰 요청 메시지 전송
 - 모든 응답/주석은 **한국어**로 작성
+
+---
+
+## 현재 구현된 라우트/컴포넌트 목록 (v0.6.0 기준)
+
+### 라우트
+| 경로 | 파일 | 비로그인 | 상태 |
+|------|------|----------|------|
+| `/` | `routes/+page.svelte` | 허용 | 구현 완료 — 공개 레시피 탐색 (카테고리/검색/인기순, `my_collection_id` JOIN) |
+| `/my-recipes` | `routes/my-recipes/+page.svelte` | 로그인 필요 | 구현 완료 — 컬렉션 목록, 즐겨찾기/태그/검색/필터 |
+| `/my-recipes/[id]` | `routes/my-recipes/[id]/+page.svelte` | 로그인 필요 | 구현 완료 — 상세+편집 모드, 별점, 요리기록, 재료담기, 태그, 메모, 재분석 |
+| `/my-recipes/[id]/cook` | (미구현) | — | Phase 3 예정 |
+| `/write` | `routes/write/+page.svelte` | 로그인 필요 | 구현 완료 — 텍스트 레시피 작성, AI 구조화, 미리보기 편집, 공개/비공개 저장 |
+| `/cart` | `routes/cart/+page.svelte` | 로그인 필요 | 구현 완료 — 레시피별 그룹화, 체크/삭제, 선택/전체 구매 버튼 |
+| `/my` | `routes/my/+page.svelte` | 로그인 필요 | 최소 구현 (마이페이지 기본 뼈대) |
+| `/recipe/[id]` | `routes/recipe/[id]/+page.svelte` | 허용 | 구현 완료 — 비로그인 임시 분석 결과 |
+| `/auth/callback` | `routes/auth/callback/+page.svelte` | — | 구현 완료 — Supabase OAuth 콜백 |
+| `/login` | `routes/login/+page.svelte` | — | 구현 완료 |
+
+### 주요 컴포넌트
+| 컴포넌트 | 경로 | 설명 |
+|----------|------|------|
+| `BottomNav.svelte` | `lib/components/` | 하단 고정 네비, `/[id]/cook`에서 숨김 |
+| `AddRecipeSheet.svelte` | `lib/components/` | [+] 탭 바텀시트 (YouTube 분석 / 텍스트 작성) |
+| `StepTimeline.svelte` | `lib/components/` | 레시피 단계 타임라인, `step_number` 키, 마지막 연결선 없음 |
+| `IngredientList.svelte` | `lib/components/` | 재료 목록, `showCheckbox` prop (기본 true, `/recipe/[id]`에서 false) |
+| `ScrollToTop.svelte` | `lib/components/` | 상세 페이지 우하단 맨위로 버튼 |
+
+### 핵심 lib 파일
+| 파일 | 설명 |
+|------|------|
+| `lib/api.ts` | API 함수 전체 (getCollectionItem, checkCollection 등 포함) |
+| `lib/types.ts` | TypeScript 타입 |
+| `lib/stores/auth.svelte.ts` | 인증 상태 ($state rune) |
+
+## 미구현 (Phase 2 이후)
+- `AiAssistantFab.svelte` — AI FAB 컴포넌트 (`.agents/specs/ai-fab-spec.md` 참조)
+- `/my-recipes/[id]/cook` — 쿠킹 모드 (`.agents/specs/cooking-mode.md` 참조)
+- `/my` 마이페이지 통계/취향 프로파일 전체 구현

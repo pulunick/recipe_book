@@ -244,6 +244,7 @@ async def get_user_collections(
     min_rating: int | None = None,
     sort: str = "saved_at",
     q: str | None = None,
+    source: str | None = None,
 ):
     """사용자 보관함 목록 조회 — 필터/정렬/검색 지원
 
@@ -253,6 +254,7 @@ async def get_user_collections(
     - min_rating: 별점 이상 필터
     - sort: saved_at | last_cooked | rating | cooked_count
     - q: 레시피 제목 검색
+    - source: 'youtube' | 'text' (출처 필터)
     """
     try:
         if user_id != jwt_user_id:
@@ -333,6 +335,10 @@ async def get_user_collections(
                 ingredients_norm = str(recipe.get("ingredients") or "").lower().replace(" ", "")
                 return q_norm in title_norm or q_norm in channel_norm or q_norm in ingredients_norm
             data = [item for item in data if _matches(item)]
+
+        # source 필터 ('youtube' | 'text')
+        if source:
+            data = [item for item in data if (item.get("recipe") or {}).get("source") == source]
 
         return data
 
@@ -1049,6 +1055,7 @@ async def get_public_recipes(
     page: int = 1,
     q: str | None = None,
     category: str | None = None,
+    source: str | None = None,
     jwt_user_id: str | None = Depends(get_current_user_optional),
 ):
     """공개 레시피 목록 조회 — 탐색 탭용 (인증 불필요)
@@ -1058,6 +1065,7 @@ async def get_public_recipes(
     - page: 페이지 번호 (기본 1)
     - q: 레시피 제목 또는 재료명 검색
     - category: 카테고리 필터
+    - source: 'youtube' | 'text' (출처 필터)
     """
     try:
         supabase = get_supabase_client()
@@ -1081,6 +1089,7 @@ async def get_public_recipes(
                 "p_sort": sort,
                 "p_limit": limit,
                 "p_offset": offset,
+                "p_source": source or "",
             },
         ).execute()
 

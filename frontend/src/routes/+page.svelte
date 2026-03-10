@@ -14,6 +14,7 @@
 	let categories = $state<string[]>([]);
 
 	let selectedCategory = $state('전체');
+	let selectedSource = $state('');
 	let searchQuery = $state('');
 	let searchInput = $state('');
 	let recipes = $state<RecipePublicItem[]>([]);
@@ -37,6 +38,7 @@
 			const params: Record<string, string | number> = { page, limit: LIMIT };
 			if (selectedCategory !== '전체') params.category = selectedCategory;
 			if (searchQuery) params.q = searchQuery;
+			if (selectedSource) params.source = selectedSource;
 
 			const data = await getPublicRecipes(params);
 			if (reset) {
@@ -150,6 +152,13 @@
 		</div>
 	</div>
 
+	<!-- 출처 필터 칩 -->
+	<div class="source-chips">
+		<button class="chip source-chip" class:active={selectedSource === ''} onclick={() => { selectedSource = ''; fetchRecipes(true); }}>전체</button>
+		<button class="chip source-chip" class:active={selectedSource === 'youtube'} onclick={() => { selectedSource = 'youtube'; fetchRecipes(true); }}>▶ YouTube</button>
+		<button class="chip source-chip" class:active={selectedSource === 'text'} onclick={() => { selectedSource = 'text'; fetchRecipes(true); }}>✏ 직접 작성</button>
+	</div>
+
 	<!-- 카테고리 칩 -->
 	<div class="category-chips">
 		<button
@@ -252,7 +261,12 @@
 								{/if}
 							</div>
 							{#if item.channel_name}
-								<p class="card-channel">{item.channel_name}</p>
+								<p class="card-channel">
+									{#if item.source === "youtube"}<span class="source-icon yt">▶</span>{/if}
+									{item.channel_name}
+								</p>
+							{:else if item.source === "text"}
+								<p class="card-channel"><span class="source-icon txt">✏</span> 직접 작성</p>
 							{/if}
 						</div>
 					</a>
@@ -367,6 +381,21 @@
 	}
 
 	/* 카테고리 칩 */
+	.source-chips {
+		display: flex;
+		gap: 8px;
+		padding: 0 16px 0;
+		margin-bottom: 6px;
+	}
+	.source-chip { font-size: 0.78rem; }
+
+	.source-icon {
+		font-size: 0.7rem;
+		margin-right: 2px;
+	}
+	.source-icon.yt { color: #f00; }
+	.source-icon.txt { color: var(--color-terracotta); }
+
 	.category-chips {
 		display: flex;
 		gap: 8px;

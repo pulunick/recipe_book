@@ -264,6 +264,7 @@ export interface PublicRecipesParams {
 	q?: string;
 	page?: number;
 	limit?: number;
+	source?: string;
 }
 
 export async function getPublicRecipes(params: PublicRecipesParams = {}): Promise<RecipePublicItem[]> {
@@ -272,6 +273,7 @@ export async function getPublicRecipes(params: PublicRecipesParams = {}): Promis
 	if (params.q) query.set('q', params.q);
 	if (params.page) query.set('page', String(params.page));
 	if (params.limit) query.set('limit', String(params.limit));
+	if (params.source) query.set('source', params.source);
 	const response = await fetch(`${API_BASE}/recipes?${query.toString()}`, {
 		headers: getAuthHeaders()
 	});

@@ -450,6 +450,10 @@
 
 			<h1 class="recipe-title">{recipe.title}{recipe.channel_name ? ` - ${recipe.channel_name}` : ''}</h1>
 
+			{#if recipe.source === 'text'}
+				<span class="source-badge text-badge">✏ 직접 작성</span>
+			{/if}
+
 			{#if sourceLine}
 				<p class="source-line">{sourceLine}</p>
 			{/if}
@@ -845,6 +849,20 @@
 		font-size: 1.8rem;
 		margin-bottom: 0.5rem;
 		text-align: center;
+	}
+
+	.source-badge {
+		display: inline-block;
+		font-size: 0.72rem;
+		padding: 0.2rem 0.55rem;
+		border-radius: 20px;
+		margin-bottom: 0.5rem;
+		font-weight: 600;
+	}
+	.text-badge {
+		background: #e8f5e9;
+		color: #2e7d32;
+		border: 1px solid #c8e6c9;
 	}
 
 	.source-line {

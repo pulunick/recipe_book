@@ -2,6 +2,31 @@
 
 ---
 
+## v0.6.0 — 2026-03-10
+
+### 새 기능
+- **중복 추가 방지**: 탐색/레시피 상세 모두 이미 저장한 레시피는 "내 레시피 보러가기 →" 버튼으로 전환
+- **IngredientList `showCheckbox` prop**: `/recipe/[id]` 임시 결과 페이지에서 체크박스 숨김
+- **즐겨찾기 버튼**: `/my-recipes/[id]` 레시피 카드 우상단에 별 버튼 (즉시 토글)
+- **텍스트 레시피 작성자 직접 수정**: `PATCH /recipes/{id}` 로 recipes 테이블 직접 업데이트 (비작성자는 recipe_override 방식 유지)
+
+### UX 개선
+- **StepTimeline**: 마지막 단계 아래 연결선 제거 (`::after` 방식으로 변경)
+- **ScrollToTop**: `bottom: calc(80px + safe-area)` 으로 올려 BottomNav/[+] 버튼과 겹침 해소
+- **장바구니**: 체크 시 취소선 제거 (opacity 처리만), "체크 삭제" → "선택 삭제" 용어 통일, 하단 여백 확보
+- **장바구니 구매 버튼**: "선택만 구매" + "전체 구매" 두 버튼 분리, 높이 통일
+- **/my-recipes/[id] 상단 바**: 패딩 축소, 저장 날짜/버튼 세로 분리, 삭제 버튼 정렬 개선
+- **버튼 높이 통일**: "오늘 요리했어요" + "재료 담기" 버튼 `height: 34px` 통일
+- **검색창 height 고정**: `height: 44px` 고정으로 입력 시 늘어나는 현상 방지
+- **헤더 아바타 정렬**: `display: flex` 추가로 세로 중앙 정렬
+
+### 백엔드
+- `GET /collections/check/{recipe_id}`: 이미 저장 여부 확인 신규 엔드포인트
+- `get_current_user_optional`: 비로그인도 `/recipes` 접근 가능 (로그인 시 `my_collection_id` 반환)
+- `GET /recipes` 응답에 `my_collection_id` JOIN 추가
+
+---
+
 ## v0.5.0 — 2026-03-05
 
 ### 새 기능

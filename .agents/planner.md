@@ -44,3 +44,34 @@ Opus
 - [ ] Backend: (구체적 항목)
 - [ ] Frontend-QA: (구체적 항목)
 ```
+
+---
+
+## 현재 프로젝트 상태 (v0.6.0 기준, 2026-03-10)
+
+### Phase 1 — 완료
+- Google OAuth 로그인 (LoginModal, /auth/callback)
+- 바텀 네비 5탭 (탐색 | 내레시피 | [+] | 장바구니 | 마이)
+- 공개 레시피 탐색 (`/`): 카테고리/검색/인기순, `my_collection_id` JOIN 중복 추가 방지
+- 내 레시피북 (`/my-recipes`): 컬렉션 목록, 즐겨찾기/태그/검색/필터
+- 레시피 상세 (`/my-recipes/[id]`): 편집 모드, 별점, 요리기록, 재료담기, 태그, 메모, 재분석
+- 텍스트 레시피 작성 (`/write`): AI 구조화, 미리보기 편집, 공개/비공개, 저장
+- 장바구니 (`/cart`): 레시피별 그룹, 체크/삭제/구매 버튼
+- 임시 결과 (`/recipe/[id]`): 비로그인 접근, 저장 시 /my-recipes/{id}로 이동
+
+### Phase 2 — 진행 예정
+- **AI FAB** (`/my-recipes/[id]` 전용): 명세 완료 (`.agents/specs/ai-fab-spec.md`), 구현 미완
+  - 구현 순서: `POST /ai/chat` 백엔드 → `chatWithAi()` api.ts → `AiAssistantFab.svelte` 마운트
+- **마이페이지 (`/my`) 통계/취향 프로파일**: 설계 필요
+
+### Phase 3 — 중장기
+- 쿠킹 모드 (`/my-recipes/[id]/cook`): 명세 있음 (`.agents/specs/cooking-mode.md`)
+- 썸네일 (Supabase Storage)
+- 커뮤니티/공유 기능
+
+### 작성된 명세 문서
+| 파일 | 내용 | 상태 |
+|------|------|------|
+| `.agents/specs/navigation-spec.md` | 네비게이션/레이아웃 UI | Phase 1 완료 |
+| `.agents/specs/ai-fab-spec.md` | AI FAB 채팅 패널 | 설계 완료, 미구현 |
+| `.agents/specs/cooking-mode.md` | 쿠킹 모드 | 설계 완료, 미구현 (Phase 3) |

@@ -84,6 +84,7 @@
 	let searchQuery = $state('');
 	let selectedFilter = $state<'all' | 'favorites' | string>('all');
 	let selectedTagId = $state<number | null>(null);
+	let selectedSource = $state('');
 	let useMock = $state(false);
 	let toastMsg = $state('');
 	let toastType = $state<'success' | 'error'>('success');
@@ -136,6 +137,11 @@
 			result = result.filter(c => c.is_favorite);
 		} else if (selectedFilter !== 'all') {
 			result = result.filter(c => (c.category_override ?? c.recipe.category) === selectedFilter);
+		}
+
+		// 소스 필터 (youtube / text)
+		if (selectedSource) {
+			result = result.filter(c => c.recipe.source === selectedSource);
 		}
 
 		// 태그 필터
@@ -256,6 +262,13 @@
 		</div>
 	</div>
 
+	<!-- ── 소스 필터 칩 ── -->
+	<div class="source-chips">
+		<button class="source-chip" class:active={selectedSource === ''} onclick={() => (selectedSource = '')}>전체</button>
+		<button class="source-chip" class:active={selectedSource === 'youtube'} onclick={() => (selectedSource = selectedSource === 'youtube' ? '' : 'youtube')}>▶ YouTube</button>
+		<button class="source-chip" class:active={selectedSource === 'text'} onclick={() => (selectedSource = selectedSource === 'text' ? '' : 'text')}>✏ 직접 작성</button>
+	</div>
+
 	<!-- ── 필터 탭 ── -->
 	<div class="filter-tabs">
 		<button
@@ -306,7 +319,7 @@
 	{:else if filteredCollections.length === 0}
 		<div class="status-center" in:fade>
 			<p>조건에 맞는 레시피가 없어요</p>
-			<button class="reset-btn" onclick={() => { selectedFilter = 'all'; selectedTagId = null; searchQuery = ''; }}>
+			<button class="reset-btn" onclick={() => { selectedFilter = 'all'; selectedTagId = null; selectedSource = ''; searchQuery = ''; }}>
 				필터 초기화
 			</button>
 		</div>
@@ -361,6 +374,33 @@
 		transition: border-color 0.15s;
 	}
 	.search-input:focus { border-color: var(--color-terracotta); }
+
+	/* ── 소스 칩 ── */
+	.source-chips {
+		display: flex;
+		gap: 0.4rem;
+		padding: 0 0 8px;
+	}
+	.source-chip {
+		flex-shrink: 0;
+		padding: 0.25rem 0.75rem;
+		border-radius: 20px;
+		border: 1.5px solid var(--color-light-line);
+		background: white;
+		font-size: 0.78rem;
+		font-family: inherit;
+		color: var(--color-soft-brown);
+		cursor: pointer;
+		transition: all 0.15s;
+		white-space: nowrap;
+	}
+	.source-chip:hover { background: var(--color-cream); }
+	.source-chip.active {
+		background: var(--color-warm-brown);
+		color: white;
+		border-color: var(--color-warm-brown);
+		font-weight: 600;
+	}
 
 	/* ── 필터 탭 ── */
 	.filter-tabs {

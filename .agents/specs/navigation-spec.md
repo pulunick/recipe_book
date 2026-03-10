@@ -1,6 +1,6 @@
 # 네비게이션 및 레이아웃 UI 재구성 명세
 
-> 작성일: 2026-03-05 | 상태: 확정
+> 작성일: 2026-03-05 | 최종 수정: 2026-03-10 | 상태: 확정 (Phase 1 구현 완료)
 
 ## 1. 전체 레이아웃 구조
 
@@ -160,20 +160,29 @@ FAB 탭 시 채팅 패널 슬라이드업:
 
 ## 7. 구현 우선순위 (Phase)
 
-### Phase 1 (현재 스프린트)
-1. 레이아웃 변경: max-width 480px + 헤더 슬림화
-2. BottomNav 컴포넌트 구현
-3. AddRecipeSheet 컴포넌트 구현 (YouTube 분석 이동)
-4. `/` 홈 페이지를 탐색 페이지로 전환 (최소 MVP)
-5. 비로그인 분석 결과 → `/recipe/[id]` 흐름 정리
+### Phase 1 — 완료 (v0.6.0 기준)
+- [x] 레이아웃 변경: max-width 480px + 헤더 슬림화
+- [x] BottomNav 컴포넌트 구현 (5탭, `/[id]/cook`에서 숨김)
+- [x] AddRecipeSheet 컴포넌트 구현 (YouTube 분석 / 텍스트 작성)
+- [x] `/` 홈 페이지 탐색 페이지로 전환 (카테고리/검색/인기순, `my_collection_id` JOIN)
+- [x] 비로그인 분석 결과 → `/recipe/[id]` 임시 결과 페이지 흐름
+- [x] `/my-recipes` 내 레시피북 (필터/태그/즐겨찾기/검색)
+- [x] `/my-recipes/[id]` 레시피 상세 (편집 모드, 별점, 요리기록, 장바구니, 태그, 메모, 재분석)
+- [x] `/write` 텍스트 레시피 작성 (AI 구조화, 미리보기 편집, 공개/비공개)
+- [x] `/cart` 장바구니 (레시피별 그룹, 체크/삭제/구매 버튼)
+- [x] `checkCollection()` API — 탐색 탭에서 저장 여부 확인 후 버튼 상태 표시
+- [x] `get_current_user_optional` — `/recipes` 비로그인 접근 허용
+- [x] `IngredientList` `showCheckbox` prop — `/recipe/[id]`에서 체크박스 숨김
+- [x] `StepTimeline` 마지막 연결선 제거
+- [x] `/my-recipes/[id]` 상단 바 레이아웃 개선, 버튼 높이 통일
 
-### Phase 2 (다음 스프린트)
-- `/cart` 장바구니 페이지
-- `/my` 마이페이지
-- AI 어시스턴트 FAB + 채팅 패널
-- 탐색 페이지 고도화 (카테고리, 검색, 무한 스크롤)
+### Phase 2 — 진행 예정
+- [ ] AI 어시스턴트 FAB + 채팅 패널 (`.agents/specs/ai-fab-spec.md` 참조)
+  - `POST /ai/chat` 백엔드 → `chatWithAi()` api.ts → `AiAssistantFab.svelte`
+- [ ] `/my` 마이페이지 — 통계 / 취향 프로파일
+- [ ] 탐색 탭 고도화 — source 필터 칩 ("전체 | 유튜브 | 직접 작성")
 
-### Phase 3 (중장기)
-- 쿠킹 모드 (`/my-recipes/[id]/cook`)
-- 텍스트 → 레시피 직접 작성
-- 레시피 공유/커뮤니티 기능
+### Phase 3 — 중장기
+- [ ] 쿠킹 모드 (`/my-recipes/[id]/cook`, `.agents/specs/cooking-mode.md` 참조)
+- [ ] 썸네일 기능 (Supabase Storage)
+- [ ] 커뮤니티/공유 기능

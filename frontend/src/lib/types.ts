@@ -128,4 +128,5 @@ export interface RecipePublicItem {
 	channel_name: string | null;
 	created_at: string;
 	my_collection_id: number | null;
+	source: string | null;  // 'youtube' | 'text'
 }
