@@ -38,6 +38,7 @@ export interface Recipe {
 	source?: string | null;
 	author_user_id?: string | null;
 	is_public?: boolean | null;
+	collection_id?: number | null;
 }
 
 export interface IngredientOverride {

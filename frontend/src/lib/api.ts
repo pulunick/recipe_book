@@ -38,11 +38,11 @@ async function handleResponse<T>(response: Response): Promise<T> {
 	return response.json();
 }
 
-export async function extractRecipe(url: string, forceRefresh = false): Promise<Recipe> {
+export async function extractRecipe(url: string, forceRefresh = false, autoSave = false): Promise<Recipe> {
 	const response = await fetch(`${API_BASE}/extract-recipe`, {
 		method: 'POST',
 		headers: getAuthHeaders(),
-		body: JSON.stringify({ youtube_url: url, mode: 'fast', force_refresh: forceRefresh })
+		body: JSON.stringify({ youtube_url: url, mode: 'fast', force_refresh: forceRefresh, auto_save: autoSave })
 	});
 	return handleResponse<Recipe>(response);
 }

@@ -35,6 +35,22 @@ def _check_ai_rate_limit(user_id: str, max_per_minute: int = 10) -> bool:
     return True
 
 
+async def _auto_save_collection(supabase, user_id: str, recipe_id: int) -> int | None:
+    """레시피를 사용자 컬렉션에 저장 (이미 있으면 기존 ID 반환)"""
+    try:
+        result = supabase.table("user_collections").upsert(
+            {"user_id": user_id, "recipe_id": recipe_id},
+            on_conflict="user_id,recipe_id",
+        ).execute()
+        if result.data:
+            collection_id = result.data[0]["id"]
+            logger.info("auto_save 컬렉션 저장 완료 (collection_id: %s)", collection_id)
+            return collection_id
+    except Exception as e:
+        logger.warning("auto_save 컬렉션 저장 실패: %s", e)
+    return None
+
+
 async def _verify_collection_owner(collection_id: int, user_id: str, supabase) -> None:
     """컬렉션 소유권 검증 — 본인 소유가 아니면 403"""
     result = supabase.table("user_collections").select("user_id").eq("id", collection_id).execute()
@@ -124,13 +140,17 @@ async def health_check():
 
 
 @app.post("/extract-recipe", response_model=Recipe)
-async def extract_recipe(request: Request, body: ExtractRecipeRequest):
+async def extract_recipe(
+    request: Request,
+    body: ExtractRecipeRequest,
+    jwt_user_id: str | None = Depends(get_current_user_optional),
+):
     start_time = time.time()
     success = False
 
     try:
         youtube_url = body.youtube_url
-        logger.info("레시피 추출 요청 수신: %s (모드: %s)", youtube_url, body.mode)
+        logger.info("레시피 추출 요청 수신: %s (모드: %s, auto_save: %s)", youtube_url, body.mode, body.auto_save)
         supabase = get_supabase_client()
 
         # 1. Video ID 추출 (정규식 우선, yt-dlp fallback)
@@ -160,7 +180,11 @@ async def extract_recipe(request: Request, body: ExtractRecipeRequest):
                 existing = supabase.table("recipes").select("*").eq("video_id", video_id).execute()
                 if existing.data:
                     logger.info("DB 캐시 히트 (video_id: %s)", video_id)
-                    return Recipe(**existing.data[0])
+                    recipe = Recipe(**existing.data[0])
+                    # 캐시 히트에도 auto_save 처리
+                    if body.auto_save and jwt_user_id and recipe.id:
+                        recipe.collection_id = await _auto_save_collection(supabase, jwt_user_id, recipe.id)
+                    return recipe
             except Exception as db_err:
                 logger.warning("DB 조회 실패: %s", db_err)
         elif body.force_refresh:
@@ -189,7 +213,7 @@ async def extract_recipe(request: Request, body: ExtractRecipeRequest):
         # 5. DB 저장
         if supabase:
             try:
-                recipe_data = recipe.model_dump(exclude={"id", "is_recipe", "non_recipe_reason"})
+                recipe_data = recipe.model_dump(exclude={"id", "is_recipe", "non_recipe_reason", "collection_id"})
                 recipe_data["video_url"] = youtube_url
                 recipe_data["video_id"] = video_id
                 if body.force_refresh:
@@ -202,6 +226,10 @@ async def extract_recipe(request: Request, body: ExtractRecipeRequest):
                     logger.info("DB 저장 완료 (recipe_id: %s)", recipe.id)
             except Exception as db_err:
                 logger.warning("DB 저장 실패: %s", db_err)
+
+        # 6. auto_save: 컬렉션 자동 저장
+        if body.auto_save and jwt_user_id and recipe.id:
+            recipe.collection_id = await _auto_save_collection(supabase, jwt_user_id, recipe.id)
 
         success = True
         return recipe

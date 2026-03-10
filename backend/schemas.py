@@ -7,6 +7,7 @@ class ExtractRecipeRequest(BaseModel):
     youtube_url: str = Field(..., description="유튜브 영상 URL")
     mode: str = Field("fast", description="분석 모드: 'fast'(빠른 분석) 또는 'precise'(정밀 분석)")
     force_refresh: bool = Field(False, description="캐시 무시하고 강제 재분석")
+    auto_save: bool = Field(False, description="로그인 사용자의 컬렉션에 자동 저장")
 
 
 class ExtractRecipeFromTextRequest(BaseModel):
@@ -59,6 +60,7 @@ class Recipe(BaseModel):
     video_id: Optional[str] = Field(None, description="유튜브 영상 고유 ID")
     video_title: Optional[str] = Field(None, description="유튜브 영상 원본 제목")
     channel_name: Optional[str] = Field(None, description="유튜브 채널명")
+    collection_id: Optional[int] = Field(None, description="auto_save 시 생성된 컬렉션 ID")
 
 
 class CollectionRequest(BaseModel):
