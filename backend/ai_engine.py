@@ -16,7 +16,8 @@ logger = get_logger(__name__)
 
 # 지연 초기화
 _client: genai.Client | None = None
-MODEL = "gemini-2.5-flash"
+MODEL = "gemini-2.5-flash"           # 레시피 추출 (오디오/멀티모달)
+CHAT_MODEL = "gemini-3.1-flash-lite-preview"  # AI 채팅 (텍스트 전용, 저비용)
 
 
 def _get_client() -> genai.Client:
@@ -394,7 +395,7 @@ async def chat_with_recipe(
     contents.append(types.Content(role="user", parts=[types.Part(text=message)]))
 
     response = await client.aio.models.generate_content(
-        model=MODEL,
+        model=CHAT_MODEL,
         contents=contents,
         config=types.GenerateContentConfig(
             system_instruction=system_prompt,
