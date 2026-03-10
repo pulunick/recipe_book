@@ -348,7 +348,7 @@
 		top: 0;
 		background: var(--color-paper);
 		z-index: 10;
-		padding: 10px 0 8px;
+		padding: 12px 16px 12px;
 	}
 	.search-bar {
 		position: relative;
@@ -392,23 +392,22 @@
 	}
 	.source-chip {
 		flex-shrink: 0;
-		padding: 0.25rem 0.75rem;
+		padding: 6px 14px;
 		border-radius: 20px;
 		border: 1.5px solid var(--color-light-line);
-		background: white;
-		font-size: 0.78rem;
+		background: #fff;
+		font-size: 0.82rem;
+		font-weight: 500;
 		font-family: inherit;
 		color: var(--color-soft-brown);
 		cursor: pointer;
-		transition: all 0.15s;
+		transition: background 0.15s, border-color 0.15s, color 0.15s;
 		white-space: nowrap;
 	}
-	.source-chip:hover { background: var(--color-cream); }
 	.source-chip.active {
-		background: var(--color-warm-brown);
-		color: white;
-		border-color: var(--color-warm-brown);
-		font-weight: 600;
+		background: var(--color-terracotta);
+		border-color: var(--color-terracotta);
+		color: #fff;
 	}
 
 	/* ── 필터 탭 ── */
@@ -428,23 +427,22 @@
 		display: flex;
 		align-items: center;
 		gap: 0.3rem;
-		padding: 0.32rem 0.85rem;
+		padding: 6px 14px;
 		border-radius: 20px;
 		border: 1.5px solid var(--color-light-line);
-		background: white;
+		background: #fff;
 		font-size: 0.82rem;
+		font-weight: 500;
 		font-family: inherit;
 		color: var(--color-soft-brown);
 		white-space: nowrap;
 		cursor: pointer;
-		transition: all 0.15s;
+		transition: background 0.15s, border-color 0.15s, color 0.15s;
 	}
-	.filter-tab:hover { background: var(--color-cream); }
 	.filter-tab.active {
 		background: var(--color-terracotta);
 		color: white;
 		border-color: var(--color-terracotta);
-		font-weight: 600;
 	}
 	.filter-tab.tag-tab.active {
 		background: color-mix(in srgb, var(--tag-color) 80%, transparent);
