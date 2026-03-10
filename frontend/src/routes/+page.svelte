@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
 	import { getPublicRecipes, getRecipeCategories, saveToCollection } from '$lib/api';
 	import { isLoggedIn, openLoginModal } from '$lib/stores/auth.svelte';
@@ -26,7 +27,15 @@
 		calorieRange: string;
 		hideCollected: boolean;
 	}
-	let filter = $state<FilterState>({ sort: 'popular', difficulty: '', cookingTime: '', calorieRange: '', hideCollected: false });
+	const FILTER_KEY = 'explore_filter';
+	function loadFilter(): FilterState {
+		if (!browser) return { sort: 'popular', difficulty: '', cookingTime: '', calorieRange: '', hideCollected: false };
+		try {
+			const saved = localStorage.getItem(FILTER_KEY);
+			return saved ? JSON.parse(saved) : { sort: 'popular', difficulty: '', cookingTime: '', calorieRange: '', hideCollected: false };
+		} catch { return { sort: 'popular', difficulty: '', cookingTime: '', calorieRange: '', hideCollected: false }; }
+	}
+	let filter = $state<FilterState>(loadFilter());
 	let showFilterSheet = $state(false);
 	let recipes = $state<RecipePublicItem[]>([]);
 	let loading = $state(true);
@@ -137,6 +146,10 @@
 		}
 	}
 
+	$effect(() => {
+		if (browser) localStorage.setItem(FILTER_KEY, JSON.stringify(filter));
+	});
+
 	const activeFilterCount = $derived(
 		(filter.difficulty ? 1 : 0) +
 		(filter.cookingTime ? 1 : 0) +
@@ -238,7 +251,7 @@
 	{#if showFilterSheet}
 		<FilterBottomSheet
 			{filter}
-			onapply={(f) => { filter = f; fetchRecipes(true); }}
+			onapply={(f) => { filter = f; if (browser) localStorage.setItem(FILTER_KEY, JSON.stringify(f)); fetchRecipes(true); }}
 			onclose={() => showFilterSheet = false}
 		/>
 	{/if}
