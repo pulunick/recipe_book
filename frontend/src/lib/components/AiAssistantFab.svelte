@@ -52,6 +52,10 @@
 			sendMessage();
 		}
 	}
+
+	function resetSession() {
+		messages = [];
+	}
 </script>
 
 <!-- 채팅 패널 -->
@@ -65,7 +69,12 @@
 					<p class="panel-recipe">{recipe.title}</p>
 				</div>
 			</div>
-			<button class="close-btn" onclick={togglePanel} aria-label="닫기">✕</button>
+			<div class="panel-actions">
+				{#if messages.length > 0}
+					<button class="reset-btn" onclick={resetSession} aria-label="대화 초기화" title="대화 초기화">↺</button>
+				{/if}
+				<button class="close-btn" onclick={togglePanel} aria-label="닫기">✕</button>
+			</div>
 		</div>
 
 		<div class="messages-area">
@@ -140,7 +149,7 @@
 		align-items: center;
 		justify-content: center;
 		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
-		z-index: 50;
+		z-index: 55;
 		transition: transform 0.2s, background 0.2s;
 		overflow: hidden;
 		padding: 0;
@@ -174,7 +183,7 @@
 		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.16);
 		display: flex;
 		flex-direction: column;
-		z-index: 49;
+		z-index: 54;
 		animation: panel-in 0.22s ease;
 		overflow: hidden;
 	}
@@ -215,6 +224,23 @@
 		text-overflow: ellipsis;
 		max-width: 200px;
 	}
+	.panel-actions {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+	}
+	.reset-btn {
+		background: none;
+		border: none;
+		font-size: 1rem;
+		color: var(--color-soft-brown);
+		cursor: pointer;
+		padding: 4px 6px;
+		line-height: 1;
+		border-radius: 6px;
+		transition: color 0.15s, background 0.15s;
+	}
+	.reset-btn:hover { color: var(--color-terracotta); background: var(--color-cream); }
 	.close-btn {
 		background: none;
 		border: none;
