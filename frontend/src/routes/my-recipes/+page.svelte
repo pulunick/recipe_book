@@ -358,20 +358,24 @@
 	.search-icon {
 		position: absolute;
 		left: 12px;
+		width: 17px;
+		height: 17px;
 		color: var(--color-soft-brown);
 		pointer-events: none;
 	}
 	.search-input {
 		width: 100%;
-		padding: 0.6rem 1rem 0.6rem 2.4rem;
+		padding: 0 14px 0 36px;
 		border: 1.5px solid var(--color-light-line);
-		border-radius: 12px;
-		font-size: 0.9rem;
+		border-radius: 14px;
+		height: 44px;
+		font-size: 0.92rem;
 		font-family: inherit;
 		color: var(--color-warm-brown);
-		background: white;
+		background: var(--color-cream);
 		outline: none;
 		transition: border-color 0.15s;
+		min-width: 0;
 	}
 	.search-input:focus { border-color: var(--color-terracotta); }
 
