@@ -14,6 +14,7 @@
 	import ScrollToTop from '$lib/components/ScrollToTop.svelte';
 	import Toast from '$lib/components/Toast.svelte';
 	import { UtensilsCrossed, Star } from 'lucide-svelte';
+	import AiAssistantFab from '$lib/components/AiAssistantFab.svelte';
 	import type { RecipeOverride, IngredientOverride, StepOverride, RecipeStep, Ingredient, RecipeAuthorUpdate } from '$lib/types';
 	import { getUser } from '$lib/stores/auth.svelte';
 	import {
@@ -688,6 +689,10 @@
 
 <Toast message={toastMessage} show={showToast} ondismiss={() => showToast = false} />
 
+{#if recipe}
+	<AiAssistantFab collectionId={item.id} recipe={recipe} />
+{/if}
+
 <style>
 	.page-wrap {
 		max-width: 960px;
@@ -738,13 +743,15 @@
 	}
 
 	.btn-reanalyze {
-		font-size: 0.82rem;
+		font-size: 0.85rem;
+		font-weight: 500;
 		color: var(--color-soft-brown);
 		background: none;
-		border: 1px solid var(--color-light-line);
-		border-radius: 6px;
-		padding: 0.3rem 0.7rem;
+		border: 1.5px solid var(--color-light-line);
+		border-radius: 8px;
+		padding: 0.5rem 1rem;
 		cursor: pointer;
+		font-family: inherit;
 		transition: border-color 0.15s, color 0.15s;
 	}
 	.btn-reanalyze:hover:not(:disabled) {

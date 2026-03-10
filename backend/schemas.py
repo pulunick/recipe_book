@@ -208,3 +208,15 @@ class CartGroupResponse(BaseModel):
     collection_id: Optional[int]
     recipe_title: Optional[str]
     items: List[CartItemResponse]
+
+
+# --- AI 채팅 스키마 ---
+
+class AiChatHistoryItem(BaseModel):
+    role: str  # "user" | "model"
+    content: str
+
+class AiChatRequest(BaseModel):
+    collection_id: int
+    message: str
+    history: List[AiChatHistoryItem] = []

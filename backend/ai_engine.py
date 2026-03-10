@@ -347,3 +347,60 @@ async def extract_recipe_from_text(text: str, title: str | None = None) -> Recip
     parsed = _extract_json_from_text(response.text)
     result_recipe = Recipe(**parsed)
     return result_recipe
+
+
+async def chat_with_recipe(
+    recipe_context: dict,
+    message: str,
+    history: list[dict],
+) -> str:
+    """레시피 컨텍스트 기반 AI 채팅 응답 생성"""
+    client = _get_client()
+
+    title = recipe_context.get("title", "")
+    servings = recipe_context.get("servings", "")
+    cooking_time = recipe_context.get("cooking_time", "")
+    difficulty = recipe_context.get("difficulty", "")
+    ingredients = recipe_context.get("ingredients") or []
+    steps = recipe_context.get("steps") or []
+    tip = recipe_context.get("tip", "")
+
+    ingredients_text = "\n".join(
+        f"- {ing.get('name', '')} {ing.get('amount', '') or ''}" for ing in ingredients
+    ) or "정보 없음"
+    steps_text = "\n".join(
+        f"{i + 1}. {step.get('description', '')}" for i, step in enumerate(steps)
+    ) or "정보 없음"
+
+    system_prompt = f"""당신은 요리 전문 AI 어시스턴트입니다.
+현재 사용자는 다음 레시피를 보고 있습니다:
+
+**레시피명**: {title}
+**인분**: {servings or '정보 없음'} | **조리 시간**: {cooking_time or '정보 없음'} | **난이도**: {difficulty or '정보 없음'}
+
+**재료**:
+{ingredients_text}
+
+**조리 단계**:
+{steps_text}
+{f'**꿀팁**: {tip}' if tip else ''}
+
+이 레시피 맥락에서 질문에 한국어로 간결하게 답해주세요. 답변은 3~5문장 이내로 핵심만 전달해주세요."""
+
+    contents = []
+    for h in history[-10:]:
+        role = "user" if h["role"] == "user" else "model"
+        contents.append(types.Content(role=role, parts=[types.Part(text=h["content"])]))
+    contents.append(types.Content(role="user", parts=[types.Part(text=message)]))
+
+    response = await client.aio.models.generate_content(
+        model=MODEL,
+        contents=contents,
+        config=types.GenerateContentConfig(
+            system_instruction=system_prompt,
+            temperature=0.7,
+            max_output_tokens=512,
+        ),
+    )
+
+    return response.text or "답변을 생성하지 못했어요. 다시 시도해주세요."

@@ -1,5 +1,6 @@
 import os
 import time
+from collections import defaultdict
 from datetime import datetime, timezone
 from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,14 +12,28 @@ from schemas import (
     TagCreate, CollectionTag, CollectionTagUpdate, RatingRequest, CookedRequest, CategoryOverrideRequest,
     CollectionListItem, RecipePublicItem, RecipesListResponse, ExtractRecipeFromTextRequest,
     SaveTextRecipeRequest, CartItemResponse, CartGroupResponse, RecipeAuthorUpdateRequest,
+    AiChatRequest,
 )
 from utils import extract_video_id, get_video_metadata
-from ai_engine import extract_recipe_with_gemini, extract_recipe_from_text
+from ai_engine import extract_recipe_with_gemini, extract_recipe_from_text, chat_with_recipe
 from database import get_supabase_client
 from auth import get_current_user, get_current_user_optional
 from logger import get_logger
 
 logger = get_logger(__name__)
+
+# AI 채팅 rate limit: user_id → 최근 1분 내 요청 타임스탬프 목록
+_ai_rate_log: dict[str, list[float]] = defaultdict(list)
+
+def _check_ai_rate_limit(user_id: str, max_per_minute: int = 10) -> bool:
+    now = time.time()
+    minute_ago = now - 60
+    _ai_rate_log[user_id] = [t for t in _ai_rate_log[user_id] if t > minute_ago]
+    if len(_ai_rate_log[user_id]) >= max_per_minute:
+        return False
+    _ai_rate_log[user_id].append(now)
+    return True
+
 
 async def _verify_collection_owner(collection_id: int, user_id: str, supabase) -> None:
     """컬렉션 소유권 검증 — 본인 소유가 아니면 403"""
@@ -1366,6 +1381,78 @@ async def clear_cart(jwt_user_id: str = Depends(get_current_user)):
         raise HTTPException(
             status_code=500,
             detail=ErrorResponse(error_code="DELETE_FAILED", message="장바구니 비우기 중 오류가 발생했습니다.", detail=str(e)).model_dump(),
+        )
+
+
+@app.post("/ai/chat")
+async def ai_chat(request: AiChatRequest, jwt_user_id: str = Depends(get_current_user)):
+    """레시피 컨텍스트 기반 AI 채팅 (10회/분 rate limit)"""
+    if not _check_ai_rate_limit(jwt_user_id):
+        raise HTTPException(
+            status_code=429,
+            detail=ErrorResponse(
+                error_code="RATE_LIMIT_EXCEEDED",
+                message="AI 질문 횟수를 초과했습니다. 잠시 후 다시 시도해주세요.",
+            ).model_dump(),
+        )
+
+    msg = request.message.strip()
+    if not msg:
+        raise HTTPException(
+            status_code=400,
+            detail=ErrorResponse(error_code="EMPTY_MESSAGE", message="메시지를 입력해주세요.").model_dump(),
+        )
+    if len(msg) > 300:
+        raise HTTPException(
+            status_code=400,
+            detail=ErrorResponse(error_code="MESSAGE_TOO_LONG", message="메시지는 300자 이내로 입력해주세요.").model_dump(),
+        )
+
+    supabase = get_supabase_client()
+    if not supabase:
+        raise HTTPException(
+            status_code=500,
+            detail=ErrorResponse(error_code="DB_CONNECTION_FAILED", message="데이터베이스 연결에 실패했습니다.").model_dump(),
+        )
+
+    # 컬렉션 + 레시피 조회 (소유권 확인 포함)
+    coll_result = (
+        supabase.table("user_collections")
+        .select("recipe_override, recipe:recipes(title, servings, cooking_time, difficulty, ingredients, steps, tip)")
+        .eq("id", request.collection_id)
+        .eq("user_id", jwt_user_id)
+        .single()
+        .execute()
+    )
+    if not coll_result.data:
+        raise HTTPException(
+            status_code=404,
+            detail=ErrorResponse(error_code="NOT_FOUND", message="레시피를 찾을 수 없습니다.").model_dump(),
+        )
+
+    item = coll_result.data
+    recipe = item.get("recipe") or {}
+    override = item.get("recipe_override") or {}
+
+    recipe_context = {
+        "title": recipe.get("title", ""),
+        "servings": recipe.get("servings", ""),
+        "cooking_time": recipe.get("cooking_time", ""),
+        "difficulty": recipe.get("difficulty", ""),
+        "ingredients": override.get("ingredients") or recipe.get("ingredients") or [],
+        "steps": override.get("steps") or recipe.get("steps") or [],
+        "tip": override.get("tip") or recipe.get("tip") or "",
+    }
+
+    try:
+        history = [{"role": h.role, "content": h.content} for h in request.history]
+        reply = await chat_with_recipe(recipe_context, msg, history)
+        return {"reply": reply}
+    except Exception as e:
+        logger.error("AI 채팅 오류 (collection_id: %s): %s", request.collection_id, e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=ErrorResponse(error_code="AI_CHAT_FAILED", message="AI 응답 중 오류가 발생했습니다.").model_dump(),
         )
 
 

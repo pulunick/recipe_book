@@ -278,3 +278,17 @@ export async function getPublicRecipes(params: PublicRecipesParams = {}): Promis
 	const data = await handleResponse<{ items: RecipePublicItem[]; total: number; has_more: boolean }>(response);
 	return data.items;
 }
+
+export async function chatWithAi(
+	collectionId: number,
+	message: string,
+	history: { role: string; content: string }[]
+): Promise<string> {
+	const response = await fetch(`${API_BASE}/ai/chat`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+		body: JSON.stringify({ collection_id: collectionId, message, history })
+	});
+	const data = await handleResponse<{ reply: string }>(response);
+	return data.reply;
+}
