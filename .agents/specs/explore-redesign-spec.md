@@ -229,3 +229,4 @@ CREATE TABLE follows (follower_id UUID, following_id UUID, created_at TIMESTAMPT
 - [x] `cooking_time_minutes` 컬럼 추가 — B안(정수 컬럼) 확정
 - [x] 랜덤 추천 결과 — 모달 팝업 확정
 - [x] 오늘 뭐먹지 배너 — 지금은 심플(텍스트+버튼), 추후 먹당 일러스트 추가 예정
+- [ ] 필터 상태 저장 — localStorage(비로그인) / users.preferences JSONB(로그인, 기기 간 동기화)

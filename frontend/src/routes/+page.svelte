@@ -407,10 +407,10 @@
 
 	.btn-filter {
 		flex-shrink: 0;
-		height: 40px;
-		padding: 0 0.85rem;
+		height: 44px;
+		padding: 0 1rem;
 		border: 1.5px solid var(--color-light-line);
-		border-radius: 20px;
+		border-radius: 14px;
 		background: none;
 		color: var(--color-soft-brown);
 		font-size: 0.82rem;
