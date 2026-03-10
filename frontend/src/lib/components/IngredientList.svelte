@@ -6,8 +6,10 @@
 		ingredients: Ingredient[];
 		storageKey?: string;
 		showCheckbox?: boolean;
+		oncart?: () => void;
+		cartLoading?: boolean;
 	}
-	let { ingredients, storageKey = '', showCheckbox = true }: Props = $props();
+	let { ingredients, storageKey = '', showCheckbox = true, oncart, cartLoading = false }: Props = $props();
 
 	const lsKey = $derived(storageKey ? `recipe_checked_${storageKey}` : '');
 	let checkedItems: string[] = $state([]);
@@ -46,9 +48,16 @@
 
 <div class="ingredients-section">
 	<div class="section-divider">
-		<span class="divider-line"></span>
-		<span class="divider-text">재료</span>
-		<span class="divider-line"></span>
+		{#if oncart}
+			<span class="divider-text">재료</span>
+			<button class="btn-cart" onclick={oncart} disabled={cartLoading}>
+				{cartLoading ? '담는 중...' : '🛒 재료 담기'}
+			</button>
+		{:else}
+			<span class="divider-line"></span>
+			<span class="divider-text">재료</span>
+			<span class="divider-line"></span>
+		{/if}
 	</div>
 	{#each Object.entries(grouped) as [category, items]}
 		<div class="category-group">
@@ -180,4 +189,28 @@
 		color: var(--color-soft-brown);
 		white-space: nowrap;
 	}
+
+	.btn-cart {
+		margin-left: auto;
+		font-size: 0.78rem;
+		font-weight: 600;
+		padding: 0 0.85rem;
+		height: 28px;
+		border: 1.5px solid var(--color-light-line);
+		border-radius: 20px;
+		background: none;
+		color: var(--color-soft-brown);
+		cursor: pointer;
+		white-space: nowrap;
+		display: inline-flex;
+		align-items: center;
+		font-family: inherit;
+		transition: border-color 0.15s, color 0.15s;
+		flex-shrink: 0;
+	}
+	.btn-cart:hover:not(:disabled) {
+		border-color: var(--color-terracotta);
+		color: var(--color-terracotta);
+	}
+	.btn-cart:disabled { opacity: 0.6; cursor: not-allowed; }
 </style>

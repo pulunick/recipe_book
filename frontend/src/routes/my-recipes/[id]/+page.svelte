@@ -472,29 +472,29 @@
 				</div>
 			{/if}
 
-			<!-- 활동 블록: 별점 + 요리 기록 -->
+			<!-- 활동 블록: 별점 / 요리 기록 -->
 			<div class="activity-block">
-				<div class="activity-top">
-					<div class="rating-area">
-						<StarRating rating={item.my_rating} onchange={handleRating} />
-						{#if item.my_rating}
-							<span class="rating-label">{item.my_rating}점</span>
-						{:else}
-							<span class="rating-label muted">별점을 매겨보세요</span>
+				<!-- 1행: 별점 -->
+				<div class="activity-rating">
+					<StarRating rating={item.my_rating} onchange={handleRating} />
+					{#if item.my_rating}
+						<span class="rating-label">{item.my_rating}점</span>
+					{:else}
+						<span class="rating-label muted">별점을 매겨보세요</span>
+					{/if}
+				</div>
+				<!-- 2행: 요리 기록 -->
+				<div class="activity-cooked">
+					<span class="cooked-info">
+						🍳 {item.cooked_count}회
+						{#if item.last_cooked_at}
+							· {new Date(item.last_cooked_at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
 						{/if}
-					</div>
+					</span>
 					<button class="btn-cooked" onclick={handleCooked} disabled={isCooking}>
 						{isCooking ? '기록 중...' : '오늘 요리했어요'} <UtensilsCrossed size={15} />
 					</button>
 				</div>
-				{#if item.cooked_count > 0 || item.last_cooked_at}
-					<div class="activity-stats">
-						<span class="cooked-count">{item.cooked_count}회 요리</span>
-						{#if item.last_cooked_at}
-							<span class="last-cooked">· 마지막 {new Date(item.last_cooked_at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}</span>
-						{/if}
-					</div>
-				{/if}
 			</div>
 
 			<!-- 태그 영역 -->
@@ -626,14 +626,11 @@
 						</button>
 					</div>
 				{/if}
-				<div class="cart-btn-row">
-					<button class="btn-add-cart-inline" onclick={handleAddToCart} disabled={isAddingToCart}>
-						{isAddingToCart ? '담는 중...' : '🛒 재료 담기'}
-					</button>
-				</div>
 				<IngredientList
 					ingredients={displayIngredients as Ingredient[]}
 					storageKey={recipe.video_id ?? String(recipe.id ?? '')}
+					oncart={handleAddToCart}
+					cartLoading={isAddingToCart}
 				/>
 				<StepTimeline steps={displaySteps} />
 
@@ -848,31 +845,31 @@
 	.activity-block {
 		background: var(--color-cream);
 		border-radius: 10px;
-		padding: 0.8rem 1rem;
+		overflow: hidden;
 		margin-bottom: 1rem;
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
 	}
-	.activity-top {
+	.activity-rating {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
+		padding: 0.85rem 1rem;
+	}
+	.activity-cooked {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
 		gap: 0.5rem;
+		padding: 0.6rem 1rem;
+		border-top: 1px solid rgba(0,0,0,0.07);
+		background: rgba(0,0,0,0.02);
 	}
-	.activity-stats {
-		display: flex;
-		align-items: center;
-		gap: 0.4rem;
-		padding-top: 0.4rem;
-		border-top: 1px solid rgba(0,0,0,0.06);
+	.cooked-info {
+		font-size: 0.82rem;
+		color: var(--color-soft-brown);
+		font-weight: 500;
 	}
 
-	.rating-area {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-	}
 	.rating-label {
 		font-size: 0.82rem;
 		color: var(--color-warm-brown);
@@ -884,62 +881,30 @@
 		opacity: 0.7;
 	}
 	.btn-cooked {
-		font-size: 0.82rem;
-		background: var(--color-warm-yellow, #fff3cd);
-		border: 1px solid color-mix(in srgb, var(--color-warm-yellow, #fff3cd) 70%, #a67c00);
-		border-radius: 8px;
-		padding: 0 0.8rem;
-		height: 34px;
-		cursor: pointer;
-		font-weight: 600;
-		font-family: inherit;
-		color: var(--color-warm-brown);
-		display: inline-flex;
-		align-items: center;
-		gap: 0.3rem;
-		transition: background 0.15s;
-	}
-	.btn-cooked:hover {
-		background: color-mix(in srgb, var(--color-warm-yellow, #fff3cd) 80%, #f5a623);
-	}
-	.btn-cooked:disabled { opacity: 0.6; cursor: not-allowed; }
-
-	/* 재료 담기 버튼 (재료 섹션 위) */
-	.cart-btn-row {
-		display: flex;
-		justify-content: flex-end;
-		margin-bottom: 0.5rem;
-	}
-	.btn-add-cart-inline {
-		font-size: 0.78rem;
-		font-weight: 600;
+		font-size: 0.8rem;
 		background: none;
 		border: 1.5px solid var(--color-light-line);
 		border-radius: 20px;
-		padding: 0.3rem 0.85rem;
+		padding: 0 0.85rem;
+		height: 30px;
 		cursor: pointer;
+		font-weight: 600;
 		font-family: inherit;
 		color: var(--color-soft-brown);
 		display: inline-flex;
 		align-items: center;
 		gap: 0.3rem;
 		transition: border-color 0.15s, color 0.15s;
+		flex-shrink: 0;
 	}
-	.btn-add-cart-inline:hover {
+	.btn-cooked:hover {
 		border-color: var(--color-terracotta);
 		color: var(--color-terracotta);
 	}
-	.btn-add-cart-inline:disabled { opacity: 0.6; cursor: not-allowed; }
+	.btn-cooked:disabled { opacity: 0.6; cursor: not-allowed; }
 
-	.cooked-count {
-		font-size: 0.82rem;
-		font-weight: 600;
-		color: var(--color-warm-brown);
-	}
-	.last-cooked {
-		font-size: 0.75rem;
-		color: var(--color-soft-brown);
-	}
+
+
 
 	/* 태그 영역 */
 	.tags-area {
