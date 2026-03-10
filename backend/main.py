@@ -15,7 +15,7 @@ from schemas import (
 from utils import extract_video_id, get_video_metadata
 from ai_engine import extract_recipe_with_gemini, extract_recipe_from_text
 from database import get_supabase_client
-from auth import get_current_user
+from auth import get_current_user, get_current_user_optional
 from logger import get_logger
 
 logger = get_logger(__name__)
@@ -376,6 +376,32 @@ async def get_collection_item(collection_id: int, jwt_user_id: str = Depends(get
             status_code=500,
             detail=ErrorResponse(error_code="FETCH_FAILED", message="컬렉션 조회 중 오류가 발생했습니다.", detail=str(e)).model_dump(),
         )
+
+
+@app.get("/collections/check/{recipe_id}")
+async def check_collection(recipe_id: int, jwt_user_id: str = Depends(get_current_user)):
+    """특정 레시피가 내 보관함에 있는지 확인 — collection_id 또는 null 반환"""
+    try:
+        supabase = get_supabase_client()
+        if not supabase:
+            raise HTTPException(status_code=500, detail={"error_code": "DB_CONNECTION_FAILED", "message": "서버 오류"})
+
+        result = (
+            supabase.table("user_collections")
+            .select("id")
+            .eq("user_id", jwt_user_id)
+            .eq("recipe_id", recipe_id)
+            .limit(1)
+            .execute()
+        )
+        collection_id = result.data[0]["id"] if result.data else None
+        return {"my_collection_id": collection_id}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("컬렉션 체크 오류: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail={"error_code": "FETCH_FAILED", "message": "조회 오류"})
 
 
 @app.post("/collections")
@@ -1005,6 +1031,7 @@ async def get_public_recipes(
     page: int = 1,
     q: str | None = None,
     category: str | None = None,
+    jwt_user_id: str | None = Depends(get_current_user_optional),
 ):
     """공개 레시피 목록 조회 — 탐색 탭용 (인증 불필요)
 
@@ -1055,6 +1082,19 @@ async def get_public_recipes(
 
         items = result.data or []
         total = result.count if result.count is not None else len(items)
+
+        # 로그인 상태면 내 보관함 여부 JOIN
+        if jwt_user_id and items:
+            recipe_ids = [item["id"] for item in items]
+            coll_result = (
+                supabase.table("user_collections")
+                .select("recipe_id, id")
+                .eq("user_id", jwt_user_id)
+                .in_("recipe_id", recipe_ids)
+                .execute()
+            )
+            coll_map = {row["recipe_id"]: row["id"] for row in (coll_result.data or [])}
+            items = [{**item, "my_collection_id": coll_map.get(item["id"])} for item in items]
 
         return RecipesListResponse(
             items=items,

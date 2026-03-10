@@ -127,4 +127,5 @@ export interface RecipePublicItem {
 	video_id: string | null;
 	channel_name: string | null;
 	created_at: string;
+	my_collection_id: number | null;
 }

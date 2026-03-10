@@ -69,6 +69,14 @@ export async function getCollections(): Promise<CollectionItem[]> {
 	return handleResponse<CollectionItem[]>(response);
 }
 
+export async function checkCollection(recipeId: number): Promise<number | null> {
+	const response = await fetch(`${API_BASE}/collections/check/${recipeId}`, {
+		headers: getAuthHeaders()
+	});
+	const data = await handleResponse<{ my_collection_id: number | null }>(response);
+	return data.my_collection_id;
+}
+
 export async function getCollectionItem(collectionId: number): Promise<CollectionItem> {
 	const response = await fetch(`${API_BASE}/collections/item/${collectionId}`, {
 		headers: getAuthHeaders()
@@ -264,7 +272,9 @@ export async function getPublicRecipes(params: PublicRecipesParams = {}): Promis
 	if (params.q) query.set('q', params.q);
 	if (params.page) query.set('page', String(params.page));
 	if (params.limit) query.set('limit', String(params.limit));
-	const response = await fetch(`${API_BASE}/recipes?${query.toString()}`);
+	const response = await fetch(`${API_BASE}/recipes?${query.toString()}`, {
+		headers: getAuthHeaders()
+	});
 	const data = await handleResponse<{ items: RecipePublicItem[]; total: number; has_more: boolean }>(response);
 	return data.items;
 }

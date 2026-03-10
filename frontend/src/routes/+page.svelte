@@ -1,7 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { getPublicRecipes, getRecipeCategories } from '$lib/api';
+	import { goto } from '$app/navigation';
+	import { getPublicRecipes, getRecipeCategories, saveToCollection } from '$lib/api';
+	import { isLoggedIn, openLoginModal } from '$lib/stores/auth.svelte';
 	import type { RecipePublicItem } from '$lib/types';
+
+	const loggedIn = $derived(isLoggedIn());
 
 	const DIFFICULTY_LABEL: Record<string, string> = {
 		easy: '쉬움', medium: '보통', hard: '어려움'
@@ -80,6 +84,32 @@
 	function getThumbnail(item: RecipePublicItem): string | null {
 		if (item.video_id) return `https://img.youtube.com/vi/${item.video_id}/mqdefault.jpg`;
 		return null;
+	}
+
+	// 보관함 추가 중인 recipe id 추적
+	let addingIds = $state<Set<number>>(new Set());
+
+	async function handleCollect(e: MouseEvent, item: RecipePublicItem) {
+		e.preventDefault();
+		e.stopPropagation();
+
+		if (item.my_collection_id !== null) {
+			goto(`/my-recipes/${item.my_collection_id}`);
+			return;
+		}
+		if (!loggedIn) {
+			openLoginModal();
+			return;
+		}
+		if (addingIds.has(item.id)) return;
+
+		addingIds = new Set([...addingIds, item.id]);
+		try {
+			const collectionId = await saveToCollection(item.id);
+			recipes = recipes.map(r => r.id === item.id ? { ...r, my_collection_id: collectionId } : r);
+		} finally {
+			addingIds = new Set([...addingIds].filter(id => id !== item.id));
+		}
 	}
 
 	onMount(async () => {
@@ -187,42 +217,70 @@
 	{:else}
 		<div class="recipe-grid">
 			{#each recipes as item (item.id)}
-				<a href="/recipe/{item.video_id ?? item.id}" class="recipe-card">
-					<div class="card-thumb">
-						{#if getThumbnail(item)}
-							<img src={getThumbnail(item)!} alt={item.title} loading="lazy" />
-						{:else}
-							<div class="thumb-placeholder">
-								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-									<path d="M14.752 11.168l-3.197-2.132A1 1 0 0 0 10 9.87v4.263a1 1 0 0 0 1.555.832l3.197-2.132a1 1 0 0 0 0-1.664z"/>
-									<path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/>
-								</svg>
-							</div>
-						{/if}
-						{#if item.category}
-							<span class="category-badge">{item.category}</span>
-						{/if}
-					</div>
-					<div class="card-body">
-						<p class="card-title">{item.title}</p>
-						<div class="card-meta">
-							{#if item.cooking_time}
-								<span class="meta-chip">
-									<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-										<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+				{@const added = item.my_collection_id !== null}
+				{@const adding = addingIds.has(item.id)}
+				<article class="recipe-card">
+					<a href="/recipe/{item.video_id ?? item.id}" class="card-link">
+						<div class="card-thumb">
+							{#if getThumbnail(item)}
+								<img src={getThumbnail(item)!} alt={item.title} loading="lazy" />
+							{:else}
+								<div class="thumb-placeholder">
+									<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+										<path d="M14.752 11.168l-3.197-2.132A1 1 0 0 0 10 9.87v4.263a1 1 0 0 0 1.555.832l3.197-2.132a1 1 0 0 0 0-1.664z"/>
+										<path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/>
 									</svg>
-									{item.cooking_time}
-								</span>
+								</div>
 							{/if}
-							{#if item.difficulty}
-								<span class="meta-chip">{DIFFICULTY_LABEL[item.difficulty] ?? item.difficulty}</span>
+							{#if item.category}
+								<span class="category-badge">{item.category}</span>
 							{/if}
 						</div>
-						{#if item.channel_name}
-							<p class="card-channel">{item.channel_name}</p>
+						<div class="card-body">
+							<p class="card-title">{item.title}</p>
+							<div class="card-meta">
+								{#if item.cooking_time}
+									<span class="meta-chip">
+										<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+											<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+										</svg>
+										{item.cooking_time}
+									</span>
+								{/if}
+								{#if item.difficulty}
+									<span class="meta-chip">{DIFFICULTY_LABEL[item.difficulty] ?? item.difficulty}</span>
+								{/if}
+							</div>
+							{#if item.channel_name}
+								<p class="card-channel">{item.channel_name}</p>
+							{/if}
+						</div>
+					</a>
+
+					<!-- 보관함 추가/이동 버튼 -->
+					<button
+						class="btn-collect"
+						class:is-added={added}
+						onclick={(e) => handleCollect(e, item)}
+						disabled={adding}
+						aria-label={added ? '내 레시피 보러가기' : '내 레시피에 추가'}
+						title={added ? '내 레시피 보러가기' : '내 레시피에 추가'}
+					>
+						{#if adding}
+							<span class="collect-spinner"></span>
+						{:else if added}
+							<!-- 체크 아이콘 -->
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+								<polyline points="20 6 9 17 4 12" />
+							</svg>
+						{:else}
+							<!-- 북마크 아이콘 -->
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+							</svg>
 						{/if}
-					</div>
-				</a>
+					</button>
+				</article>
 			{/each}
 		</div>
 
@@ -467,19 +525,72 @@
 	}
 
 	.recipe-card {
+		position: relative;
 		display: flex;
 		flex-direction: column;
 		border-radius: 14px;
 		overflow: hidden;
 		background: #fff;
 		border: 1px solid var(--color-light-line);
-		text-decoration: none;
 		transition: box-shadow 0.15s, transform 0.15s;
 	}
 
 	.recipe-card:hover {
 		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 		transform: translateY(-1px);
+	}
+
+	.card-link {
+		display: flex;
+		flex-direction: column;
+		text-decoration: none;
+		flex: 1;
+	}
+
+	/* 보관함 버튼 */
+	.btn-collect {
+		position: absolute;
+		top: 6px;
+		right: 6px;
+		width: 30px;
+		height: 30px;
+		border-radius: 50%;
+		border: none;
+		background: rgba(255, 255, 255, 0.88);
+		backdrop-filter: blur(4px);
+		color: var(--color-soft-brown);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		cursor: pointer;
+		padding: 0;
+		transition: background 0.15s, color 0.15s, transform 0.15s;
+		box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+	}
+	.btn-collect svg { width: 15px; height: 15px; }
+	.btn-collect:hover:not(:disabled) {
+		background: white;
+		color: var(--color-terracotta);
+		transform: scale(1.1);
+	}
+	.btn-collect.is-added {
+		background: var(--color-terracotta);
+		color: white;
+	}
+	.btn-collect.is-added:hover:not(:disabled) {
+		background: color-mix(in srgb, var(--color-terracotta) 85%, black);
+		color: white;
+	}
+	.btn-collect:disabled { opacity: 0.6; cursor: not-allowed; }
+
+	.collect-spinner {
+		width: 13px;
+		height: 13px;
+		border: 2px solid rgba(0,0,0,0.15);
+		border-top-color: var(--color-terracotta);
+		border-radius: 50%;
+		animation: spin 0.7s linear infinite;
+		flex-shrink: 0;
 	}
 
 	.card-thumb {

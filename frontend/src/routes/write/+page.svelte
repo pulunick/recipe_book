@@ -232,7 +232,7 @@
 							class="edit-summary"
 							bind:value={recipe.summary}
 							placeholder="레시피 한 줄 소개"
-							rows="2"
+							rows="4"
 						></textarea>
 					</div>
 
@@ -673,6 +673,8 @@
 		box-sizing: border-box;
 		transition: border-color 0.15s;
 	}
+	.edit-summary { min-height: 90px; }
+	.edit-tip { min-height: 80px; }
 	.edit-summary:focus,
 	.edit-tip:focus { outline: none; border-color: var(--color-terracotta); }
 
@@ -746,6 +748,7 @@
 		background: white;
 		resize: vertical;
 		box-sizing: border-box;
+		min-height: 72px;
 		transition: border-color 0.15s;
 	}
 	.step-textarea:focus { outline: none; border-color: var(--color-terracotta); }
