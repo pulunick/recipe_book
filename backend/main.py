@@ -308,13 +308,16 @@ async def get_user_collections(
                     filtered.append(item)
             data = filtered
 
-        # 제목 검색 (레시피 title 기준)
+        # 제목 + 재료 + 채널명 검색 (공백 제거 후 비교)
         if q:
-            q_lower = q.lower()
-            data = [
-                item for item in data
-                if q_lower in ((item.get("recipe") or {}).get("title", "") or "").lower()
-            ]
+            q_norm = q.lower().replace(" ", "")
+            def _matches(item):
+                recipe = item.get("recipe") or {}
+                title_norm = (recipe.get("title") or "").lower().replace(" ", "")
+                channel_norm = (recipe.get("channel_name") or "").lower().replace(" ", "")
+                ingredients_norm = str(recipe.get("ingredients") or "").lower().replace(" ", "")
+                return q_norm in title_norm or q_norm in channel_norm or q_norm in ingredients_norm
+            data = [item for item in data if _matches(item)]
 
         return data
 
