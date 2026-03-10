@@ -1067,10 +1067,11 @@ async def get_public_recipes(
         if category:
             query = query.eq("category", category)
 
-        # 제목 + 재료 검색 (ingredients는 JSONB → ::text 캐스팅으로 포함 여부 확인)
+        # 제목 검색 (PostgREST는 JSONB::text 캐스트를 지원하지 않아 title만 검색)
+        # TODO: 재료 검색은 DB RPC 함수 추가 후 지원 예정
         if q:
             safe_q = q.replace("%", "\\%").replace("_", "\\_")
-            query = query.or_(f"title.ilike.%{safe_q}%,ingredients::text.ilike.%{safe_q}%")
+            query = query.ilike("title", f"%{safe_q}%")
 
         # 정렬
         if sort == "popular":
