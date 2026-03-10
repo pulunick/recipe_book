@@ -1,6 +1,11 @@
 <script lang="ts">
 	import { fade } from 'svelte/transition';
 
+	interface Props {
+		bottomOffset?: string;
+	}
+	let { bottomOffset = 'calc(80px + env(safe-area-inset-bottom))' }: Props = $props();
+
 	let visible = $state(false);
 
 	$effect(() => {
@@ -22,6 +27,7 @@
 		onclick={scrollToTop}
 		aria-label="맨 위로 스크롤"
 		transition:fade={{ duration: 200 }}
+		style:bottom={bottomOffset}
 	>
 		&#8593;
 	</button>
@@ -31,7 +37,7 @@
 	.scroll-to-top {
 		position: fixed;
 		right: 1.5rem;
-		bottom: calc(80px + env(safe-area-inset-bottom));
+		bottom: calc(80px + env(safe-area-inset-bottom)); /* 기본값, style prop으로 오버라이드 가능 */
 		width: 40px;
 		height: 40px;
 		border-radius: 50%;

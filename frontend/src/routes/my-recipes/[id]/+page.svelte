@@ -689,7 +689,7 @@
 	</section>
 </main>
 
-<ScrollToTop />
+<ScrollToTop bottomOffset="calc(148px + env(safe-area-inset-bottom))" />
 
 <Toast message={toastMessage} show={showToast} ondismiss={() => showToast = false} />
 
