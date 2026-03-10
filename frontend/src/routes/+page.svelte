@@ -192,11 +192,6 @@
 					</svg>
 				</button>
 			{/if}
-			<button class="search-submit-btn" onclick={handleSearchSubmit} aria-label="검색">
-				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-					<circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-				</svg>
-			</button>
 		</div>
 		<button class="btn-filter" class:has-filter={activeFilterCount > 0} onclick={() => showFilterSheet = true}>
 			⚙ 필터{activeFilterCount > 0 ? ` ${activeFilterCount}` : ''}
@@ -460,6 +455,7 @@
 		padding: 0 14px;
 		height: 44px;
 		transition: border-color 0.15s;
+		min-width: 0;
 	}
 
 	.search-bar:focus-within {
@@ -505,28 +501,17 @@
 		height: 16px;
 	}
 
-	.search-submit-btn {
-		background: var(--color-terracotta);
-		border: none;
-		border-radius: 8px;
-		padding: 5px 6px 3px;
-		cursor: pointer;
-		color: white;
-		display: flex;
-		align-items: center;
-		flex-shrink: 0;
-	}
-	.search-submit-btn svg {
-		width: 15px;
-		height: 15px;
-	}
-
 	/* 카테고리 칩 */
 	.source-chips {
 		display: flex;
 		gap: 8px;
 		padding: 0 16px 0;
 		margin-bottom: 6px;
+		overflow-x: auto;
+		scrollbar-width: none;
+	}
+	.source-chips::-webkit-scrollbar {
+		display: none;
 	}
 	.source-chip { font-size: 0.78rem; }
 

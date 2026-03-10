@@ -380,6 +380,11 @@
 		display: flex;
 		gap: 0.4rem;
 		padding: 0 0 8px;
+		overflow-x: auto;
+		scrollbar-width: none;
+	}
+	.source-chips::-webkit-scrollbar {
+		display: none;
 	}
 	.source-chip {
 		flex-shrink: 0;
