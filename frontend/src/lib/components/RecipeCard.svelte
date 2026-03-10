@@ -24,8 +24,8 @@
 </script>
 
 <article class="recipe-card">
-	<!-- 카드 전체 링크 -->
-	<a href="/my-recipes/{item.id}" class="card-link" aria-label="{item.recipe.title} 상세 보기"></a>
+	<!-- 카드 전체 링크 (hover 시 데이터 prefetch) -->
+	<a href="/my-recipes/{item.id}" class="card-link" data-sveltekit-preload-data="hover" aria-label="{item.recipe.title} 상세 보기"></a>
 
 	<!-- 썸네일 -->
 	<div class="thumb">

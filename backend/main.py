@@ -272,11 +272,13 @@ async def get_user_collections(
                 ).model_dump(),
             )
 
-        # recipe는 카드/검색에 필요한 컬럼만 선택 (steps/flavor 제외, ingredients는 재료 검색용 포함)
-        RECIPE_CARD_COLS = "id,title,category,cooking_time,difficulty,servings,video_id,channel_name,ingredients"
+        # recipe 컬럼: 카드 표시 필수 + source(필터용) + author_user_id(직접작성 배지용)
+        # ingredients는 검색(q)이 있을 때만 포함 — JSONB 배열이라 크기가 커서 불필요 시 제외
+        RECIPE_BASE_COLS = "id,title,category,cooking_time,difficulty,video_id,channel_name,source,author_user_id"
+        recipe_cols = RECIPE_BASE_COLS + (",ingredients" if q else "")
         query = (
             supabase.table("user_collections")
-            .select(f"*, recipe:recipes({RECIPE_CARD_COLS}), tags:collection_tag_items(tag:collection_tags(*))")
+            .select(f"*, recipe:recipes({recipe_cols}), tags:collection_tag_items(tag:collection_tags(*))")
             .eq("user_id", user_id)
         )
 
