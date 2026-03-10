@@ -157,6 +157,7 @@
 				<IngredientList
 					ingredients={recipe.ingredients}
 					storageKey={recipe.video_id ?? String(recipe.id ?? '')}
+					showCheckbox={false}
 				/>
 			{/if}
 			{#if recipe.steps?.length}
@@ -359,7 +360,7 @@
 
 	.recipe-bottom-bar {
 		text-align: center;
-		padding: 2rem 0;
+		padding: 1.5rem 0;
 	}
 	.save-btn-bottom {
 		padding: 0.9rem 2.5rem;
@@ -371,7 +372,7 @@
 		.page-wrap { padding: 0 var(--page-padding-mobile); }
 		.recipe-card {
 			padding: 1.5rem;
-			padding-bottom: 5rem;
+			padding-bottom: 2rem;
 		}
 		.recipe-title { font-size: 1.4rem; }
 		.recipe-top-bar { flex-wrap: wrap; }

@@ -5,8 +5,9 @@
 	interface Props {
 		ingredients: Ingredient[];
 		storageKey?: string;
+		showCheckbox?: boolean;
 	}
-	let { ingredients, storageKey = '' }: Props = $props();
+	let { ingredients, storageKey = '', showCheckbox = true }: Props = $props();
 
 	const lsKey = $derived(storageKey ? `recipe_checked_${storageKey}` : '');
 	let checkedItems: string[] = $state([]);
@@ -55,19 +56,29 @@
 			<ul>
 				{#each items as item}
 					<li class="ingredient-row">
-						<label class="check-label">
-							<input
-								type="checkbox"
-								checked={checkedItems.includes(item.name)}
-								onchange={() => toggle(item.name)}
-							/>
-							<span class="check-box"></span>
-							<span class="item-name">{item.name}</span>
-							<span class="dotted-line"></span>
-							<span class="item-amount">
-								{item.amount ?? ''}{item.unit ?? ''}
-							</span>
-						</label>
+						{#if showCheckbox}
+							<label class="check-label">
+								<input
+									type="checkbox"
+									checked={checkedItems.includes(item.name)}
+									onchange={() => toggle(item.name)}
+								/>
+								<span class="check-box"></span>
+								<span class="item-name">{item.name}</span>
+								<span class="dotted-line"></span>
+								<span class="item-amount">
+									{item.amount ?? ''}{item.unit ?? ''}
+								</span>
+							</label>
+						{:else}
+							<div class="simple-row">
+								<span class="item-name">{item.name}</span>
+								<span class="dotted-line"></span>
+								<span class="item-amount">
+									{item.amount ?? ''}{item.unit ?? ''}
+								</span>
+							</div>
+						{/if}
 					</li>
 				{/each}
 			</ul>
@@ -108,12 +119,15 @@
 	.ingredient-row {
 		margin-bottom: 0.3rem;
 	}
-	.check-label {
+	.check-label, .simple-row {
 		display: flex;
 		align-items: center;
 		gap: 0.6rem;
-		cursor: pointer;
 		padding: 0.35rem 0;
+		min-height: 36px;
+	}
+	.check-label {
+		cursor: pointer;
 		min-height: 44px;
 	}
 	.check-label input { display: none; }

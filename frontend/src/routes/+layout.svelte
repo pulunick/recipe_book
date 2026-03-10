@@ -200,6 +200,8 @@
 		padding: 0;
 		cursor: pointer;
 		border-radius: 50%;
+		display: flex;
+		align-items: center;
 	}
 
 	.avatar {

@@ -90,17 +90,18 @@
 		margin: 0;
 		position: relative;
 	}
-	/* 좌측 수직 연결선 */
-	.step-list::before {
+	/* 좌측 수직 연결선: 각 아이템에서 다음 아이템까지 */
+	.step-item::after {
 		content: '';
 		position: absolute;
 		left: 15px;
-		top: 16px;
-		bottom: 16px;
+		top: 32px;
+		bottom: calc(-1.5rem);
 		width: 2px;
 		background: var(--color-light-line);
 		border-radius: 2px;
 	}
+	.step-item:last-child::after { display: none; }
 
 	.step-item {
 		display: flex;

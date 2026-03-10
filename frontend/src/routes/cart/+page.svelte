@@ -140,7 +140,7 @@
 			<div class="header-actions">
 				{#if checkedCount > 0}
 					<button class="btn-clear-checked" onclick={handleDeleteChecked} disabled={isClearingChecked}>
-						{isClearingChecked ? '삭제 중...' : `체크 삭제 (${checkedCount})`}
+						{isClearingChecked ? '삭제 중...' : `선택 삭제 (${checkedCount})`}
 					</button>
 				{/if}
 				<button class="btn-clear-all" onclick={handleClearAll} disabled={isClearing}>
@@ -252,8 +252,8 @@
 			{/each}
 		</div>
 
-		<!-- 하단 여백 (sticky bar 가림 방지) -->
-		<div style="height: 80px"></div>
+		<!-- 하단 여백 (shop-bar + BottomNav 가림 방지) -->
+		<div style="height: 160px"></div>
 	{/if}
 </div>
 
@@ -444,7 +444,6 @@
 	.ingredient-item:last-child { border-bottom: none; }
 	.ingredient-item.checked { background: var(--color-paper); }
 	.ingredient-item.checked .ingredient-name {
-		text-decoration: line-through;
 		opacity: 0.4;
 	}
 	.ingredient-item.checked .ingredient-amount {
@@ -549,7 +548,7 @@
 	}
 
 	.btn-shop-secondary {
-		padding: 9px 14px;
+		padding: 8px 14px;
 		background: none;
 		color: var(--color-terracotta);
 		border: 1.5px solid var(--color-terracotta);
@@ -560,13 +559,14 @@
 		cursor: pointer;
 		white-space: nowrap;
 		transition: background 0.15s, color 0.15s;
+		height: 38px;
 	}
 	.btn-shop-secondary:hover {
 		background: color-mix(in srgb, var(--color-terracotta) 10%, white);
 	}
 
 	.btn-shop {
-		padding: 9px 16px;
+		padding: 0 16px;
 		background: var(--color-terracotta);
 		color: white;
 		border: none;
@@ -577,6 +577,7 @@
 		cursor: pointer;
 		white-space: nowrap;
 		transition: opacity 0.15s;
+		height: 38px;
 	}
 	.btn-shop:hover { opacity: 0.88; }
 

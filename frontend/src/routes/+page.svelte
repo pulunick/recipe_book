@@ -318,7 +318,8 @@
 		background: var(--color-cream);
 		border: 1.5px solid var(--color-light-line);
 		border-radius: 14px;
-		padding: 10px 14px;
+		padding: 0 14px;
+		height: 44px;
 		transition: border-color 0.15s;
 	}
 

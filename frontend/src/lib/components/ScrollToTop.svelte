@@ -31,20 +31,20 @@
 	.scroll-to-top {
 		position: fixed;
 		right: 1.5rem;
-		bottom: 5rem;
-		width: 44px;
-		height: 44px;
+		bottom: calc(80px + env(safe-area-inset-bottom));
+		width: 40px;
+		height: 40px;
 		border-radius: 50%;
-		border: 1px solid var(--color-light-line);
+		border: 1.5px solid var(--color-light-line);
 		background: white;
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-		font-size: 1.2rem;
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+		font-size: 1rem;
 		color: var(--color-warm-brown);
 		cursor: pointer;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		z-index: 40;
+		z-index: 45;
 		transition: background 0.2s, box-shadow 0.2s;
 	}
 	.scroll-to-top:hover {

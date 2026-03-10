@@ -388,23 +388,25 @@
 					{new Date(item.created_at).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })} 저장
 				</span>
 				{#if !isEditMode}
-					<button class="btn-edit-recipe" onclick={enterEditMode}>
-						레시피 수정
-					</button>
-					<button class="btn-reanalyze" onclick={handleReanalyze} disabled={isReanalyzing}>
-						{isReanalyzing ? '분석 중...' : '다시 분석'}
-					</button>
-					{#if isConfirmingDelete}
-						<span class="confirm-delete">
-							정말 삭제할까요?
-							<button class="btn-confirm" onclick={confirmDelete} disabled={isDeleting}>
-								{isDeleting ? '삭제 중...' : '삭제'}
-							</button>
-							<button class="btn-cancel" onclick={() => isConfirmingDelete = false} disabled={isDeleting}>취소</button>
-						</span>
-					{:else}
-						<button class="btn-delete" onclick={() => isConfirmingDelete = true}>삭제</button>
-					{/if}
+					<div class="top-bar-actions">
+						<button class="btn-edit-recipe" onclick={enterEditMode}>
+							레시피 수정
+						</button>
+						<button class="btn-reanalyze" onclick={handleReanalyze} disabled={isReanalyzing}>
+							{isReanalyzing ? '분석 중...' : '다시 분석'}
+						</button>
+						{#if isConfirmingDelete}
+							<span class="confirm-delete">
+								정말?
+								<button class="btn-confirm" onclick={confirmDelete} disabled={isDeleting}>
+									{isDeleting ? '삭제 중' : '삭제'}
+								</button>
+								<button class="btn-cancel" onclick={() => isConfirmingDelete = false} disabled={isDeleting}>취소</button>
+							</span>
+						{:else}
+							<button class="btn-delete" onclick={() => isConfirmingDelete = true}>삭제</button>
+						{/if}
+					</div>
 				{/if}
 			</div>
 		</div>
@@ -703,10 +705,10 @@
 	.recipe-top-bar {
 		display: flex;
 		justify-content: space-between;
-		align-items: center;
-		padding: 1.5rem 0;
+		align-items: flex-start;
+		padding: 0.75rem 0;
 		flex-wrap: wrap;
-		gap: 0.5rem;
+		gap: 0.4rem;
 	}
 
 	.back-link {
@@ -719,14 +721,20 @@
 
 	.top-bar-right {
 		display: flex;
-		align-items: center;
-		gap: 0.8rem;
-		flex-wrap: wrap;
+		flex-direction: column;
+		align-items: flex-end;
+		gap: 0.4rem;
 	}
 
 	.saved-date {
-		font-size: 0.85rem;
+		font-size: 0.78rem;
 		color: var(--color-soft-brown);
+	}
+
+	.top-bar-actions {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
 	}
 
 	.btn-reanalyze {
@@ -879,10 +887,15 @@
 		background: var(--color-warm-yellow, #fff3cd);
 		border: 1px solid color-mix(in srgb, var(--color-warm-yellow, #fff3cd) 70%, #a67c00);
 		border-radius: 8px;
-		padding: 0.35rem 0.8rem;
+		padding: 0 0.8rem;
+		height: 34px;
 		cursor: pointer;
 		font-weight: 600;
+		font-family: inherit;
 		color: var(--color-warm-brown);
+		display: inline-flex;
+		align-items: center;
+		gap: 0.3rem;
 		transition: background 0.15s;
 	}
 	.btn-cooked:hover {
@@ -895,10 +908,13 @@
 		background: var(--color-cream);
 		border: 1px solid var(--color-light-line);
 		border-radius: 8px;
-		padding: 0.35rem 0.8rem;
+		padding: 0 0.8rem;
+		height: 34px;
 		cursor: pointer;
 		font-family: inherit;
 		color: var(--color-warm-brown);
+		display: inline-flex;
+		align-items: center;
 		transition: background 0.15s, border-color 0.15s;
 	}
 	.btn-add-cart:hover {
