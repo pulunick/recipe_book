@@ -2,6 +2,39 @@
 
 ---
 
+## v0.7.0-dev — 2026-03-10 (진행 중)
+
+### 새 기능
+- **AI 어시스턴트 FAB**: `/my-recipes/[id]` 전용 플로팅 버튼 (먹당 캐릭터 이미지 준비 시 자동 활성화)
+  - `gemini-3.1-flash-lite-preview` 모델 (비용 최소화, 텍스트 전용)
+  - 빠른 답변 칩 3개 (재료 대체 / 분량 조절 / 칼로리 질문)
+  - 타이핑 애니메이션, 히스토리 10턴 유지
+- **레시피 분화 (source 구분)**:
+  - 탐색(/) 소스 필터 칩: 전체 / ▶ YouTube / ✏ 직접 작성
+  - 내레시피(/my-recipes) 소스 필터 칩 (클라이언트 필터)
+  - 레시피 상세(/my-recipes/[id])에 "✏ 직접 작성" 배지
+  - 탐색 카드에 YouTube ▶ / 직접 작성 ✏ 배지
+- **검색 고도화**:
+  - `search_public_recipes` PostgreSQL RPC 함수 (PostgREST 한계 우회)
+  - 재료명(JSONB::text) 검색 복원
+  - 채널명(channel_name) 검색 추가
+  - 공백 정규화: `REPLACE(LOWER(col), ' ', '') ILIKE` — 띄어쓰기 무관 검색
+
+### 백엔드
+- `POST /ai/chat`: AI 어시스턴트 채팅 엔드포인트, 인메모리 rate limit (10회/분)
+- `GET /recipes` `source` 파라미터 추가 → RPC `p_source` 전달
+- `GET /collections/{user_id}` `source` 파라미터 추가 → Python-level 필터
+
+### DB
+- `search_public_recipes` RPC: title + ingredients::text + channel_name ILIKE, 공백 정규화, source 필터
+
+### 미완료 (다음 세션)
+- ⬜ 칼로리 정보 (2순위): `recipes.calories` 컬럼 + AI 추정 + UI chip
+- ⬜ 입맛 분석 차트 (3순위): `GET /my/taste-profile` + 마이페이지
+- ⬜ 냉장고 파먹기 (4순위): 재료 입력 → 레시피 추천
+
+---
+
 ## v0.6.0 — 2026-03-10
 
 ### 새 기능
