@@ -1054,35 +1054,22 @@ async def get_public_recipes(
 
         offset = (page - 1) * limit
 
-        query = (
-            supabase.table("recipes")
-            .select(
-                "id, title, summary, category, cooking_time, difficulty, servings, video_id, channel_name, created_at, collection_count",
-                count="exact",
-            )
-            .eq("is_public", True)
-        )
+        # RPC 함수로 제목 + 재료 동시 검색 (ingredients::text ILIKE 지원)
+        rpc_result = supabase.rpc(
+            "search_public_recipes",
+            {
+                "search_q": q or "",
+                "p_category": category or "",
+                "p_sort": sort,
+                "p_limit": limit,
+                "p_offset": offset,
+            },
+        ).execute()
 
-        # 카테고리 필터
-        if category:
-            query = query.eq("category", category)
-
-        # 제목 검색 (PostgREST는 JSONB::text 캐스트를 지원하지 않아 title만 검색)
-        # TODO: 재료 검색은 DB RPC 함수 추가 후 지원 예정
-        if q:
-            safe_q = q.replace("%", "\\%").replace("_", "\\_")
-            query = query.ilike("title", f"%{safe_q}%")
-
-        # 정렬
-        if sort == "popular":
-            query = query.order("collection_count", desc=True).order("created_at", desc=True)
-        else:
-            query = query.order("created_at", desc=True)
-
-        result = query.range(offset, offset + limit - 1).execute()
-
-        items = result.data or []
-        total = result.count if result.count is not None else len(items)
+        items = rpc_result.data or []
+        total = int(items[0]["total_count"]) if items else 0
+        # total_count 필드는 응답에서 제거
+        items = [{k: v for k, v in item.items() if k != "total_count"} for item in items]
 
         # 로그인 상태면 내 보관함 여부 JOIN
         if jwt_user_id and items:
