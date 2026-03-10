@@ -1080,22 +1080,28 @@ async def update_text_recipe(recipe_id: int, request: RecipeAuthorUpdateRequest,
 @app.get("/recipes", response_model=RecipesListResponse)
 async def get_public_recipes(
     request: Request,
-    sort: str = "recent",
+    sort: str = "popular",
     limit: int = 20,
     page: int = 1,
     q: str | None = None,
     category: str | None = None,
     source: str | None = None,
+    difficulty: str | None = None,
+    max_time: int | None = None,
+    min_time: int | None = None,
+    min_calories: int | None = None,
+    max_calories: int | None = None,
+    hide_collected: bool = False,
     jwt_user_id: str | None = Depends(get_current_user_optional),
 ):
     """공개 레시피 목록 조회 — 탐색 탭용 (인증 불필요)
 
-    - sort: recent (최신순) | popular (보관함 저장 수 기준)
-    - limit: 페이지당 항목 수 (기본 20)
-    - page: 페이지 번호 (기본 1)
-    - q: 레시피 제목 또는 재료명 검색
-    - category: 카테고리 필터
-    - source: 'youtube' | 'text' (출처 필터)
+    - sort: popular (인기순) | latest (최신순) | calories (칼로리 낮은순)
+    - difficulty: 쉬움 | 보통 | 어려움
+    - max_time: 조리시간 최대값 (분)
+    - min_time: 조리시간 최소값 (분, 초과)
+    - min_calories / max_calories: 칼로리 범위
+    - hide_collected: 이미 저장한 레시피 숨기기 (로그인 시)
     """
     try:
         supabase = get_supabase_client()
@@ -1111,17 +1117,22 @@ async def get_public_recipes(
         offset = (page - 1) * limit
 
         # RPC 함수로 제목 + 재료 동시 검색 (ingredients::text ILIKE 지원)
-        rpc_result = supabase.rpc(
-            "search_public_recipes",
-            {
-                "search_q": q or "",
-                "p_category": category or "",
-                "p_sort": sort,
-                "p_limit": limit,
-                "p_offset": offset,
-                "p_source": source or "",
-            },
-        ).execute()
+        rpc_params: dict = {
+            "search_q": q or "",
+            "p_category": category or "",
+            "p_sort": sort,
+            "p_limit": limit,
+            "p_offset": offset,
+            "p_source": source or "",
+            "p_difficulty": difficulty or "",
+            "p_max_time": max_time,
+            "p_min_time": min_time,
+            "p_min_calories": min_calories,
+            "p_max_calories": max_calories,
+            "p_hide_collected": hide_collected and jwt_user_id is not None,
+            "p_user_id": jwt_user_id if hide_collected else None,
+        }
+        rpc_result = supabase.rpc("search_public_recipes", rpc_params).execute()
 
         items = rpc_result.data or []
         total = int(items[0]["total_count"]) if items else 0

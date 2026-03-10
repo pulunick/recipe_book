@@ -265,6 +265,13 @@ export interface PublicRecipesParams {
 	page?: number;
 	limit?: number;
 	source?: string;
+	sort?: string;
+	difficulty?: string;
+	max_time?: number;
+	min_time?: number;
+	min_calories?: number;
+	max_calories?: number;
+	hide_collected?: boolean;
 }
 
 export async function getPublicRecipes(params: PublicRecipesParams = {}): Promise<RecipePublicItem[]> {
@@ -274,6 +281,13 @@ export async function getPublicRecipes(params: PublicRecipesParams = {}): Promis
 	if (params.page) query.set('page', String(params.page));
 	if (params.limit) query.set('limit', String(params.limit));
 	if (params.source) query.set('source', params.source);
+	if (params.sort) query.set('sort', params.sort);
+	if (params.difficulty) query.set('difficulty', params.difficulty);
+	if (params.max_time != null) query.set('max_time', String(params.max_time));
+	if (params.min_time != null) query.set('min_time', String(params.min_time));
+	if (params.min_calories != null) query.set('min_calories', String(params.min_calories));
+	if (params.max_calories != null) query.set('max_calories', String(params.max_calories));
+	if (params.hide_collected) query.set('hide_collected', 'true');
 	const response = await fetch(`${API_BASE}/recipes?${query.toString()}`, {
 		headers: getAuthHeaders()
 	});

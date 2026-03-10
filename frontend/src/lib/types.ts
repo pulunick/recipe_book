@@ -40,6 +40,7 @@ export interface Recipe {
 	is_public?: boolean | null;
 	collection_id?: number | null;
 	calories?: number | null;
+	cooking_time_minutes?: number | null;
 }
 
 export interface IngredientOverride {
@@ -132,4 +133,5 @@ export interface RecipePublicItem {
 	my_collection_id: number | null;
 	source: string | null;  // 'youtube' | 'text'
 	calories: number | null;
+	cooking_time_minutes: number | null;
 }

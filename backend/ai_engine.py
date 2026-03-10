@@ -107,6 +107,7 @@ def _build_prompt(metadata: dict) -> str:
        - 전체 조리 소요 시간을 기록하세요 (예: "20분", "1시간", "1시간 30분")
        - 재료 손질 + 조리 + 휴지 시간을 합산한 총 시간.
        - 영상에서 명시하지 않으면 steps를 기반으로 추정하세요.
+       - `cooking_time_minutes`: 위 시간을 **분 단위 정수**로도 기록하세요 (예: 90, 20, 45). 레시피가 아니면 null.
     7. **Difficulty (난이도)**:
        - 다음 기준으로 판단하세요:
          - **쉬움**: 조리 시간 20분 이내, 특별한 기술 불필요
@@ -170,6 +171,7 @@ def _build_prompt(metadata: dict) -> str:
         "category": "한식",
         "servings": "2인분",
         "cooking_time": "30분",
+        "cooking_time_minutes": 30,
         "difficulty": "보통",
         "calories": 350
     }}}}
@@ -187,6 +189,7 @@ def _build_prompt(metadata: dict) -> str:
         "category": null,
         "servings": null,
         "cooking_time": null,
+        "cooking_time_minutes": null,
         "difficulty": null,
         "calories": null
     }}}}
@@ -274,6 +277,7 @@ def _build_text_prompt(text: str, title: str | None) -> str:
     6. **Cooking Time**: 총 조리 시간. 명시 없으면 steps 기반으로 추정.
     7. **Difficulty**: "쉬움"(20분 이내, 기술 불필요), "보통"(20~60분), "어려움"(60분 초과 또는 복잡한 기술) 중 하나.
     8. **Calories**: 완성 요리의 1인분 기준 예상 칼로리(kcal, 정수). 재료 기반 추정값. 레시피가 아니면 null.
+    9. **cooking_time_minutes**: cooking_time을 분 단위 정수로 변환 (예: "1시간 30분" → 90). 레시피가 아니면 null.
 
     [결과 포맷 (JSON)]
     {{{{
@@ -307,6 +311,7 @@ def _build_text_prompt(text: str, title: str | None) -> str:
         "category": "한식",
         "servings": "2인분",
         "cooking_time": "30분",
+        "cooking_time_minutes": 30,
         "difficulty": "보통",
         "calories": 350
     }}}}
@@ -324,6 +329,7 @@ def _build_text_prompt(text: str, title: str | None) -> str:
         "category": null,
         "servings": null,
         "cooking_time": null,
+        "cooking_time_minutes": null,
         "difficulty": null,
         "calories": null
     }}}}

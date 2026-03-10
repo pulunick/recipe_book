@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { getPublicRecipes, getRecipeCategories, saveToCollection } from '$lib/api';
 	import { isLoggedIn, openLoginModal } from '$lib/stores/auth.svelte';
+	import FilterBottomSheet from '$lib/components/FilterBottomSheet.svelte';
 	import type { RecipePublicItem } from '$lib/types';
 
 	const loggedIn = $derived(isLoggedIn());
@@ -17,6 +18,16 @@
 	let selectedSource = $state('');
 	let searchQuery = $state('');
 	let searchInput = $state('');
+
+	interface FilterState {
+		sort: string;
+		difficulty: string;
+		cookingTime: string;
+		calorieRange: string;
+		hideCollected: boolean;
+	}
+	let filter = $state<FilterState>({ sort: 'popular', difficulty: '', cookingTime: '', calorieRange: '', hideCollected: false });
+	let showFilterSheet = $state(false);
 	let recipes = $state<RecipePublicItem[]>([]);
 	let loading = $state(true);
 	let error = $state('');
@@ -35,10 +46,22 @@
 			error = '';
 		}
 		try {
-			const params: Record<string, string | number> = { page, limit: LIMIT };
+			// 조리시간/칼로리 필터 변환
+			const maxTime = filter.cookingTime === '20' ? 20 : filter.cookingTime === '60' ? 60 : undefined;
+			const minTime = filter.cookingTime === '61+' ? 60 : undefined;
+			const maxCal = filter.calorieRange === 'low' ? 500 : filter.calorieRange === 'mid' ? 800 : undefined;
+			const minCal = filter.calorieRange === 'mid' ? 500 : filter.calorieRange === 'high' ? 800 : undefined;
+
+			const params: Record<string, string | number | boolean> = { page, limit: LIMIT, sort: filter.sort };
 			if (selectedCategory !== '전체') params.category = selectedCategory;
 			if (searchQuery) params.q = searchQuery;
 			if (selectedSource) params.source = selectedSource;
+			if (filter.difficulty) params.difficulty = filter.difficulty;
+			if (maxTime != null) params.max_time = maxTime;
+			if (minTime != null) params.min_time = minTime;
+			if (minCal != null) params.min_calories = minCal;
+			if (maxCal != null) params.max_calories = maxCal;
+			if (filter.hideCollected) params.hide_collected = true;
 
 			const data = await getPublicRecipes(params);
 			if (reset) {
@@ -114,6 +137,13 @@
 		}
 	}
 
+	const activeFilterCount = $derived(
+		(filter.difficulty ? 1 : 0) +
+		(filter.cookingTime ? 1 : 0) +
+		(filter.calorieRange ? 1 : 0) +
+		(filter.hideCollected ? 1 : 0)
+	);
+
 	onMount(async () => {
 		const [_, cats] = await Promise.all([
 			fetchRecipes(true),
@@ -128,7 +158,7 @@
 </svelte:head>
 
 <div class="explore-page">
-	<!-- 검색바 -->
+	<!-- 검색바 + 필터 버튼 -->
 	<div class="search-bar-wrap">
 		<div class="search-bar">
 			<svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -150,6 +180,9 @@
 				</button>
 			{/if}
 		</div>
+		<button class="btn-filter" class:has-filter={activeFilterCount > 0} onclick={() => showFilterSheet = true}>
+			⚙ 필터{activeFilterCount > 0 ? ` ${activeFilterCount}` : ''}
+		</button>
 	</div>
 
 	<!-- 출처 필터 칩 -->
@@ -176,6 +209,34 @@
 			</button>
 		{/each}
 	</div>
+
+	<!-- 활성 필터 뱃지 -->
+	{#if activeFilterCount > 0}
+		<div class="active-filters">
+			{#if filter.difficulty}
+				<button class="active-badge" onclick={() => { filter.difficulty = ''; fetchRecipes(true); }}>{filter.difficulty} ✕</button>
+			{/if}
+			{#if filter.cookingTime}
+				{@const timeLabel = filter.cookingTime === '20' ? '20분 이하' : filter.cookingTime === '60' ? '1시간 이하' : '1시간 초과'}
+				<button class="active-badge" onclick={() => { filter.cookingTime = ''; fetchRecipes(true); }}>{timeLabel} ✕</button>
+			{/if}
+			{#if filter.calorieRange}
+				{@const calLabel = filter.calorieRange === 'low' ? '500kcal↓' : filter.calorieRange === 'mid' ? '500~800kcal' : '800kcal↑'}
+				<button class="active-badge" onclick={() => { filter.calorieRange = ''; fetchRecipes(true); }}>{calLabel} ✕</button>
+			{/if}
+			{#if filter.hideCollected}
+				<button class="active-badge" onclick={() => { filter.hideCollected = false; fetchRecipes(true); }}>저장 숨김 ✕</button>
+			{/if}
+		</div>
+	{/if}
+
+	{#if showFilterSheet}
+		<FilterBottomSheet
+			{filter}
+			onapply={(f) => { filter = f; fetchRecipes(true); }}
+			onclose={() => showFilterSheet = false}
+		/>
+	{/if}
 
 	<!-- 검색 결과 레이블 -->
 	{#if searchQuery}
@@ -326,6 +387,48 @@
 	.search-bar-wrap {
 		padding: 0 16px;
 		margin-bottom: 12px;
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+
+	.btn-filter {
+		flex-shrink: 0;
+		height: 40px;
+		padding: 0 0.85rem;
+		border: 1.5px solid var(--color-light-line);
+		border-radius: 20px;
+		background: none;
+		color: var(--color-soft-brown);
+		font-size: 0.82rem;
+		font-weight: 600;
+		cursor: pointer;
+		font-family: inherit;
+		white-space: nowrap;
+		transition: border-color 0.15s, color 0.15s, background 0.15s;
+	}
+	.btn-filter.has-filter {
+		border-color: var(--color-terracotta);
+		color: var(--color-terracotta);
+		background: color-mix(in srgb, var(--color-terracotta) 8%, white);
+	}
+
+	.active-filters {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4rem;
+		padding: 0 16px 8px;
+	}
+	.active-badge {
+		font-size: 0.75rem;
+		font-weight: 600;
+		padding: 0.2rem 0.65rem;
+		border-radius: 20px;
+		border: 1.5px solid var(--color-terracotta);
+		color: var(--color-terracotta);
+		background: color-mix(in srgb, var(--color-terracotta) 8%, white);
+		cursor: pointer;
+		font-family: inherit;
 	}
 
 	.search-bar {
