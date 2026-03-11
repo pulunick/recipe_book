@@ -65,7 +65,7 @@
 			<div class="panel-title">
 				<span class="panel-icon">✦</span>
 				<div>
-					<p class="panel-label">AI 요리 어시스턴트</p>
+					<p class="panel-label">요리 도우미 먹당이</p>
 					<p class="panel-recipe">{recipe.title}</p>
 				</div>
 			</div>

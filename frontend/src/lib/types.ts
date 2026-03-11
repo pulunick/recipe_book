@@ -119,6 +119,17 @@ export type AnalysisMode = 'fast' | 'precise';
 
 export type PageStatus = 'IDLE' | 'LOADING' | 'ERROR';
 
+// --- 입맛 분석 ---
+export interface TasteProfileResponse {
+	has_data: boolean;
+	recipe_count: number;
+	profile: FlavorProfile | null;  // float 값 (1.0~5.0)
+	top_category: string | null;
+	favorite_count: number;
+	total_cooked: number;
+	avg_rating: number | null;
+}
+
 export interface RecipePublicItem {
 	id: number;
 	title: string;

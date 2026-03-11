@@ -1,4 +1,4 @@
-import type { Recipe, CollectionItem, CollectionTag, RecipeOverride, RecipePublicItem, CartGroup, RecipeAuthorUpdate } from './types';
+import type { Recipe, CollectionItem, CollectionTag, RecipeOverride, RecipePublicItem, CartGroup, RecipeAuthorUpdate, TasteProfileResponse } from './types';
 import { getSession } from '$lib/stores/auth.svelte';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -293,6 +293,35 @@ export async function getPublicRecipes(params: PublicRecipesParams = {}): Promis
 	});
 	const data = await handleResponse<{ items: RecipePublicItem[]; total: number; has_more: boolean }>(response);
 	return data.items;
+}
+
+export async function getTasteProfile(): Promise<TasteProfileResponse> {
+	const response = await fetch(`${API_BASE}/my/taste-profile`, {
+		headers: getAuthHeaders()
+	});
+	return handleResponse<TasteProfileResponse>(response);
+}
+
+export async function getRandomRecipe(excludeCollected = false): Promise<RecipePublicItem> {
+	const query = excludeCollected ? '?exclude_collected=true' : '';
+	const response = await fetch(`${API_BASE}/recipes/random${query}`, {
+		headers: getAuthHeaders()
+	});
+	return handleResponse<RecipePublicItem>(response);
+}
+
+export async function chatWithMeokdang(
+	message: string,
+	history: { role: 'user' | 'assistant'; content: string }[],
+	userName?: string
+): Promise<string> {
+	const response = await fetch(`${API_BASE}/ai/meokdang-chat`, {
+		method: 'POST',
+		headers: getAuthHeaders(),
+		body: JSON.stringify({ message, history, user_name: userName ?? null })
+	});
+	const data = await handleResponse<{ reply: string }>(response);
+	return data.reply;
 }
 
 export async function chatWithAi(

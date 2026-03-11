@@ -228,3 +228,9 @@ class AiChatRequest(BaseModel):
     collection_id: int
     message: str
     history: List[AiChatHistoryItem] = []
+
+
+class MeokdangChatRequest(BaseModel):
+    message: str = Field(..., max_length=300, description="사용자 메시지 (최대 300자)")
+    history: List[dict] = Field(default_factory=list, description="대화 히스토리 (최대 20턴)")
+    user_name: Optional[str] = Field(None, max_length=50, description="로그인 사용자 이름 (없으면 '김씨' 폴백)")

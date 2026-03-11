@@ -12,10 +12,10 @@ from schemas import (
     TagCreate, CollectionTag, CollectionTagUpdate, RatingRequest, CookedRequest, CategoryOverrideRequest,
     CollectionListItem, RecipePublicItem, RecipesListResponse, ExtractRecipeFromTextRequest,
     SaveTextRecipeRequest, CartItemResponse, CartGroupResponse, RecipeAuthorUpdateRequest,
-    AiChatRequest,
+    AiChatRequest, MeokdangChatRequest,
 )
 from utils import extract_video_id, get_video_metadata
-from ai_engine import extract_recipe_with_gemini, extract_recipe_from_text, chat_with_recipe
+from ai_engine import extract_recipe_with_gemini, extract_recipe_from_text, chat_with_recipe, chat_with_meokdang
 from database import get_supabase_client
 from auth import get_current_user, get_current_user_optional
 from logger import get_logger
@@ -1503,6 +1503,203 @@ async def ai_chat(request: AiChatRequest, jwt_user_id: str = Depends(get_current
         raise HTTPException(
             status_code=500,
             detail=ErrorResponse(error_code="AI_CHAT_FAILED", message="AI 응답 중 오류가 발생했습니다.").model_dump(),
+        )
+
+
+@app.post("/ai/meokdang-chat")
+async def meokdang_chat(request: MeokdangChatRequest, jwt_user_id: str = Depends(get_current_user)):
+    """먹당이 캐릭터 페르소나 자유 채팅 (10회/분 rate limit, /ai/chat과 카운터 공유)"""
+    if not _check_ai_rate_limit(jwt_user_id):
+        raise HTTPException(
+            status_code=429,
+            detail=ErrorResponse(
+                error_code="RATE_LIMIT_EXCEEDED",
+                message="AI 질문 횟수를 초과했습니다. 잠시 후 다시 시도해주세요.",
+            ).model_dump(),
+        )
+
+    msg = request.message.strip()
+    if not msg:
+        raise HTTPException(
+            status_code=400,
+            detail=ErrorResponse(error_code="EMPTY_MESSAGE", message="메시지를 입력해주세요.").model_dump(),
+        )
+
+    try:
+        reply = await chat_with_meokdang(msg, request.history, request.user_name)
+        return {"reply": reply}
+    except Exception as e:
+        logger.error("먹당이 채팅 오류: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=ErrorResponse(error_code="AI_CHAT_FAILED", message="AI 응답 중 오류가 발생했습니다.").model_dump(),
+        )
+
+
+# --- 마이페이지: 입맛 취향 분석 ---
+@app.get("/my/taste-profile")
+async def get_taste_profile(jwt_user_id: str = Depends(get_current_user)):
+    """내 입맛 취향 분석 — 즐겨찾기·별점·요리횟수 가중 평균으로 FlavorProfile 5축 산출"""
+    try:
+        supabase = get_supabase_client()
+        if not supabase:
+            raise HTTPException(
+                status_code=500,
+                detail=ErrorResponse(error_code="DB_CONNECTION_FAILED", message="데이터베이스 연결에 실패했습니다.").model_dump(),
+            )
+
+        result = (
+            supabase.table("user_collections")
+            .select("is_favorite, my_rating, cooked_count, recipe:recipes(flavor, category)")
+            .eq("user_id", jwt_user_id)
+            .execute()
+        )
+        rows = result.data or []
+
+        recipe_count = len(rows)
+        favorite_count = sum(1 for r in rows if r.get("is_favorite"))
+        total_cooked = sum(r.get("cooked_count") or 0 for r in rows)
+        ratings = [r["my_rating"] for r in rows if r.get("my_rating") is not None]
+        avg_rating = round(sum(ratings) / len(ratings), 1) if ratings else None
+
+        # 카테고리 빈도 집계 (가중치 적용 없이 단순 빈도)
+        category_counts: dict[str, int] = {}
+        for r in rows:
+            cat = (r.get("recipe") or {}).get("category")
+            if cat:
+                category_counts[cat] = category_counts.get(cat, 0) + 1
+        top_category = max(category_counts, key=category_counts.get) if category_counts else None
+
+        # 데이터 부족 시 (컬렉션 3개 미만)
+        if recipe_count < 3:
+            return {
+                "has_data": False,
+                "recipe_count": recipe_count,
+                "profile": None,
+                "top_category": top_category,
+                "favorite_count": favorite_count,
+                "total_cooked": total_cooked,
+                "avg_rating": avg_rating,
+            }
+
+        # 가중치 = (my_rating * 2) + (is_favorite * 3) + (cooked_count * 1)
+        axes = ["saltiness", "sweetness", "spiciness", "sourness", "oiliness"]
+        weighted_sum = {ax: 0.0 for ax in axes}
+        total_weight = 0.0
+
+        for r in rows:
+            flavor = (r.get("recipe") or {}).get("flavor") or {}
+            if not flavor:
+                continue
+            rating = r.get("my_rating") or 0
+            is_fav = 1 if r.get("is_favorite") else 0
+            cooked = r.get("cooked_count") or 0
+            weight = (rating * 2) + (is_fav * 3) + (cooked * 1)
+            if weight <= 0:
+                weight = 1  # 최소 가중치 1 (데이터 포함)
+            for ax in axes:
+                val = flavor.get(ax)
+                if val is not None:
+                    weighted_sum[ax] += val * weight
+            total_weight += weight
+
+        if total_weight == 0:
+            profile = None
+        else:
+            profile = {ax: round(weighted_sum[ax] / total_weight, 1) for ax in axes}
+
+        return {
+            "has_data": True,
+            "recipe_count": recipe_count,
+            "profile": profile,
+            "top_category": top_category,
+            "favorite_count": favorite_count,
+            "total_cooked": total_cooked,
+            "avg_rating": avg_rating,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("입맛 분석 오류 (user_id: %s): %s", jwt_user_id, e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=ErrorResponse(error_code="FETCH_FAILED", message="입맛 분석 중 오류가 발생했습니다.", detail=str(e)).model_dump(),
+        )
+
+
+# --- 탐색 탭: 오늘 뭐먹지 (랜덤 레시피) ---
+@app.get("/recipes/random", response_model=RecipePublicItem)
+async def get_random_recipe(
+    exclude_collected: bool = False,
+    jwt_user_id: str | None = Depends(get_current_user_optional),
+):
+    """랜덤 레시피 1건 반환 — 오늘 뭐먹지 배너용
+
+    - exclude_collected: 이미 보관함에 있는 레시피 제외 (로그인 시에만 적용)
+    """
+    try:
+        supabase = get_supabase_client()
+        if not supabase:
+            raise HTTPException(
+                status_code=500,
+                detail=ErrorResponse(error_code="DB_CONNECTION_FAILED", message="데이터베이스 연결에 실패했습니다.").model_dump(),
+            )
+
+        query = (
+            supabase.table("recipes")
+            .select("id, title, summary, category, cooking_time, difficulty, servings, video_id, channel_name, created_at, collection_count, source, calories, cooking_time_minutes")
+            .eq("is_public", True)
+        )
+
+        # 보관함 제외 (로그인 + exclude_collected=True)
+        if exclude_collected and jwt_user_id:
+            collected = (
+                supabase.table("user_collections")
+                .select("recipe_id")
+                .eq("user_id", jwt_user_id)
+                .execute()
+            )
+            collected_ids = [r["recipe_id"] for r in (collected.data or [])]
+            if collected_ids:
+                query = query.not_.in_("id", collected_ids)
+
+        # 전체 조회 후 Python에서 랜덤 선택 (Supabase JS SDK order('random') 미지원)
+        result = query.execute()
+        items = result.data or []
+
+        if not items:
+            raise HTTPException(
+                status_code=404,
+                detail=ErrorResponse(error_code="NOT_FOUND", message="추천할 레시피가 없습니다.").model_dump(),
+            )
+
+        import random
+        item = random.choice(items)
+
+        # 로그인 상태면 내 보관함 여부 확인
+        if jwt_user_id:
+            coll_result = (
+                supabase.table("user_collections")
+                .select("id")
+                .eq("user_id", jwt_user_id)
+                .eq("recipe_id", item["id"])
+                .limit(1)
+                .execute()
+            )
+            item["my_collection_id"] = coll_result.data[0]["id"] if coll_result.data else None
+        else:
+            item["my_collection_id"] = None
+
+        return item
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("랜덤 레시피 조회 오류: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=ErrorResponse(error_code="FETCH_FAILED", message="랜덤 레시피 조회 중 오류가 발생했습니다.", detail=str(e)).model_dump(),
         )
 
 

@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
-	import { getPublicRecipes, getRecipeCategories, saveToCollection } from '$lib/api';
+	import { getPublicRecipes, getRecipeCategories, saveToCollection, getRandomRecipe } from '$lib/api';
 	import { isLoggedIn, openLoginModal } from '$lib/stores/auth.svelte';
 	import FilterBottomSheet from '$lib/components/FilterBottomSheet.svelte';
 	import type { RecipePublicItem } from '$lib/types';
@@ -157,6 +157,40 @@
 		(filter.hideCollected ? 1 : 0)
 	);
 
+	// 오늘 뭐먹지
+	let randomRecipe = $state<RecipePublicItem | null>(null);
+	let randomLoading = $state(false);
+	let randomError = $state('');
+	let showRandomModal = $state(false);
+
+	const DIFFICULTY_LABEL_MAP: Record<string, string> = {
+		easy: '쉬움', medium: '보통', hard: '어려움'
+	};
+
+	async function handleRandomRecipe() {
+		randomLoading = true;
+		randomError = '';
+		try {
+			randomRecipe = await getRandomRecipe(loggedIn);
+			showRandomModal = true;
+		} catch (e) {
+			randomError = e instanceof Error ? e.message : '추천을 불러오지 못했어요.';
+		} finally {
+			randomLoading = false;
+		}
+	}
+
+	async function handleRandomCollect() {
+		if (!randomRecipe) return;
+		if (!loggedIn) { openLoginModal(); return; }
+		try {
+			const collectionId = await saveToCollection(randomRecipe.id);
+			randomRecipe = { ...randomRecipe, my_collection_id: collectionId };
+			// 메인 목록도 갱신
+			recipes = recipes.map(r => r.id === randomRecipe!.id ? { ...r, my_collection_id: collectionId } : r);
+		} catch { /* 무시 */ }
+	}
+
 	onMount(async () => {
 		const [_, cats] = await Promise.all([
 			fetchRecipes(true),
@@ -249,6 +283,102 @@
 			onapply={(f) => { filter = f; if (browser) localStorage.setItem(FILTER_KEY, JSON.stringify(f)); fetchRecipes(true); }}
 			onclose={() => showFilterSheet = false}
 		/>
+	{/if}
+
+	<!-- 오늘 뭐먹지 배너 (검색 중일 때 숨김) -->
+	{#if !searchQuery && selectedCategory === '전체' && activeFilterCount === 0}
+		<div class="random-banner">
+			<div class="banner-text">
+				<span class="banner-icon">🎲</span>
+				<div>
+					<p class="banner-title">오늘 뭐 먹지?</p>
+					<p class="banner-desc">기분에 맞는 레시피를 뽑아드려요</p>
+				</div>
+			</div>
+			<button
+				class="btn-random"
+				onclick={handleRandomRecipe}
+				disabled={randomLoading}
+			>
+				{#if randomLoading}
+					<span class="random-spinner"></span>
+				{:else}
+					랜덤 추천받기
+				{/if}
+			</button>
+		</div>
+	{/if}
+
+	<!-- 오늘 뭐먹지 결과 모달 -->
+	{#if showRandomModal && randomRecipe}
+		<div
+			class="modal-overlay"
+			role="button"
+			tabindex="-1"
+			aria-label="모달 닫기"
+			onclick={() => (showRandomModal = false)}
+			onkeydown={(e) => e.key === 'Escape' && (showRandomModal = false)}
+		></div>
+		<div class="random-modal" role="dialog" aria-modal="true" aria-label="오늘의 추천">
+			<div class="modal-header">
+				<p class="modal-title">🎲 오늘의 추천</p>
+				<button class="modal-close" onclick={() => (showRandomModal = false)} aria-label="닫기">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+						<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+					</svg>
+				</button>
+			</div>
+
+			<a href="/recipe/{randomRecipe.video_id ?? randomRecipe.id}" class="modal-recipe-link" onclick={() => (showRandomModal = false)}>
+				<div class="modal-thumb">
+					{#if randomRecipe.video_id}
+						<img src="https://img.youtube.com/vi/{randomRecipe.video_id}/mqdefault.jpg" alt={randomRecipe.title} />
+					{:else}
+						<div class="thumb-placeholder-sm">
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+								<path d="M14.752 11.168l-3.197-2.132A1 1 0 0 0 10 9.87v4.263a1 1 0 0 0 1.555.832l3.197-2.132a1 1 0 0 0 0-1.664z"/>
+								<path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/>
+							</svg>
+						</div>
+					{/if}
+				</div>
+				<div class="modal-recipe-info">
+					<p class="modal-recipe-title">{randomRecipe.title}</p>
+					<div class="modal-meta">
+						{#if randomRecipe.cooking_time}
+							<span class="modal-chip">
+								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+								{randomRecipe.cooking_time}
+							</span>
+						{/if}
+						{#if randomRecipe.difficulty}
+							<span class="modal-chip">{DIFFICULTY_LABEL_MAP[randomRecipe.difficulty] ?? randomRecipe.difficulty}</span>
+						{/if}
+						{#if randomRecipe.calories}
+							<span class="modal-chip calories">🔥 {randomRecipe.calories}kcal</span>
+						{/if}
+					</div>
+					{#if randomRecipe.channel_name}
+						<p class="modal-channel">{randomRecipe.channel_name}</p>
+					{/if}
+				</div>
+			</a>
+
+			<div class="modal-actions">
+				<button class="btn-reroll" onclick={handleRandomRecipe} disabled={randomLoading}>
+					{#if randomLoading}<span class="random-spinner sm"></span>{:else}다시 뽑기{/if}
+				</button>
+				{#if randomRecipe.my_collection_id !== null}
+					<a href="/my-recipes/{randomRecipe.my_collection_id}" class="btn-collected">
+						내 레시피 보러가기
+					</a>
+				{:else}
+					<button class="btn-collect-random" onclick={handleRandomCollect}>
+						내 레시피에 추가
+					</button>
+				{/if}
+			</div>
+		</div>
 	{/if}
 
 	<!-- 검색 결과 레이블 -->
@@ -554,6 +684,287 @@
 		border-color: var(--color-terracotta);
 		color: #fff;
 	}
+
+	/* 오늘 뭐먹지 배너 */
+	.random-banner {
+		margin: 0 16px 14px;
+		padding: 14px 16px;
+		background: linear-gradient(135deg,
+			color-mix(in srgb, var(--color-terracotta) 12%, white),
+			color-mix(in srgb, var(--color-warm-yellow) 30%, white)
+		);
+		border: 1.5px solid color-mix(in srgb, var(--color-terracotta) 20%, white);
+		border-radius: 16px;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+	}
+
+	.banner-text {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		min-width: 0;
+	}
+
+	.banner-icon {
+		font-size: 1.6rem;
+		flex-shrink: 0;
+		line-height: 1;
+	}
+
+	.banner-title {
+		font-size: 0.92rem;
+		font-weight: 700;
+		color: var(--color-warm-brown);
+		line-height: 1.2;
+	}
+
+	.banner-desc {
+		font-size: 0.75rem;
+		color: var(--color-soft-brown);
+		margin-top: 2px;
+	}
+
+	.btn-random {
+		flex-shrink: 0;
+		padding: 8px 16px;
+		background: var(--color-terracotta);
+		color: #fff;
+		border: none;
+		border-radius: 10px;
+		font-size: 0.82rem;
+		font-weight: 600;
+		font-family: inherit;
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		transition: background 0.15s, opacity 0.15s;
+	}
+
+	.btn-random:hover:not(:disabled) { background: #b5633f; }
+	.btn-random:disabled { opacity: 0.6; cursor: not-allowed; }
+
+	.random-spinner {
+		width: 14px;
+		height: 14px;
+		border: 2px solid rgba(255,255,255,0.4);
+		border-top-color: #fff;
+		border-radius: 50%;
+		animation: spin 0.7s linear infinite;
+		flex-shrink: 0;
+	}
+
+	.random-spinner.sm {
+		width: 12px;
+		height: 12px;
+	}
+
+	/* 오늘 뭐먹지 모달 */
+	.modal-overlay {
+		position: fixed;
+		inset: 0;
+		background: rgba(0,0,0,0.45);
+		z-index: 60;
+		animation: fade-in 0.18s ease;
+	}
+
+	@keyframes fade-in {
+		from { opacity: 0; }
+		to { opacity: 1; }
+	}
+
+	.random-modal {
+		position: fixed;
+		bottom: 0;
+		left: 50%;
+		transform: translateX(-50%);
+		width: calc(100% - 0px);
+		max-width: 480px;
+		background: var(--color-paper);
+		border-radius: 20px 20px 0 0;
+		z-index: 61;
+		padding: 0 0 calc(16px + env(safe-area-inset-bottom));
+		animation: slide-up 0.22s cubic-bezier(0.32, 0.72, 0, 1);
+		overflow: hidden;
+	}
+
+	@keyframes slide-up {
+		from { transform: translateX(-50%) translateY(100%); }
+		to { transform: translateX(-50%) translateY(0); }
+	}
+
+	.modal-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 16px 16px 12px;
+		border-bottom: 1px solid var(--color-light-line);
+	}
+
+	.modal-title {
+		font-size: 1rem;
+		font-weight: 700;
+		color: var(--color-warm-brown);
+	}
+
+	.modal-close {
+		width: 30px;
+		height: 30px;
+		border: none;
+		background: none;
+		color: var(--color-soft-brown);
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 50%;
+		padding: 0;
+		transition: background 0.15s;
+	}
+
+	.modal-close:hover { background: var(--color-cream); }
+	.modal-close svg { width: 16px; height: 16px; }
+
+	.modal-recipe-link {
+		display: block;
+		text-decoration: none;
+		padding: 14px 16px;
+	}
+
+	.modal-thumb {
+		width: 100%;
+		aspect-ratio: 16/9;
+		border-radius: 12px;
+		overflow: hidden;
+		background: var(--color-cream);
+		margin-bottom: 12px;
+	}
+
+	.modal-thumb img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.thumb-placeholder-sm {
+		width: 100%;
+		height: 100%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.thumb-placeholder-sm svg {
+		width: 40px;
+		height: 40px;
+		color: var(--color-light-line);
+	}
+
+	.modal-recipe-info {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+	}
+
+	.modal-recipe-title {
+		font-size: 1rem;
+		font-weight: 700;
+		color: var(--color-warm-brown);
+		line-height: 1.3;
+	}
+
+	.modal-meta {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 5px;
+	}
+
+	.modal-chip {
+		display: flex;
+		align-items: center;
+		gap: 3px;
+		font-size: 0.75rem;
+		color: var(--color-soft-brown);
+		background: var(--color-cream);
+		padding: 3px 8px;
+		border-radius: 6px;
+	}
+
+	.modal-chip svg { width: 11px; height: 11px; }
+	.modal-chip.calories { color: #b84c00; background: #fff0e6; font-weight: 600; }
+
+	.modal-channel {
+		font-size: 0.78rem;
+		color: var(--color-soft-brown);
+		opacity: 0.75;
+	}
+
+	.modal-actions {
+		display: flex;
+		gap: 10px;
+		padding: 0 16px;
+	}
+
+	.btn-reroll {
+		flex: 1;
+		padding: 12px;
+		background: none;
+		border: 1.5px solid var(--color-light-line);
+		border-radius: 12px;
+		font-size: 0.9rem;
+		font-weight: 600;
+		color: var(--color-soft-brown);
+		font-family: inherit;
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 6px;
+		transition: border-color 0.15s, color 0.15s;
+	}
+
+	.btn-reroll:hover:not(:disabled) {
+		border-color: var(--color-terracotta);
+		color: var(--color-terracotta);
+	}
+
+	.btn-reroll:disabled { opacity: 0.6; cursor: not-allowed; }
+
+	.btn-collect-random {
+		flex: 1;
+		padding: 12px;
+		background: var(--color-terracotta);
+		border: none;
+		border-radius: 12px;
+		font-size: 0.9rem;
+		font-weight: 600;
+		color: #fff;
+		font-family: inherit;
+		cursor: pointer;
+		transition: background 0.15s;
+	}
+
+	.btn-collect-random:hover { background: #b5633f; }
+
+	.btn-collected {
+		flex: 1;
+		padding: 12px;
+		background: var(--color-sage);
+		border: none;
+		border-radius: 12px;
+		font-size: 0.9rem;
+		font-weight: 600;
+		color: #fff;
+		text-decoration: none;
+		text-align: center;
+		display: block;
+		transition: background 0.15s;
+	}
+
+	.btn-collected:hover { background: color-mix(in srgb, var(--color-sage) 85%, black); color: #fff; }
 
 	/* 검색 결과 레이블 */
 	.result-label {
