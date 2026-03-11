@@ -32,7 +32,7 @@
 
 	function addIngredient(value: string) {
 		const trimmed = value.trim();
-		if (trimmed.length < 2) return;
+		if (trimmed.length < 1) return;
 		if (ingredients.length >= 15) return;
 		if (ingredients.includes(trimmed)) return;
 		ingredients = [...ingredients, trimmed];
