@@ -250,7 +250,7 @@
 	<!-- ── 검색바 헤더 ── -->
 	<div class="search-header">
 		<div class="search-bar">
-			<svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+			<svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 				<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
 			</svg>
 			<input
@@ -348,37 +348,37 @@
 		top: 0;
 		background: var(--color-paper);
 		z-index: 10;
-		padding: 12px 16px 12px;
+		padding: 12px 16px;
 	}
 	.search-bar {
-		position: relative;
 		display: flex;
 		align-items: center;
+		gap: 8px;
+		background: var(--color-cream);
+		border: 1.5px solid var(--color-light-line);
+		border-radius: 14px;
+		padding: 0 14px;
+		height: 44px;
+		transition: border-color 0.15s;
 		width: 100%;
 	}
+	.search-bar:focus-within { border-color: var(--color-terracotta); }
 	.search-icon {
-		position: absolute;
-		left: 12px;
 		width: 17px;
 		height: 17px;
 		color: var(--color-soft-brown);
-		pointer-events: none;
+		flex-shrink: 0;
 	}
 	.search-input {
-		width: 100%;
-		padding: 0 14px 0 36px;
-		border: 1.5px solid var(--color-light-line);
-		border-radius: 14px;
-		height: 44px;
+		flex: 1;
+		border: none;
+		background: transparent;
 		font-size: 0.92rem;
 		font-family: inherit;
 		color: var(--color-warm-brown);
-		background: var(--color-cream);
 		outline: none;
-		transition: border-color 0.15s;
 		min-width: 0;
 	}
-	.search-input:focus { border-color: var(--color-terracotta); }
 
 	/* ── 소스 칩 ── */
 	.source-chips {

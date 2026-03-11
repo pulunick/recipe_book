@@ -22,6 +22,7 @@
 
 	function isActive(path: string): boolean {
 		if (path === '/') return currentPath === '/';
+		if (path === '/my') return currentPath === '/my' || currentPath.startsWith('/my/');
 		return currentPath.startsWith(path);
 	}
 

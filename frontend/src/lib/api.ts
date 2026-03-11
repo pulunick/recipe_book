@@ -1,4 +1,4 @@
-import type { Recipe, CollectionItem, CollectionTag, RecipeOverride, RecipePublicItem, CartGroup, RecipeAuthorUpdate, TasteProfileResponse } from './types';
+import type { Recipe, CollectionItem, CollectionTag, RecipeOverride, RecipePublicItem, CartGroup, RecipeAuthorUpdate, TasteProfileResponse, FridgeSearchResultItem } from './types';
 import { getSession } from '$lib/stores/auth.svelte';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -322,6 +322,15 @@ export async function chatWithMeokdang(
 	});
 	const data = await handleResponse<{ reply: string }>(response);
 	return data.reply;
+}
+
+export async function fridgeSearch(ingredients: string[], limit = 10): Promise<FridgeSearchResultItem[]> {
+	const response = await fetch(`${API_BASE}/recipes/fridge-search`, {
+		method: 'POST',
+		headers: getAuthHeaders(),
+		body: JSON.stringify({ ingredients, limit })
+	});
+	return handleResponse<FridgeSearchResultItem[]>(response);
 }
 
 export async function chatWithAi(

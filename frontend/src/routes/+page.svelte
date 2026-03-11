@@ -285,7 +285,7 @@
 		/>
 	{/if}
 
-	<!-- 오늘 뭐먹지 배너 (검색 중일 때 숨김) -->
+	<!-- 오늘 뭐먹지 / 냉장고 파먹기 배너 (검색 중일 때 숨김) -->
 	{#if !searchQuery && selectedCategory === '전체' && activeFilterCount === 0}
 		<div class="random-banner">
 			<div class="banner-text">
@@ -307,6 +307,19 @@
 				{/if}
 			</button>
 		</div>
+
+		<button class="fridge-banner" onclick={() => goto('/fridge')}>
+			<div class="banner-text">
+				<span class="banner-icon">🧊</span>
+				<div>
+					<p class="banner-title">냉장고 파먹기</p>
+					<p class="banner-desc">있는 재료로 뭘 만들 수 있을까?</p>
+				</div>
+			</div>
+			<svg class="banner-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+				<polyline points="9 18 15 12 9 6" />
+			</svg>
+		</button>
 	{/if}
 
 	<!-- 오늘 뭐먹지 결과 모달 -->
@@ -683,6 +696,38 @@
 		background: var(--color-terracotta);
 		border-color: var(--color-terracotta);
 		color: #fff;
+	}
+
+	/* 냉장고 파먹기 배너 */
+	.fridge-banner {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		margin: 0 16px 14px;
+		padding: 14px 16px;
+		background: linear-gradient(135deg,
+			color-mix(in srgb, #4A90D9 10%, white),
+			color-mix(in srgb, #4A90D9 20%, white)
+		);
+		border: 1.5px solid color-mix(in srgb, #4A90D9 22%, white);
+		border-radius: 16px;
+		cursor: pointer;
+		font-family: inherit;
+		text-align: left;
+		width: calc(100% - 32px);
+		transition: box-shadow 0.15s, border-color 0.15s;
+	}
+	.fridge-banner:hover {
+		box-shadow: 0 2px 10px rgba(74,144,217,0.18);
+		border-color: color-mix(in srgb, #4A90D9 40%, white);
+	}
+
+	.banner-arrow {
+		width: 18px;
+		height: 18px;
+		flex-shrink: 0;
+		color: color-mix(in srgb, #4A90D9 70%, #000);
 	}
 
 	/* 오늘 뭐먹지 배너 */

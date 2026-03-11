@@ -12,7 +12,7 @@ from schemas import (
     TagCreate, CollectionTag, CollectionTagUpdate, RatingRequest, CookedRequest, CategoryOverrideRequest,
     CollectionListItem, RecipePublicItem, RecipesListResponse, ExtractRecipeFromTextRequest,
     SaveTextRecipeRequest, CartItemResponse, CartGroupResponse, RecipeAuthorUpdateRequest,
-    AiChatRequest, MeokdangChatRequest,
+    AiChatRequest, MeokdangChatRequest, FridgeSearchRequest, FridgeSearchResultItem,
 )
 from utils import extract_video_id, get_video_metadata
 from ai_engine import extract_recipe_with_gemini, extract_recipe_from_text, chat_with_recipe, chat_with_meokdang
@@ -1181,6 +1181,52 @@ async def get_recipe_categories():
     if result.data:
         return [row["category"] for row in result.data]
     return []
+
+
+# --- 냉장고 파먹기: 재료 기반 레시피 검색 ---
+@app.post("/recipes/fridge-search", response_model=list[FridgeSearchResultItem])
+async def fridge_search(
+    request: FridgeSearchRequest,
+    jwt_user_id: str | None = Depends(get_current_user_optional),
+):
+    """보유 재료로 만들 수 있는 레시피 검색 — 비로그인도 공개 레시피 검색 가능
+
+    - ingredients: 보유 재료 목록 (1~15개)
+    - limit: 반환할 최대 결과 수 (기본 10, 최대 30)
+    - match_score: 전체 재료 대비 매칭 비율 (%, 30% 미만 제외)
+    """
+    try:
+        supabase = get_supabase_client()
+        if not supabase:
+            raise HTTPException(
+                status_code=500,
+                detail=ErrorResponse(error_code="DB_CONNECTION_FAILED", message="데이터베이스 연결에 실패했습니다.").model_dump(),
+            )
+
+        # 공백 제거 및 빈 문자열 필터
+        ingredients = [ing.strip() for ing in request.ingredients if ing.strip()]
+        if not ingredients:
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponse(error_code="INVALID_INGREDIENTS", message="유효한 재료를 1개 이상 입력해주세요.").model_dump(),
+            )
+
+        rpc_params = {
+            "p_ingredients": ingredients,
+            "p_limit": request.limit,
+            "p_public_only": True,  # 비로그인은 항상 공개만
+        }
+        result = supabase.rpc("search_recipes_by_ingredients", rpc_params).execute()
+        return result.data or []
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("냉장고 파먹기 검색 오류: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=ErrorResponse(error_code="SEARCH_FAILED", message="레시피 검색 중 오류가 발생했습니다.", detail=str(e)).model_dump(),
+        )
 
 
 # ==============================

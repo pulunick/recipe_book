@@ -234,3 +234,26 @@ class MeokdangChatRequest(BaseModel):
     message: str = Field(..., max_length=300, description="사용자 메시지 (최대 300자)")
     history: List[dict] = Field(default_factory=list, description="대화 히스토리 (최대 20턴)")
     user_name: Optional[str] = Field(None, max_length=50, description="로그인 사용자 이름 (없으면 '김씨' 폴백)")
+
+
+# --- 냉장고 파먹기 스키마 ---
+
+class FridgeSearchRequest(BaseModel):
+    ingredients: List[str] = Field(..., min_length=1, max_length=15, description="보유 재료 목록 (1~15개)")
+    limit: int = Field(default=10, ge=1, le=30, description="반환할 최대 레시피 수")
+
+
+class FridgeSearchResultItem(BaseModel):
+    """냉장고 파먹기 검색 결과 아이템"""
+    id: int
+    title: str
+    category: Optional[str] = None
+    cooking_time: Optional[str] = None
+    difficulty: Optional[str] = None
+    servings: Optional[str] = None
+    video_id: Optional[str] = None
+    channel_name: Optional[str] = None
+    source: Optional[str] = None
+    collection_count: int = 0
+    match_score: float
+    matched_ingredients: List[str]

@@ -146,3 +146,18 @@ export interface RecipePublicItem {
 	calories: number | null;
 	cooking_time_minutes: number | null;
 }
+
+// --- 냉장고 파먹기 ---
+export interface FridgeSearchResultItem {
+	id: number;
+	title: string;
+	category?: string;
+	cooking_time?: string;
+	difficulty?: string;
+	video_id?: string;
+	channel_name?: string;
+	source?: string;
+	collection_count: number;
+	match_score: number;
+	matched_ingredients: string[];
+}
