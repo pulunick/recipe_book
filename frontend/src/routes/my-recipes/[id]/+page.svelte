@@ -341,7 +341,7 @@
 		} catch {
 			isDeleting = false;
 			isConfirmingDelete = false;
-			triggerToast('삭제 중 오류가 발생했습니다.');
+			triggerToast('보관 해제 중 오류가 발생했습니다.');
 		}
 	}
 
@@ -397,15 +397,23 @@
 							</button>
 						{/if}
 						{#if isConfirmingDelete}
-							<span class="confirm-delete">
-								정말?
-								<button class="btn-confirm" onclick={confirmDelete} disabled={isDeleting}>
-									{isDeleting ? '삭제 중' : '삭제'}
+							<span class="confirm-unbookmark">
+								<button class="btn-confirm-sm" onclick={confirmDelete} disabled={isDeleting}>
+									{isDeleting ? '…' : '해제'}
 								</button>
-								<button class="btn-cancel" onclick={() => isConfirmingDelete = false} disabled={isDeleting}>취소</button>
+								<button class="btn-cancel-sm" onclick={() => isConfirmingDelete = false} disabled={isDeleting}>취소</button>
 							</span>
 						{:else}
-							<button class="btn-top-action delete" onclick={() => isConfirmingDelete = true}>삭제</button>
+							<button
+								class="btn-bookmark-icon"
+								onclick={() => isConfirmingDelete = true}
+								aria-label="보관 해제"
+								title="보관 해제"
+							>
+								<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2">
+									<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+								</svg>
+							</button>
 						{/if}
 					</div>
 				{/if}
@@ -437,18 +445,20 @@
 		{/if}
 
 		<article class="recipe-card">
-			<button
-				class="btn-favorite"
-				class:is-favorite={item.is_favorite}
-				onclick={handleFavorite}
-				disabled={isTogglingFavorite}
-				aria-label={item.is_favorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
-				title={item.is_favorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
-			>
-				<Star size={22} fill={item.is_favorite ? 'currentColor' : 'none'} />
-			</button>
-
-			<h1 class="recipe-title">{recipe.title}{recipe.channel_name ? ` - ${recipe.channel_name}` : ''}</h1>
+			<div class="recipe-title-row">
+				<span class="title-spacer"></span>
+				<h1 class="recipe-title">{recipe.title}{recipe.channel_name ? ` - ${recipe.channel_name}` : ''}</h1>
+				<button
+					class="btn-favorite"
+					class:is-favorite={item.is_favorite}
+					onclick={handleFavorite}
+					disabled={isTogglingFavorite}
+					aria-label={item.is_favorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+					title={item.is_favorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+				>
+					<Star size={22} fill={item.is_favorite ? 'currentColor' : 'none'} />
+				</button>
+			</div>
 
 			{#if recipe.source === 'text'}
 				<span class="source-badge text-badge">✏ 직접 작성</span>
@@ -750,35 +760,58 @@
 	}
 
 
-	.confirm-delete {
+	/* 북마크 아이콘 버튼 */
+	.btn-bookmark-icon {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
-		font-size: 0.85rem;
-		color: var(--color-warm-brown);
+		justify-content: center;
+		width: 34px;
+		height: 34px;
+		border-radius: 8px;
+		border: 1.5px solid var(--color-terracotta);
+		background: color-mix(in srgb, var(--color-terracotta) 10%, white);
+		color: var(--color-terracotta);
+		cursor: pointer;
+		transition: background 0.15s, color 0.15s;
+		flex-shrink: 0;
 	}
+	.btn-bookmark-icon:hover {
+		background: var(--color-terracotta);
+		color: #fff;
+	}
+	.btn-bookmark-icon svg { width: 16px; height: 16px; }
 
-	.btn-confirm {
+	/* 북마크 해제 확인 */
+	.confirm-unbookmark {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+	}
+	.btn-confirm-sm {
+		height: 34px;
+		padding: 0 0.7rem;
 		font-size: 0.82rem;
+		font-weight: 600;
+		font-family: inherit;
 		background: var(--color-muted-red, #c0392b);
 		color: white;
 		border: none;
-		border-radius: 6px;
-		padding: 0.3rem 0.7rem;
+		border-radius: 8px;
 		cursor: pointer;
 	}
-	.btn-confirm:disabled { opacity: 0.6; cursor: not-allowed; }
-
-	.btn-cancel {
+	.btn-confirm-sm:disabled { opacity: 0.6; cursor: not-allowed; }
+	.btn-cancel-sm {
+		height: 34px;
+		padding: 0 0.7rem;
 		font-size: 0.82rem;
+		font-family: inherit;
 		background: none;
-		border: 1px solid var(--color-light-line);
-		border-radius: 6px;
-		padding: 0.3rem 0.7rem;
+		border: 1.5px solid var(--color-light-line);
+		border-radius: 8px;
 		cursor: pointer;
 		color: var(--color-soft-brown);
 	}
-	.btn-cancel:disabled { opacity: 0.6; cursor: not-allowed; }
+	.btn-cancel-sm:disabled { opacity: 0.6; cursor: not-allowed; }
 
 	.recipe-card {
 		position: relative;
@@ -789,9 +822,6 @@
 	}
 
 	.btn-favorite {
-		position: absolute;
-		top: 1.2rem;
-		right: 1.2rem;
 		background: none;
 		border: none;
 		padding: 6px;
@@ -802,13 +832,15 @@
 		align-items: center;
 		justify-content: center;
 		transition: color 0.18s, transform 0.15s;
+		justify-self: end;
+		margin-top: 4px;
 	}
 	.btn-favorite:hover {
-		color: var(--color-terracotta);
+		color: #f5b942;
 		transform: scale(1.15);
 	}
 	.btn-favorite.is-favorite {
-		color: var(--color-terracotta);
+		color: #f5b942;
 	}
 	.btn-favorite:disabled {
 		opacity: 0.5;
@@ -816,9 +848,20 @@
 		transform: none;
 	}
 
+	/* 제목 + 즐겨찾기 행 */
+	.recipe-title-row {
+		display: grid;
+		grid-template-columns: 34px 1fr 34px;
+		align-items: flex-start;
+		gap: 4px;
+		margin-bottom: 0.5rem;
+	}
+	.title-spacer { /* 좌측 균형용 */
+		width: 34px;
+	}
+
 	.recipe-title {
 		font-size: 1.8rem;
-		margin-bottom: 0.5rem;
 		text-align: center;
 	}
 
@@ -1104,8 +1147,6 @@
 	.btn-top-action.reanalyze { color: var(--color-soft-brown); border-color: var(--color-light-line); background: none; }
 	.btn-top-action.reanalyze:hover:not(:disabled) { border-color: var(--color-soft-brown); color: var(--color-warm-brown); }
 	.btn-top-action.reanalyze:disabled { opacity: 0.6; cursor: not-allowed; }
-	.btn-top-action.delete { color: #c62828; border-color: #ef9a9a; background: none; }
-	.btn-top-action.delete:hover { background: #ffebee; }
 
 	/* 편집 배너 */
 	.edit-banner {

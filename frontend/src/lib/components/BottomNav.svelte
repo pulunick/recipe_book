@@ -148,6 +148,10 @@
 		color: var(--color-terracotta);
 	}
 
+	.nav-item:active {
+		transform: none;
+	}
+
 	.nav-icon {
 		width: 22px;
 		height: 22px;

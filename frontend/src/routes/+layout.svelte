@@ -134,7 +134,8 @@
 	.app-shell {
 		position: relative;
 		width: 100%;
-		min-height: 100dvh;
+		min-height: 100vh;
+		min-height: 100svh; /* 브라우저 chrome 숨김/표시 시 리플로우 방지 */
 		background: var(--color-paper);
 		display: flex;
 		flex-direction: column;

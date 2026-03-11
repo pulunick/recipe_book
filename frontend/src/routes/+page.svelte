@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
-	import { getPublicRecipes, getRecipeCategories, saveToCollection, getRandomRecipe } from '$lib/api';
+	import { getPublicRecipes, getRecipeCategories, saveToCollection, removeFromCollection, getRandomRecipe } from '$lib/api';
 	import { isLoggedIn, openLoginModal } from '$lib/stores/auth.svelte';
 	import FilterBottomSheet from '$lib/components/FilterBottomSheet.svelte';
 	import type { RecipePublicItem } from '$lib/types';
@@ -29,11 +29,11 @@
 	}
 	const FILTER_KEY = 'explore_filter';
 	function loadFilter(): FilterState {
-		if (!browser) return { sort: 'popular', difficulty: '', cookingTime: '', calorieRange: '', hideCollected: false };
+		if (!browser) return { sort: 'latest', difficulty: '', cookingTime: '', calorieRange: '', hideCollected: false };
 		try {
 			const saved = localStorage.getItem(FILTER_KEY);
-			return saved ? JSON.parse(saved) : { sort: 'popular', difficulty: '', cookingTime: '', calorieRange: '', hideCollected: false };
-		} catch { return { sort: 'popular', difficulty: '', cookingTime: '', calorieRange: '', hideCollected: false }; }
+			return saved ? JSON.parse(saved) : { sort: 'latest', difficulty: '', cookingTime: '', calorieRange: '', hideCollected: false };
+		} catch { return { sort: 'latest', difficulty: '', cookingTime: '', calorieRange: '', hideCollected: false }; }
 	}
 	let filter = $state<FilterState>(loadFilter());
 	let showFilterSheet = $state(false);
@@ -127,10 +127,6 @@
 		e.preventDefault();
 		e.stopPropagation();
 
-		if (item.my_collection_id !== null) {
-			goto(`/my-recipes/${item.my_collection_id}`);
-			return;
-		}
 		if (!loggedIn) {
 			openLoginModal();
 			return;
@@ -139,8 +135,15 @@
 
 		addingIds = new Set([...addingIds, item.id]);
 		try {
-			const collectionId = await saveToCollection(item.id);
-			recipes = recipes.map(r => r.id === item.id ? { ...r, my_collection_id: collectionId } : r);
+			if (item.my_collection_id !== null) {
+				// 보관함 해제
+				await removeFromCollection(item.my_collection_id);
+				recipes = recipes.map(r => r.id === item.id ? { ...r, my_collection_id: null } : r);
+			} else {
+				// 보관함 추가
+				const collectionId = await saveToCollection(item.id);
+				recipes = recipes.map(r => r.id === item.id ? { ...r, my_collection_id: collectionId } : r);
+			}
 		} finally {
 			addingIds = new Set([...addingIds].filter(id => id !== item.id));
 		}
@@ -303,12 +306,12 @@
 				{#if randomLoading}
 					<span class="random-spinner"></span>
 				{:else}
-					랜덤 추천받기
+					추천받기
 				{/if}
 			</button>
 		</div>
 
-		<button class="fridge-banner" onclick={() => goto('/fridge')}>
+		<div class="fridge-banner">
 			<div class="banner-text">
 				<span class="banner-icon">🧊</span>
 				<div>
@@ -316,10 +319,10 @@
 					<p class="banner-desc">있는 재료로 뭘 만들 수 있을까?</p>
 				</div>
 			</div>
-			<svg class="banner-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-				<polyline points="9 18 15 12 9 6" />
-			</svg>
-		</button>
+			<button class="btn-fridge" onclick={() => goto('/fridge')}>
+				시작하기
+			</button>
+		</div>
 	{/if}
 
 	<!-- 오늘 뭐먹지 결과 모달 -->
@@ -491,24 +494,24 @@
 						</div>
 					</a>
 
-					<!-- 보관함 추가/이동 버튼 -->
+					<!-- 보관함 추가/해제 버튼 -->
 					<button
 						class="btn-collect"
 						class:is-added={added}
 						onclick={(e) => handleCollect(e, item)}
 						disabled={adding}
-						aria-label={added ? '내 레시피 보러가기' : '내 레시피에 추가'}
-						title={added ? '내 레시피 보러가기' : '내 레시피에 추가'}
+						aria-label={added ? '보관함 해제' : '내 레시피에 추가'}
+						title={added ? '보관함 해제' : '내 레시피에 추가'}
 					>
 						{#if adding}
 							<span class="collect-spinner"></span>
 						{:else if added}
-							<!-- 체크 아이콘 -->
-							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-								<polyline points="20 6 9 17 4 12" />
+							<!-- 채워진 북마크 (보관 중) -->
+							<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2">
+								<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
 							</svg>
 						{:else}
-							<!-- 북마크 아이콘 -->
+							<!-- 빈 북마크 (미보관) -->
 							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 								<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
 							</svg>
@@ -707,28 +710,30 @@
 		margin: 0 16px 14px;
 		padding: 14px 16px;
 		background: linear-gradient(135deg,
-			color-mix(in srgb, #4A90D9 10%, white),
-			color-mix(in srgb, #4A90D9 20%, white)
+			color-mix(in srgb, var(--color-terracotta) 12%, white),
+			color-mix(in srgb, var(--color-warm-yellow) 30%, white)
 		);
-		border: 1.5px solid color-mix(in srgb, #4A90D9 22%, white);
+		border: 1.5px solid color-mix(in srgb, var(--color-terracotta) 20%, white);
 		border-radius: 16px;
-		cursor: pointer;
-		font-family: inherit;
-		text-align: left;
-		width: calc(100% - 32px);
-		transition: box-shadow 0.15s, border-color 0.15s;
-	}
-	.fridge-banner:hover {
-		box-shadow: 0 2px 10px rgba(74,144,217,0.18);
-		border-color: color-mix(in srgb, #4A90D9 40%, white);
 	}
 
-	.banner-arrow {
-		width: 18px;
-		height: 18px;
+	.btn-fridge {
 		flex-shrink: 0;
-		color: color-mix(in srgb, #4A90D9 70%, #000);
+		padding: 8px 16px;
+		background: var(--color-terracotta);
+		color: #fff;
+		border: none;
+		border-radius: 10px;
+		font-size: 0.82rem;
+		font-weight: 600;
+		font-family: inherit;
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		transition: background 0.15s, opacity 0.15s;
 	}
+	.btn-fridge:hover { background: #b5633f; }
 
 	/* 오늘 뭐먹지 배너 */
 	.random-banner {

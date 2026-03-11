@@ -339,7 +339,7 @@
 	.page-wrap {
 		display: flex;
 		flex-direction: column;
-		padding: 0 12px calc(90px + env(safe-area-inset-bottom));
+		padding: 0 0 calc(90px + env(safe-area-inset-bottom));
 	}
 
 	/* ── 검색바 ── */
@@ -348,9 +348,11 @@
 		top: 0;
 		background: var(--color-paper);
 		z-index: 10;
-		padding: 12px 16px;
+		padding: 12px 16px 0;
+		margin-bottom: 12px;
 	}
 	.search-bar {
+		flex: 1;
 		display: flex;
 		align-items: center;
 		gap: 8px;
@@ -360,7 +362,7 @@
 		padding: 0 14px;
 		height: 44px;
 		transition: border-color 0.15s;
-		width: 100%;
+		min-width: 0;
 	}
 	.search-bar:focus-within { border-color: var(--color-terracotta); }
 	.search-icon {
@@ -379,12 +381,17 @@
 		outline: none;
 		min-width: 0;
 	}
+	.search-input::placeholder {
+		color: var(--color-soft-brown);
+		opacity: 0.65;
+	}
 
 	/* ── 소스 칩 ── */
 	.source-chips {
 		display: flex;
-		gap: 0.4rem;
-		padding: 0 0 8px;
+		gap: 8px;
+		padding: 0 16px;
+		margin-bottom: 6px;
 		overflow-x: auto;
 		scrollbar-width: none;
 	}
@@ -414,10 +421,10 @@
 	/* ── 필터 탭 ── */
 	.filter-tabs {
 		display: flex;
-		gap: 0.4rem;
+		gap: 8px;
 		overflow-x: auto;
 		-webkit-overflow-scrolling: touch;
-		padding: 0 0 8px;
+		padding: 0 16px 8px;
 		margin-bottom: 12px;
 		scrollbar-width: none;
 	}
@@ -468,6 +475,7 @@
 		color: var(--color-soft-brown);
 		background: var(--color-cream);
 		border: 1px dashed var(--color-light-line);
+		margin: 0 16px;
 		border-radius: 8px;
 		padding: 0.4rem 0.8rem;
 		margin-bottom: 12px;
@@ -479,6 +487,7 @@
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
 		gap: 10px;
+		padding: 0 16px;
 	}
 
 	/* 상태 */

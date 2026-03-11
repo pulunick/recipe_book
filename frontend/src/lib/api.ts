@@ -69,6 +69,14 @@ export async function getCollections(): Promise<CollectionItem[]> {
 	return handleResponse<CollectionItem[]>(response);
 }
 
+export async function removeFromCollection(collectionId: number): Promise<void> {
+	const response = await fetch(`${API_BASE}/collections/${collectionId}`, {
+		method: 'DELETE',
+		headers: getAuthHeaders()
+	});
+	await handleResponse<{ status: string }>(response);
+}
+
 export async function checkCollection(recipeId: number): Promise<number | null> {
 	const response = await fetch(`${API_BASE}/collections/check/${recipeId}`, {
 		headers: getAuthHeaders()

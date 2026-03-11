@@ -370,6 +370,8 @@
 
 	@media (max-width: 767px) {
 		.page-wrap { padding: 0 var(--page-padding-mobile); }
+		/* 고정 버튼 바(약 80px) + 간격(8px) + 바텀 네비(60px) 만큼 하단 여백 */
+		.recipe-page { padding-bottom: calc(148px + env(safe-area-inset-bottom)); }
 		.recipe-card {
 			padding: 1.5rem;
 			padding-bottom: 2rem;
@@ -380,14 +382,14 @@
 		.back-link { min-height: 44px; display: flex; align-items: center; }
 		.reanalyze-btn { min-height: 44px; padding: 0.6rem 1rem; }
 		.recipe-bottom-bar {
-			position: sticky;
-			bottom: 0;
+			position: fixed;
+			left: 0;
+			right: 0;
+			bottom: calc(60px + env(safe-area-inset-bottom));
 			padding: 0.75rem 1rem;
 			background: var(--color-paper);
-			border-top: 1px solid var(--color-light-line);
-			margin-left: calc(-1 * var(--page-padding-mobile));
-			margin-right: calc(-1 * var(--page-padding-mobile));
-			z-index: 50;
+			box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.1);
+			z-index: 49;
 		}
 		.save-btn-bottom {
 			width: 100%;

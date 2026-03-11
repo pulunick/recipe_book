@@ -52,6 +52,7 @@ body {
   font-size: 17px;
   line-height: 1.7;
   overflow-x: hidden;
+  overflow-y: scroll; /* 스크롤바 항상 표시 → 스크롤바 출현 시 레이아웃 밀림 방지 */
   -webkit-font-smoothing: antialiased;
 }
 
@@ -77,7 +78,7 @@ a:hover {
 button {
   cursor: pointer;
   font-family: inherit;
-  transition: var(--transition);
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
 button:active {
   transform: scale(0.98);

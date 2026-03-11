@@ -354,7 +354,7 @@
 	.write-page {
 		max-width: 480px;
 		margin: 0 auto;
-		min-height: 100dvh;
+		min-height: 100svh;
 		display: flex;
 		flex-direction: column;
 	}

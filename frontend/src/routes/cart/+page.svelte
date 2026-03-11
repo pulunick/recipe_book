@@ -594,7 +594,7 @@
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-		min-height: calc(100dvh - 180px);
+		min-height: calc(100svh - 180px);
 		gap: 12px;
 		text-align: center;
 		padding: 24px;
