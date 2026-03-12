@@ -1,9 +1,8 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
 	import { getPublicRecipes, getRecipeCategories, saveToCollection, removeFromCollection, getRandomRecipe } from '$lib/api';
-	import { isLoggedIn, openLoginModal } from '$lib/stores/auth.svelte';
+	import { isLoggedIn, isLoading, openLoginModal } from '$lib/stores/auth.svelte';
 	import FilterBottomSheet from '$lib/components/FilterBottomSheet.svelte';
 	import type { RecipePublicItem } from '$lib/types';
 
@@ -194,12 +193,14 @@
 		} catch { /* 무시 */ }
 	}
 
-	onMount(async () => {
-		const [_, cats] = await Promise.all([
-			fetchRecipes(true),
-			getRecipeCategories().catch(() => [])
-		]);
-		categories = cats;
+	// auth 초기화 완료 후 레시피 로드 (initAuth race condition 방지)
+	let initialFetchDone = $state(false);
+	$effect(() => {
+		if (!isLoading() && !initialFetchDone) {
+			initialFetchDone = true;
+			fetchRecipes(true);
+			getRecipeCategories().catch(() => []).then(cats => { categories = cats; });
+		}
 	});
 </script>
 
