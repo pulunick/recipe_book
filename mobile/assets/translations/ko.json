@@ -1,0 +1,42 @@
+{
+  "app_name": "해먹당",
+  "nav": {
+    "explore": "탐색",
+    "my_recipes": "내 레시피",
+    "cart": "장바구니",
+    "my": "마이"
+  },
+  "explore": {
+    "title": "탐색",
+    "search_hint": "레시피, 재료, 채널명 검색",
+    "all_categories": "전체",
+    "all_sources": "전체",
+    "source_youtube": "YouTube",
+    "source_text": "직접 작성",
+    "sort_latest": "최신순",
+    "sort_popular": "인기순",
+    "today_eat": "오늘 뭐먹지?",
+    "empty": "레시피가 없어요"
+  },
+  "recipe": {
+    "ingredients": "재료",
+    "steps": "조리 순서",
+    "tip": "꿀팁",
+    "servings": "인분",
+    "time": "분",
+    "calories": "kcal",
+    "add_to_my": "내 레시피 추가",
+    "go_to_my": "내 레시피 보기"
+  },
+  "auth": {
+    "login": "로그인",
+    "logout": "로그아웃",
+    "google_login": "Google로 시작하기",
+    "login_desc": "로그인하면 레시피를 저장하고 관리할 수 있어요"
+  },
+  "error": {
+    "network": "네트워크 오류가 발생했어요",
+    "unknown": "오류가 발생했어요",
+    "retry": "다시 시도"
+  }
+}

@@ -145,6 +145,7 @@ SvelteKit project (Svelte 5, adapter-auto).
 - **계획 승인**: 복잡한 작업은 Planner에게 계획 승인을 요구한 후 구현 진행
 - **DDL/CUD 작업**: 반드시 사용자 승인 후 실행
 - **설계 문서**: Planner가 `.agents/specs/`에 기능 명세를 작성하면 다른 팀원이 참조
+- **Flutter UI = 웹 UI 1:1 번역**: `frontend/`는 이미 max-width 480px 모바일 전용으로 설계되어 있다. Mobile-Dev는 UI 작업 시 반드시 대응 웹 Svelte 파일을 먼저 읽고, 레이아웃/색상/간격/문구를 그대로 Flutter 위젯으로 옮긴다. 독자적인 디자인 결정 금지.
 
 ### 제한 사항
 

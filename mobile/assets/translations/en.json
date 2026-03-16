@@ -1,0 +1,42 @@
+{
+  "app_name": "Haemeokdang",
+  "nav": {
+    "explore": "Explore",
+    "my_recipes": "My Recipes",
+    "cart": "Cart",
+    "my": "My"
+  },
+  "explore": {
+    "title": "Explore",
+    "search_hint": "Search recipes, ingredients, channels",
+    "all_categories": "All",
+    "all_sources": "All",
+    "source_youtube": "YouTube",
+    "source_text": "Written",
+    "sort_latest": "Latest",
+    "sort_popular": "Popular",
+    "today_eat": "What to eat today?",
+    "empty": "No recipes found"
+  },
+  "recipe": {
+    "ingredients": "Ingredients",
+    "steps": "Steps",
+    "tip": "Tip",
+    "servings": "servings",
+    "time": "min",
+    "calories": "kcal",
+    "add_to_my": "Save Recipe",
+    "go_to_my": "View My Recipe"
+  },
+  "auth": {
+    "login": "Login",
+    "logout": "Logout",
+    "google_login": "Continue with Google",
+    "login_desc": "Login to save and manage your recipes"
+  },
+  "error": {
+    "network": "Network error occurred",
+    "unknown": "An error occurred",
+    "retry": "Retry"
+  }
+}

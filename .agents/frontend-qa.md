@@ -8,7 +8,7 @@ SvelteKit UI 구현, TypeScript 코드 작성, 컴포넌트 분리, 스타일링
 
 ## 담당 파일
 - `frontend/` 디렉토리 전체
-- **다른 팀원의 파일(`backend/` 등)은 수정하지 않는다**
+- **다른 팀원의 파일(`backend/`, `mobile/` 등)은 수정하지 않는다**
 
 ## 기술 스택
 - SvelteKit, Svelte 5 (runes: `$state`, `$derived`, `$effect`), TypeScript
@@ -45,18 +45,19 @@ SvelteKit UI 구현, TypeScript 코드 작성, 컴포넌트 분리, 스타일링
 
 ---
 
-## 현재 구현된 라우트/컴포넌트 목록 (v0.6.0 기준)
+## 현재 구현된 라우트/컴포넌트 목록 (v0.7.0-dev, 2026-03-12)
 
 ### 라우트
 | 경로 | 파일 | 비로그인 | 상태 |
 |------|------|----------|------|
-| `/` | `routes/+page.svelte` | 허용 | 구현 완료 — 공개 레시피 탐색 (카테고리/검색/인기순, `my_collection_id` JOIN) |
-| `/my-recipes` | `routes/my-recipes/+page.svelte` | 로그인 필요 | 구현 완료 — 컬렉션 목록, 즐겨찾기/태그/검색/필터 |
-| `/my-recipes/[id]` | `routes/my-recipes/[id]/+page.svelte` | 로그인 필요 | 구현 완료 — 상세+편집 모드, 별점, 요리기록, 재료담기, 태그, 메모, 재분석 |
-| `/my-recipes/[id]/cook` | (미구현) | — | Phase 3 예정 |
-| `/write` | `routes/write/+page.svelte` | 로그인 필요 | 구현 완료 — 텍스트 레시피 작성, AI 구조화, 미리보기 편집, 공개/비공개 저장 |
-| `/cart` | `routes/cart/+page.svelte` | 로그인 필요 | 구현 완료 — 레시피별 그룹화, 체크/삭제, 선택/전체 구매 버튼 |
-| `/my` | `routes/my/+page.svelte` | 로그인 필요 | 최소 구현 (마이페이지 기본 뼈대) |
+| `/` | `routes/+page.svelte` | 허용 | 구현 완료 — 탐색 탭 (카테고리/검색/최신순, 소스 필터, 상황 태그 준비 중) |
+| `/my-recipes` | `routes/my-recipes/+page.svelte` | 로그인 필요 | 구현 완료 — 내 레시피 서랍, 소스 필터 포함 |
+| `/my-recipes/[id]` | `routes/my-recipes/[id]/+page.svelte` | 로그인 필요 | 구현 완료 — 상세+편집+AI FAB |
+| `/my-recipes/[id]/cook` | (미구현) | — | Phase 2 예정 |
+| `/write` | `routes/write/+page.svelte` | 로그인 필요 | 구현 완료 — 텍스트 레시피 작성 |
+| `/cart` | `routes/cart/+page.svelte` | 로그인 필요 | 구현 완료 — 레시피별 그룹화, 체크/삭제 |
+| `/my` | `routes/my/+page.svelte` | 로그인 필요 | 구현 완료 — 프로필, 입맛 차트, 먹당이 채팅, 로그아웃 |
+| `/fridge` | `routes/fridge/+page.svelte` | 허용 | 구현 완료 — 냉장고 파먹기 |
 | `/recipe/[id]` | `routes/recipe/[id]/+page.svelte` | 허용 | 구현 완료 — 비로그인 임시 분석 결과 |
 | `/auth/callback` | `routes/auth/callback/+page.svelte` | — | 구현 완료 — Supabase OAuth 콜백 |
 | `/login` | `routes/login/+page.svelte` | — | 구현 완료 |
@@ -66,18 +67,35 @@ SvelteKit UI 구현, TypeScript 코드 작성, 컴포넌트 분리, 스타일링
 |----------|------|------|
 | `BottomNav.svelte` | `lib/components/` | 하단 고정 네비, `/[id]/cook`에서 숨김 |
 | `AddRecipeSheet.svelte` | `lib/components/` | [+] 탭 바텀시트 (YouTube 분석 / 텍스트 작성) |
-| `StepTimeline.svelte` | `lib/components/` | 레시피 단계 타임라인, `step_number` 키, 마지막 연결선 없음 |
-| `IngredientList.svelte` | `lib/components/` | 재료 목록, `showCheckbox` prop (기본 true, `/recipe/[id]`에서 false) |
-| `ScrollToTop.svelte` | `lib/components/` | 상세 페이지 우하단 맨위로 버튼 |
+| `AiAssistantFab.svelte` | `lib/components/` | AI FAB + 채팅 패널 (요리 어시스턴트) |
+| `FilterBottomSheet.svelte` | `lib/components/` | 탐색 탭 필터/정렬 바텀시트 |
+| `StepTimeline.svelte` | `lib/components/` | 레시피 단계 타임라인, `step_number` 키 |
+| `IngredientList.svelte` | `lib/components/` | 재료 목록, `showCheckbox`/`oncart`/`cartLoading` props |
+| `ScrollToTop.svelte` | `lib/components/` | 우하단 맨위로 버튼 |
+| `LoginModal.svelte` | `lib/components/` | Google OAuth 로그인 모달 (카카오톡 인앱 브라우저 감지 포함) |
+| `MeokdangChatSheet.svelte` | `lib/components/` | 먹당이 자유대화 채팅 시트 |
 
 ### 핵심 lib 파일
 | 파일 | 설명 |
 |------|------|
-| `lib/api.ts` | API 함수 전체 (getCollectionItem, checkCollection 등 포함) |
-| `lib/types.ts` | TypeScript 타입 |
-| `lib/stores/auth.svelte.ts` | 인증 상태 ($state rune) |
+| `lib/api.ts` | API 함수 전체 (chatWithAi, getPublicRecipes(source=) 포함) |
+| `lib/types.ts` | TypeScript 타입 (Recipe.source, RecipePublicItem.source 포함) |
+| `lib/stores/auth.svelte.ts` | 인증 상태 ($state rune, isLoading() 포함) |
+
+### 알려진 UI 이슈 (`.agents/specs/known-issues.md` 참조)
+- 냉장고 파먹기 재료 동의어/유의어 미처리 (Backend 이슈)
+- 냉장고 파먹기 로그인 유저 비공개 레시피 미노출 (Backend 이슈)
+- 칼로리 표시 라벨 "1인분 약" 추가 예정
 
 ## 미구현 (Phase 2 이후)
-- `AiAssistantFab.svelte` — AI FAB 컴포넌트 (`.agents/specs/ai-fab-spec.md` 참조)
-- `/my-recipes/[id]/cook` — 쿠킹 모드 (`.agents/specs/cooking-mode.md` 참조)
-- `/my` 마이페이지 통계/취향 프로파일 전체 구현
+- `/my-recipes/[id]/cook` — 쿠킹 모드 (`.agents/specs/cooking-mode.md`)
+- 상황 태그 칩 UI — 탐색 탭 (`.agents/specs/situational-tags-spec.md`)
+
+## 모바일 앱 관련
+- Flutter 모바일 앱은 `mobile-dev.md` 팀원이 담당 (`mobile/` 디렉토리)
+- **Mobile-Dev가 웹 컴포넌트 코드 확인을 요청하면 해당 파일 경로와 핵심 코드를 즉시 제공한다**
+- 웹 UI가 이미 max-width 480px 모바일 전용으로 설계되어 있으므로, Flutter 앱은 웹 UI를 그대로 번역하는 것이 목표
+- UI 동기화 작업 시 웹 컴포넌트 파일 경로 안내 역할을 맡는다:
+  - 카드: `frontend/src/routes/my-recipes/+page.svelte`, `frontend/src/routes/+page.svelte`
+  - 상세: `frontend/src/routes/my-recipes/[id]/+page.svelte`
+  - 공통: `frontend/src/lib/components/`

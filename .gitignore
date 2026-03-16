@@ -44,3 +44,9 @@ cookies.txt
 
 # MCP 설정 (DB 자격증명 포함)
 .mcp.json
+
+# Supabase CLI 캐시
+backend/supabase/.temp/
+
+# 임시 이미지/스크린샷
+image*.png
