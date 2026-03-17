@@ -119,6 +119,11 @@ def _build_prompt(metadata: dict) -> str:
        - 재료와 조리법을 바탕으로 합리적으로 추정하세요.
        - 영상/설명란에 명시된 값이 있으면 그대로 사용, 없으면 추정값을 기입하세요.
        - 레시피 영상이 아닌 경우 null.
+    9. **Situational Tags (상황 태그)**:
+       - 다음 고정 목록에서 해당하는 태그를 0~3개 선택하세요.
+       - 목록: 간편식, 다이어트, 야식, 손님접대, 특별한날, 해장, 도시락, 아이반찬, 혼밥, 술안주, 브런치, 명절
+       - 확실히 해당하는 것만 선택. 애매하면 제외.
+       - 레시피가 아닌 경우 빈 배열 [].
 
     [title 필드 — 순수 요리명만 작성]
     - title에는 **순수 요리명만** 작성하세요. 짧고 명확하게.
@@ -173,7 +178,8 @@ def _build_prompt(metadata: dict) -> str:
         "cooking_time": "30분",
         "cooking_time_minutes": 30,
         "difficulty": "보통",
-        "calories": 350
+        "calories": 350,
+        "situational_tags": ["간편식", "혼밥"]
     }}}}
 
     * 만약 레시피 영상이 아니면:
@@ -191,7 +197,8 @@ def _build_prompt(metadata: dict) -> str:
         "cooking_time": null,
         "cooking_time_minutes": null,
         "difficulty": null,
-        "calories": null
+        "calories": null,
+        "situational_tags": []
     }}}}
     """
 
@@ -278,6 +285,11 @@ def _build_text_prompt(text: str, title: str | None) -> str:
     7. **Difficulty**: "쉬움"(20분 이내, 기술 불필요), "보통"(20~60분), "어려움"(60분 초과 또는 복잡한 기술) 중 하나.
     8. **Calories**: 완성 요리의 1인분 기준 예상 칼로리(kcal, 정수). 재료 기반 추정값. 레시피가 아니면 null.
     9. **cooking_time_minutes**: cooking_time을 분 단위 정수로 변환 (예: "1시간 30분" → 90). 레시피가 아니면 null.
+    10. **Situational Tags (상황 태그)**:
+       - 다음 고정 목록에서 해당하는 태그를 0~3개 선택하세요.
+       - 목록: 간편식, 다이어트, 야식, 손님접대, 특별한날, 해장, 도시락, 아이반찬, 혼밥, 술안주, 브런치, 명절
+       - 확실히 해당하는 것만 선택. 애매하면 제외.
+       - 레시피가 아닌 경우 빈 배열 [].
 
     [결과 포맷 (JSON)]
     {{{{
@@ -313,7 +325,8 @@ def _build_text_prompt(text: str, title: str | None) -> str:
         "cooking_time": "30분",
         "cooking_time_minutes": 30,
         "difficulty": "보통",
-        "calories": 350
+        "calories": 350,
+        "situational_tags": ["간편식", "혼밥"]
     }}}}
 
     * 레시피가 아닌 경우:
@@ -331,7 +344,8 @@ def _build_text_prompt(text: str, title: str | None) -> str:
         "cooking_time": null,
         "cooking_time_minutes": null,
         "difficulty": null,
-        "calories": null
+        "calories": null,
+        "situational_tags": []
     }}}}
     """
 

@@ -2,7 +2,7 @@ import os
 import time
 from collections import defaultdict
 from datetime import datetime, timezone
-from fastapi import FastAPI, HTTPException, Request, Depends
+from fastapi import FastAPI, HTTPException, Request, Depends, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
@@ -1091,6 +1091,7 @@ async def get_public_recipes(
     min_time: int | None = None,
     min_calories: int | None = None,
     max_calories: int | None = None,
+    tags: list[str] = Query(default=[]),
     hide_collected: bool = False,
     jwt_user_id: str | None = Depends(get_current_user_optional),
 ):
@@ -1129,6 +1130,7 @@ async def get_public_recipes(
             "p_min_time": min_time,
             "p_min_calories": min_calories,
             "p_max_calories": max_calories,
+            "p_tags": tags,
             "p_hide_collected": hide_collected and jwt_user_id is not None,
             "p_user_id": jwt_user_id if hide_collected else None,
         }
@@ -1746,6 +1748,76 @@ async def get_random_recipe(
         raise HTTPException(
             status_code=500,
             detail=ErrorResponse(error_code="FETCH_FAILED", message="랜덤 레시피 조회 중 오류가 발생했습니다.", detail=str(e)).model_dump(),
+        )
+
+
+# --- 공개 레시피 단건 조회 (탐색 탭 상세 뷰) ---
+@app.get("/recipes/{recipe_id}", response_model=Recipe)
+async def get_public_recipe(
+    recipe_id: int,
+    jwt_user_id: str | None = Depends(get_current_user_optional),
+):
+    """공개 레시피 단건 조회 — 탐색 탭 카드 클릭 시 상세 뷰용"""
+    try:
+        supabase = get_supabase_client()
+        if not supabase:
+            raise HTTPException(
+                status_code=500,
+                detail=ErrorResponse(error_code="DB_CONNECTION_FAILED", message="데이터베이스 연결에 실패했습니다.").model_dump(),
+            )
+
+        result = (
+            supabase.table("recipes")
+            .select("*")
+            .eq("id", recipe_id)
+            .eq("is_public", True)
+            .single()
+            .execute()
+        )
+
+        if not result.data:
+            raise HTTPException(
+                status_code=404,
+                detail=ErrorResponse(error_code="NOT_FOUND", message="레시피를 찾을 수 없어요.").model_dump(),
+            )
+
+        row = result.data
+        ingredients = [Ingredient(**i) for i in (row.get("ingredients") or [])]
+        steps = [RecipeStep(**s) for s in (row.get("steps") or [])]
+        flavor_data = row.get("flavor")
+        flavor = (
+            FlavorProfile(**flavor_data)
+            if flavor_data
+            else FlavorProfile(saltiness=3, sweetness=3, spiciness=3, sourness=3, oiliness=3)
+        )
+
+        return Recipe(
+            id=row["id"],
+            title=row["title"],
+            summary=row.get("summary") or "",
+            ingredients=ingredients,
+            steps=steps,
+            flavor=flavor,
+            tip=row.get("tip"),
+            servings=row.get("servings"),
+            cooking_time=row.get("cooking_time"),
+            cooking_time_minutes=row.get("cooking_time_minutes"),
+            difficulty=row.get("difficulty"),
+            category=row.get("category"),
+            calories=row.get("calories"),
+            video_id=row.get("video_id"),
+            video_title=row.get("video_title"),
+            channel_name=row.get("channel_name"),
+            situational_tags=row.get("situational_tags") or [],
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("공개 레시피 단건 조회 오류: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=ErrorResponse(error_code="FETCH_FAILED", message="레시피 조회 중 오류가 발생했습니다.", detail=str(e)).model_dump(),
         )
 
 

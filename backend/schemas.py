@@ -1,4 +1,3 @@
-import re
 from pydantic import BaseModel, Field, field_validator
 from typing import List, Dict, Optional
 
@@ -58,6 +57,7 @@ class Recipe(BaseModel):
     category: Optional[str] = Field(None, description="레시피 카테고리 (예: 한식, 양식, 국/찌개 등)")
     calories: Optional[int] = Field(None, description="1인분 기준 칼로리 (kcal)")
     cooking_time_minutes: Optional[int] = Field(None, description="조리 시간 (분 단위 정수)")
+    situational_tags: List[str] = Field(default_factory=list, description="상황 태그 (예: 간편식, 야식, 혼밥)")
     video_url: Optional[str] = Field(None, description="유튜브 영상 URL")
     video_id: Optional[str] = Field(None, description="유튜브 영상 고유 ID")
     video_title: Optional[str] = Field(None, description="유튜브 영상 원본 제목")
@@ -69,7 +69,6 @@ class CollectionRequest(BaseModel):
     user_id: str = Field(..., description="사용자 UUID")
     recipe_id: int = Field(..., description="레시피 고유 ID")
     custom_tip: Optional[str] = Field(None, description="개인 메모")
-    ingredient_adjustments: Optional[Dict] = Field(None, description="재료 가감 (예: {excluded: ['고춧가루']})")
 
 
 class CollectionUpdateRequest(BaseModel):
@@ -107,10 +106,6 @@ class CollectionTag(BaseModel):
     created_at: Optional[str] = None
 
 
-# 하위 호환성을 위한 별칭
-Tag = CollectionTag
-
-
 class CollectionTagUpdate(BaseModel):
     tag_ids: List[int] = Field(..., description="부착할 태그 ID 목록 (전체 덮어쓰기)")
 
@@ -136,7 +131,6 @@ class CollectionListItem(BaseModel):
     user_id: str
     recipe_id: int
     custom_tip: Optional[str] = None
-    ingredient_adjustments: Optional[Dict] = None
     is_favorite: bool = False
     my_rating: Optional[int] = None
     cooked_count: int = 0
@@ -166,6 +160,7 @@ class RecipePublicItem(BaseModel):
     source: Optional[str] = None  # 'youtube' | 'text'
     calories: Optional[int] = None
     cooking_time_minutes: Optional[int] = None
+    situational_tags: List[str] = Field(default_factory=list)
 
 
 class RecipesListResponse(BaseModel):
