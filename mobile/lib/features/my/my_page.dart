@@ -31,7 +31,7 @@ class MyPage extends ConsumerWidget {
                 const Icon(Icons.person_outline, size: 64, color: lightLineColor),
                 const SizedBox(height: 12),
                 const Text('로그인이 필요해요',
-                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: darkColor)),
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: warmBrownColor)),
                 const SizedBox(height: 8),
                 const Text(
                   '로그인하면 입맛 분석, 요리 통계 등\n다양한 기능을 이용할 수 있어요.',
@@ -96,7 +96,7 @@ class MyPage extends ConsumerWidget {
               const SizedBox(height: 8),
               Text(fullName,
                   style: const TextStyle(
-                      fontSize: 17, fontWeight: FontWeight.w700, color: darkColor)),
+                      fontSize: 17, fontWeight: FontWeight.w700, color: warmBrownColor)),
               const SizedBox(height: 4),
               Text(user.email ?? '',
                   style: const TextStyle(fontSize: 13, color: softBrownColor)),
@@ -160,7 +160,7 @@ class _SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Text(title,
-        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: darkColor));
+        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: warmBrownColor));
   }
 }
 
@@ -335,7 +335,7 @@ class _TasteProfileCard extends ConsumerWidget {
                           value.toStringAsFixed(1),
                           textAlign: TextAlign.right,
                           style: const TextStyle(
-                              fontSize: 12, fontWeight: FontWeight.w600, color: darkColor),
+                              fontSize: 12, fontWeight: FontWeight.w600, color: warmBrownColor),
                         ),
                       ),
                     ],
@@ -415,7 +415,7 @@ class _StatChip extends StatelessWidget {
             Text(label, style: const TextStyle(fontSize: 10.5, color: softBrownColor)),
             const SizedBox(height: 2),
             Text(value,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: darkColor)),
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: warmBrownColor)),
           ],
         ),
       ),
@@ -460,7 +460,7 @@ class _MeokdangCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text('"$displayName~ 나랑 놀쟈 마우!!"',
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: darkColor)),
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: warmBrownColor)),
           const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,

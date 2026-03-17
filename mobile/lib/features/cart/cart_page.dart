@@ -447,11 +447,11 @@ class _ShopBar extends StatelessWidget {
                           const TextSpan(text: '선택 '),
                           TextSpan(
                               text: '$checkedCount',
-                              style: const TextStyle(fontWeight: FontWeight.w700, color: darkColor)),
+                              style: const TextStyle(fontWeight: FontWeight.w700, color: warmBrownColor)),
                           const TextSpan(text: ' / 전체 '),
                           TextSpan(
                               text: '${totalCount}개',
-                              style: const TextStyle(fontWeight: FontWeight.w700, color: darkColor)),
+                              style: const TextStyle(fontWeight: FontWeight.w700, color: warmBrownColor)),
                         ],
                       ))
                     : Text.rich(TextSpan(
@@ -460,7 +460,7 @@ class _ShopBar extends StatelessWidget {
                           const TextSpan(text: '전체 '),
                           TextSpan(
                               text: '${totalCount}개',
-                              style: const TextStyle(fontWeight: FontWeight.w700, color: darkColor)),
+                              style: const TextStyle(fontWeight: FontWeight.w700, color: warmBrownColor)),
                           const TextSpan(text: ' 재료'),
                         ],
                       )),

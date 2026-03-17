@@ -299,10 +299,10 @@ class _DetailViewState extends ConsumerState<_DetailView> {
                       data: recipe.summary!,
                       styleSheet: MarkdownStyleSheet(
                         p: const TextStyle(fontSize: 14, color: softBrownColor, height: 1.6),
-                        strong: const TextStyle(fontSize: 14, color: darkColor, fontWeight: FontWeight.w600),
-                        h1: const TextStyle(fontSize: 16, color: darkColor, fontWeight: FontWeight.bold),
-                        h2: const TextStyle(fontSize: 15, color: darkColor, fontWeight: FontWeight.bold),
-                        h3: const TextStyle(fontSize: 14, color: darkColor, fontWeight: FontWeight.w600),
+                        strong: const TextStyle(fontSize: 14, color: warmBrownColor, fontWeight: FontWeight.w600),
+                        h1: const TextStyle(fontSize: 16, color: warmBrownColor, fontWeight: FontWeight.bold),
+                        h2: const TextStyle(fontSize: 15, color: warmBrownColor, fontWeight: FontWeight.bold),
+                        h3: const TextStyle(fontSize: 14, color: warmBrownColor, fontWeight: FontWeight.w600),
                       ),
                     ),
                     const Divider(height: 32),
@@ -374,8 +374,8 @@ class _DetailViewState extends ConsumerState<_DetailView> {
                       child: MarkdownBody(
                         data: item.customTip ?? recipe.tip ?? '',
                         styleSheet: MarkdownStyleSheet(
-                          p: const TextStyle(fontSize: 14, height: 1.6, color: darkColor),
-                          strong: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: darkColor),
+                          p: const TextStyle(fontSize: 14, height: 1.6, color: warmBrownColor),
+                          strong: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: warmBrownColor),
                         ),
                       ),
                     ),
@@ -545,7 +545,7 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       title,
-      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: darkColor),
+      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: warmBrownColor),
     );
   }
 }
@@ -605,8 +605,8 @@ class _StepItem extends StatelessWidget {
                 MarkdownBody(
                   data: step.description,
                   styleSheet: MarkdownStyleSheet(
-                    p: const TextStyle(fontSize: 14, height: 1.6, color: darkColor),
-                    strong: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: darkColor),
+                    p: const TextStyle(fontSize: 14, height: 1.6, color: warmBrownColor),
+                    strong: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: warmBrownColor),
                   ),
                 ),
                 if (step.timer != null)

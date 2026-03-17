@@ -736,7 +736,7 @@ class _RandomModalState extends State<_RandomModal> {
               children: [
                 const Text('🎲 오늘의 추천',
                     style: TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold, color: darkColor)),
+                        fontSize: 16, fontWeight: FontWeight.bold, color: warmBrownColor)),
                 const Spacer(),
                 IconButton(
                   onPressed: () => Navigator.pop(context),
@@ -772,7 +772,7 @@ class _RandomModalState extends State<_RandomModal> {
               children: [
                 Text(_recipe.title,
                     style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold, color: darkColor)),
+                        fontSize: 16, fontWeight: FontWeight.bold, color: warmBrownColor)),
                 if (_recipe.channelName != null) ...[
                   const SizedBox(height: 4),
                   Text(_recipe.channelName!,
@@ -977,7 +977,7 @@ class _FridgeBanner extends StatelessWidget {
                 children: [
                   Text('냉장고 파먹기',
                       style: TextStyle(
-                          fontSize: 14, fontWeight: FontWeight.w700, color: darkColor)),
+                          fontSize: 14, fontWeight: FontWeight.w700, color: warmBrownColor)),
                   SizedBox(height: 2),
                   Text('있는 재료로 뭘 만들 수 있을까?',
                       style: TextStyle(fontSize: 12, color: softBrownColor)),
