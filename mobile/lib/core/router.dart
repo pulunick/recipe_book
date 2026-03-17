@@ -5,6 +5,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../features/auth/login_page.dart';
 import '../features/cooking_mode/cooking_mode_page.dart';
 import '../features/explore/explore_page.dart';
+import '../features/explore/public_recipe_detail_page.dart';
+import '../features/fridge/fridge_page.dart';
 import '../features/my_recipes/my_recipes_page.dart';
 import '../features/recipe_detail/recipe_detail_page.dart';
 import '../features/cart/cart_page.dart';
@@ -65,6 +67,23 @@ GoRouter buildRouter() {
             builder: (context, state) => const MyPage(),
           ),
         ],
+      ),
+      // 냉장고 파먹기
+      GoRoute(
+        path: '/fridge',
+        builder: (context, state) => const FridgePage(),
+      ),
+      // 공개 레시피 상세 (탐색 탭 → 보관 전 미리보기)
+      GoRoute(
+        path: '/recipe/:id',
+        builder: (context, state) {
+          final id = int.parse(state.pathParameters['id']!);
+          final initialCollectionId = state.extra as int?;
+          return PublicRecipeDetailPage(
+            recipeId: id,
+            initialCollectionId: initialCollectionId,
+          );
+        },
       ),
       // 레시피 상세 (쉘 밖 — 전체 화면)
       GoRoute(

@@ -248,12 +248,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
               ),
               SliverToBoxAdapter(
                 child: _FridgeBanner(
-                  onTap: () {
-                    // TODO: 냉장고 파먹기 라우팅
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('냉장고 파먹기 기능은 곧 출시 예정이에요!')),
-                    );
-                  },
+                  onTap: () => context.push('/fridge'),
                 ),
               ),
             ],
@@ -621,14 +616,12 @@ class _RecipeGrid extends ConsumerWidget {
                   isCollecting: collectingIds.contains(recipe.id),
                   onCollect: () => onCollect(recipe),
                   onTap: () {
-                    // 공개 레시피는 /recipe/{id} 또는 보관 시 /my-recipes/{id}
-                    if (recipe.isCollected && recipe.myCollectionId != null && recipe.myCollectionId! > 0) {
+                    if (recipe.isCollected && recipe.myCollectionId != null) {
+                      // 이미 보관 → 내 레시피 상세로 바로 이동
                       context.push('/my-recipes/${recipe.myCollectionId}');
                     } else {
-                      // 비로그인 / 미보관: 일단 탐색 상세 (추후 구현)
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('내 레시피에 추가한 뒤 볼 수 있어요.')),
-                      );
+                      // 미보관 → 공개 레시피 상세 (담기 버튼 포함)
+                      context.push('/recipe/${recipe.id}', extra: recipe.myCollectionId);
                     }
                   },
                 );

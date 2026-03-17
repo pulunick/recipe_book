@@ -163,6 +163,11 @@ class RecipeCard extends StatelessWidget {
                         _MetaChip(
                           icon: Icons.timer_outlined,
                           label: '${recipe.cookingTimeMinutes}분',
+                        )
+                      else if (recipe.cookingTime != null)
+                        _MetaChip(
+                          icon: Icons.timer_outlined,
+                          label: recipe.cookingTime!,
                         ),
                       if (recipe.difficulty != null)
                         _MetaChip(

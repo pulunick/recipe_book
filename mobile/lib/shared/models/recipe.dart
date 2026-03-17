@@ -12,6 +12,13 @@ class Ingredient {
         unit: j['unit'] as String?,
         category: j['category'] as String? ?? '',
       );
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        if (amount != null) 'amount': amount,
+        if (unit != null) 'unit': unit,
+        'category': category,
+      };
 }
 
 class RecipeStep {
@@ -26,6 +33,12 @@ class RecipeStep {
         description: j['description'] as String,
         timer: j['timer'] as String?,
       );
+
+  Map<String, dynamic> toJson() => {
+        'step_number': stepNumber,
+        'description': description,
+        if (timer != null) 'timer': timer,
+      };
 }
 
 class FlavorProfile {
@@ -50,6 +63,14 @@ class FlavorProfile {
         sourness: (j['sourness'] as num).toDouble(),
         oiliness: (j['oiliness'] as num).toDouble(),
       );
+
+  Map<String, dynamic> toJson() => {
+        'saltiness': saltiness,
+        'sweetness': sweetness,
+        'spiciness': spiciness,
+        'sourness': sourness,
+        'oiliness': oiliness,
+      };
 }
 
 class Recipe {
@@ -119,6 +140,27 @@ class Recipe {
         calories: j['calories'] as int?,
         cookingTimeMinutes: j['cooking_time_minutes'] as int?,
       );
+
+  Map<String, dynamic> toJson() => {
+        if (id != null) 'id': id,
+        'title': title,
+        if (summary != null) 'summary': summary,
+        'ingredients': ingredients.map((e) => e.toJson()).toList(),
+        'steps': steps.map((e) => e.toJson()).toList(),
+        if (flavor != null) 'flavor': flavor!.toJson(),
+        if (tip != null) 'tip': tip,
+        if (category != null) 'category': category,
+        if (videoId != null) 'video_id': videoId,
+        if (videoTitle != null) 'video_title': videoTitle,
+        if (channelName != null) 'channel_name': channelName,
+        if (servings != null) 'servings': servings,
+        if (cookingTime != null) 'cooking_time': cookingTime,
+        if (difficulty != null) 'difficulty': difficulty,
+        if (source != null) 'source': source,
+        if (isPublic != null) 'is_public': isPublic,
+        if (calories != null) 'calories': calories,
+        if (cookingTimeMinutes != null) 'cooking_time_minutes': cookingTimeMinutes,
+      };
 
   String? get thumbnailUrl =>
       videoId != null ? 'https://img.youtube.com/vi/$videoId/mqdefault.jpg' : null;

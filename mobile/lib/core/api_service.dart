@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 
 import 'dio_client.dart';
+import '../shared/models/recipe.dart';
 import '../shared/models/recipe_public_item.dart';
 import '../shared/models/collection_item.dart';
 import '../shared/models/cart_item.dart';
@@ -178,12 +179,12 @@ class ApiService {
     return resp.data!;
   }
 
-  Future<int> saveTextRecipe(Map<String, dynamic> recipe) async {
+  Future<int> saveTextRecipe(Recipe recipe, {bool isPublic = false}) async {
     final resp = await _dio.post<Map<String, dynamic>>(
       '/collections/text-recipe',
       data: {
-        'recipe': recipe,
-        'is_public': false,
+        'recipe': recipe.toJson(),
+        'is_public': isPublic,
       },
     );
     return resp.data!['collection_id'] as int;
@@ -259,6 +260,21 @@ class ApiService {
     return RecipePublicItem.fromJson(resp.data!);
   }
 
+  // ── 공개 레시피 단건 조회 ──────────────────────────────────
+  Future<Recipe> getPublicRecipe(int recipeId) async {
+    final resp = await _dio.get<Map<String, dynamic>>('/recipes/$recipeId');
+    return Recipe.fromJson(resp.data!);
+  }
+
+  // ── 냉장고 파먹기 ──────────────────────────────────────────
+  Future<List<FridgeSearchItem>> fridgeSearch(List<String> ingredients, {int limit = 10}) async {
+    final resp = await _dio.post<List<dynamic>>(
+      '/recipes/fridge-search',
+      data: {'ingredients': ingredients, 'limit': limit},
+    );
+    return resp.data!.map((e) => FridgeSearchItem.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
   // ── 마이페이지 ─────────────────────────────────────────────
   Future<Map<String, dynamic>> getTasteProfile() async {
     final resp = await _dio.get<Map<String, dynamic>>('/my/taste-profile');
@@ -272,6 +288,54 @@ class ApiService {
         .map((e) => e as Map<String, dynamic>)
         .toList();
   }
+}
+
+class FridgeSearchItem {
+  final int id;
+  final String title;
+  final String? category;
+  final String? cookingTime;
+  final String? difficulty;
+  final String? videoId;
+  final String? channelName;
+  final String? source;
+  final int collectionCount;
+  final double matchScore;
+  final List<String> matchedIngredients;
+
+  const FridgeSearchItem({
+    required this.id,
+    required this.title,
+    this.category,
+    this.cookingTime,
+    this.difficulty,
+    this.videoId,
+    this.channelName,
+    this.source,
+    required this.collectionCount,
+    required this.matchScore,
+    required this.matchedIngredients,
+  });
+
+  factory FridgeSearchItem.fromJson(Map<String, dynamic> json) => FridgeSearchItem(
+    id: json['id'] as int,
+    title: json['title'] as String,
+    category: json['category'] as String?,
+    cookingTime: json['cooking_time'] as String?,
+    difficulty: json['difficulty'] as String?,
+    videoId: json['video_id'] as String?,
+    channelName: json['channel_name'] as String?,
+    source: json['source'] as String?,
+    collectionCount: json['collection_count'] as int? ?? 0,
+    matchScore: (json['match_score'] as num).toDouble(),
+    matchedIngredients: (json['matched_ingredients'] as List<dynamic>?)
+            ?.map((e) => e as String)
+            .toList() ??
+        [],
+  );
+
+  String? get thumbnailUrl =>
+      videoId != null ? 'https://img.youtube.com/vi/$videoId/mqdefault.jpg' : null;
 }
 
 class PublicRecipesResult {
