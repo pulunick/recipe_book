@@ -80,8 +80,11 @@ class _MyRecipesPageState extends ConsumerState<MyRecipesPage> {
             // 소스 + 즐겨찾기 필터 칩
             SliverToBoxAdapter(child: _FilterChips()),
 
-            // 카테고리 + 태그 필터 탭
+            // 카테고리 필터 탭
             SliverToBoxAdapter(child: _FilterTabs()),
+
+            // 태그 필터 행 (태그 있을 때만 표시)
+            SliverToBoxAdapter(child: _TagFilterRow()),
 
             // 레시피 그리드
             _MyRecipesGrid(),
@@ -99,10 +102,10 @@ class _FilterChips extends ConsumerWidget {
     final favoriteOnly = ref.watch(myRecipesFavoriteOnlyProvider);
 
     return SizedBox(
-      height: 44,
+      height: 40,
       child: ListView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         children: [
           // 소스 필터
           for (final (value, label) in [
@@ -112,100 +115,17 @@ class _FilterChips extends ConsumerWidget {
           ])
             Padding(
               padding: const EdgeInsets.only(right: 8),
-              child: FilterChip(
-                label: Text(label, style: const TextStyle(fontSize: 13)),
-                selected: source == value,
-                onSelected: (_) =>
-                    ref.read(myRecipesSourceProvider.notifier).state = value,
-                selectedColor: primaryColor,
-                labelStyle: TextStyle(
-                  color: source == value ? Colors.white : darkColor,
-                  fontWeight: source == value ? FontWeight.w600 : FontWeight.normal,
+              child: Center(
+                child: _TabChip(
+                  label: label,
+                  isSelected: source == value,
+                  onTap: () => ref.read(myRecipesSourceProvider.notifier).state = value,
                 ),
-                backgroundColor: creamColor,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  side: BorderSide(color: source == value ? primaryColor : lightLineColor),
-                ),
-                showCheckmark: false,
-                padding: const EdgeInsets.symmetric(horizontal: 4),
               ),
             ),
 
-          // 즐겨찾기 필터
-          FilterChip(
-            label: const Text('즐겨찾기', style: TextStyle(fontSize: 13)),
-            selected: favoriteOnly,
-            onSelected: (v) =>
-                ref.read(myRecipesFavoriteOnlyProvider.notifier).state = v,
-            selectedColor: const Color(0xFFFFD700),
-            labelStyle: TextStyle(
-              color: favoriteOnly ? darkColor : darkColor,
-              fontWeight: favoriteOnly ? FontWeight.w600 : FontWeight.normal,
-            ),
-            backgroundColor: creamColor,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-              side: BorderSide(color: favoriteOnly ? const Color(0xFFFFD700) : lightLineColor),
-            ),
-            showCheckmark: false,
-            avatar: favoriteOnly
-                ? const Icon(Icons.star, size: 14, color: darkColor)
-                : const Icon(Icons.star_border, size: 14, color: softBrownColor),
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── 카테고리 + 태그 필터 탭 ──────────────────────────────────
-class _FilterTabs extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final recipesAsync = ref.watch(myRecipesProvider);
-    final tagsAsync = ref.watch(myTagsProvider);
-    final selectedCategory = ref.watch(myRecipesCategoryProvider);
-    final selectedTagId = ref.watch(myRecipesTagIdProvider);
-    final favoriteOnly = ref.watch(myRecipesFavoriteOnlyProvider);
-
-    // 레시피 목록에서 유니크 카테고리 추출
-    final categories = recipesAsync.valueOrNull
-            ?.map((r) => r.displayCategory)
-            .where((c) => c.isNotEmpty)
-            .toSet()
-            .toList() ??
-        [];
-
-    final tags = tagsAsync.valueOrNull ?? [];
-
-    final totalCount = recipesAsync.valueOrNull?.length ?? 0;
-
-    return SizedBox(
-      height: 40,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        children: [
-          // 전체(N) 탭
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: _TabChip(
-              label: '전체',
-              count: totalCount,
-              isSelected: selectedCategory == null && selectedTagId == null && !favoriteOnly,
-              onTap: () {
-                ref.read(myRecipesCategoryProvider.notifier).state = null;
-                ref.read(myRecipesTagIdProvider.notifier).state = null;
-                ref.read(myRecipesFavoriteOnlyProvider.notifier).state = false;
-              },
-            ),
-          ),
-
-          // 즐겨찾기 탭
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
+          // 즐겨찾기 (_TabChip 스타일)
+          Center(
             child: _TabChip(
               label: '⭐ 즐겨찾기',
               isSelected: favoriteOnly,
@@ -219,37 +139,107 @@ class _FilterTabs extends ConsumerWidget {
               },
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── 카테고리 필터 탭 ──────────────────────────────────────────
+class _FilterTabs extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // unfiltered 목록에서 카테고리 추출 (필터 변경해도 카테고리가 사라지지 않음)
+    final allRecipesAsync = ref.watch(myAllRecipesForCategoriesProvider);
+    final recipesAsync = ref.watch(myRecipesProvider);
+    final selectedCategory = ref.watch(myRecipesCategoryProvider);
+    final selectedTagId = ref.watch(myRecipesTagIdProvider);
+    final favoriteOnly = ref.watch(myRecipesFavoriteOnlyProvider);
+
+    final categories = allRecipesAsync.valueOrNull
+            ?.map((r) => r.displayCategory)
+            .where((c) => c.isNotEmpty)
+            .toSet()
+            .toList() ??
+        [];
+
+    final totalCount = recipesAsync.valueOrNull?.length ?? 0;
+
+    return SizedBox(
+      height: 40,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        children: [
+          // 전체(N) 탭
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: Center(
+              child: _TabChip(
+                label: '전체',
+                count: totalCount,
+                isSelected: selectedCategory == null && selectedTagId == null && !favoriteOnly,
+                onTap: () {
+                  ref.read(myRecipesCategoryProvider.notifier).state = null;
+                  ref.read(myRecipesTagIdProvider.notifier).state = null;
+                  ref.read(myRecipesFavoriteOnlyProvider.notifier).state = false;
+                },
+              ),
+            ),
+          ),
 
           // 카테고리 탭
           ...categories.map((cat) => Padding(
                 padding: const EdgeInsets.only(right: 8),
-                child: _TabChip(
-                  label: cat,
-                  isSelected: selectedCategory == cat && selectedTagId == null,
-                  onTap: () {
-                    ref.read(myRecipesCategoryProvider.notifier).state =
-                        selectedCategory == cat ? null : cat;
-                    ref.read(myRecipesTagIdProvider.notifier).state = null;
-                    ref.read(myRecipesFavoriteOnlyProvider.notifier).state = false;
-                  },
-                ),
-              )),
-
-          // 태그 탭
-          ...tags.map((tag) => Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: _TagTabChip(
-                  tag: tag,
-                  isSelected: selectedTagId == tag.id,
-                  onTap: () {
-                    ref.read(myRecipesTagIdProvider.notifier).state =
-                        selectedTagId == tag.id ? null : tag.id;
-                    ref.read(myRecipesCategoryProvider.notifier).state = null;
-                    ref.read(myRecipesFavoriteOnlyProvider.notifier).state = false;
-                  },
+                child: Center(
+                  child: _TabChip(
+                    label: cat,
+                    isSelected: selectedCategory == cat && selectedTagId == null,
+                    onTap: () {
+                      ref.read(myRecipesCategoryProvider.notifier).state =
+                          selectedCategory == cat ? null : cat;
+                      ref.read(myRecipesTagIdProvider.notifier).state = null;
+                      ref.read(myRecipesFavoriteOnlyProvider.notifier).state = false;
+                    },
+                  ),
                 ),
               )),
         ],
+      ),
+    );
+  }
+}
+
+// ── 태그 필터 행 (카테고리 아래 별도 줄) ──────────────────────
+class _TagFilterRow extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tagsAsync = ref.watch(myTagsProvider);
+    final selectedTagId = ref.watch(myRecipesTagIdProvider);
+    final tags = tagsAsync.valueOrNull ?? [];
+
+    if (tags.isEmpty) return const SizedBox.shrink();
+
+    return SizedBox(
+      height: 36,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        children: tags.map((tag) => Padding(
+          padding: const EdgeInsets.only(right: 8),
+          child: Center(
+            child: _TagTabChip(
+              tag: tag,
+              isSelected: selectedTagId == tag.id,
+              onTap: () {
+                ref.read(myRecipesTagIdProvider.notifier).state =
+                    selectedTagId == tag.id ? null : tag.id;
+                ref.read(myRecipesCategoryProvider.notifier).state = null;
+                ref.read(myRecipesFavoriteOnlyProvider.notifier).state = false;
+              },
+            ),
+          ),
+        )).toList(),
       ),
     );
   }

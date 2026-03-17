@@ -18,7 +18,8 @@ class EditRecipeSheet extends ConsumerStatefulWidget {
 class _EditRecipeSheetState extends ConsumerState<EditRecipeSheet>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
-  late final TextEditingController _tipController;
+  late final TextEditingController _overrideTipController; // recipe_override.tip
+  late final TextEditingController _memoController;        // custom_tip (내 메모)
   late final TextEditingController _titleController;
   late final TextEditingController _summaryController;
 
@@ -38,7 +39,10 @@ class _EditRecipeSheetState extends ConsumerState<EditRecipeSheet>
 
     // 현재 값으로 초기화 (override 우선)
     final override = widget.item.recipeOverride;
-    _tipController = TextEditingController(
+    _overrideTipController = TextEditingController(
+      text: (override?['tip'] as String?) ?? _recipe.tip ?? '',
+    );
+    _memoController = TextEditingController(
       text: widget.item.customTip ?? '',
     );
     _titleController = TextEditingController(
@@ -74,7 +78,8 @@ class _EditRecipeSheetState extends ConsumerState<EditRecipeSheet>
   @override
   void dispose() {
     _tabController.dispose();
-    _tipController.dispose();
+    _overrideTipController.dispose();
+    _memoController.dispose();
     _titleController.dispose();
     _summaryController.dispose();
     super.dispose();
@@ -83,9 +88,11 @@ class _EditRecipeSheetState extends ConsumerState<EditRecipeSheet>
   Future<void> _save() async {
     setState(() => _isSaving = true);
     try {
+      final tipText = _overrideTipController.text.trim();
       final override = <String, dynamic>{
         'title': _titleController.text.trim(),
         'summary': _summaryController.text.trim(),
+        if (tipText.isNotEmpty) 'tip': tipText,
         'ingredients': _ingredients
             .where((r) => r.name.trim().isNotEmpty)
             .map((r) => r.toJson())
@@ -105,7 +112,7 @@ class _EditRecipeSheetState extends ConsumerState<EditRecipeSheet>
 
       await ref.read(apiServiceProvider).patchCollection(
             widget.item.id,
-            customTip: _tipController.text.trim(),
+            customTip: _memoController.text.trim(),
             recipeOverride: override,
           );
 
@@ -142,8 +149,8 @@ class _EditRecipeSheetState extends ConsumerState<EditRecipeSheet>
     try {
       await ref.read(apiServiceProvider).patchCollection(
             widget.item.id,
-            customTip: '',
             clearOverride: true,
+            // customTip(내 메모)은 복원하지 않음
           );
       if (!mounted) return;
       Navigator.of(context).pop();
@@ -235,7 +242,8 @@ class _EditRecipeSheetState extends ConsumerState<EditRecipeSheet>
               controller: _tabController,
               children: [
                 _BasicTab(
-                  tipController: _tipController,
+                  overrideTipController: _overrideTipController,
+                  memoController: _memoController,
                   titleController: _titleController,
                   summaryController: _summaryController,
                 ),
@@ -259,11 +267,13 @@ class _EditRecipeSheetState extends ConsumerState<EditRecipeSheet>
 // ── 기본 정보 탭 ───────────────────────────────────────────────
 class _BasicTab extends StatelessWidget {
   const _BasicTab({
-    required this.tipController,
+    required this.overrideTipController,
+    required this.memoController,
     required this.titleController,
     required this.summaryController,
   });
-  final TextEditingController tipController;
+  final TextEditingController overrideTipController;
+  final TextEditingController memoController;
   final TextEditingController titleController;
   final TextEditingController summaryController;
 
@@ -282,9 +292,13 @@ class _BasicTab extends StatelessWidget {
           const SizedBox(height: 6),
           _EditField(controller: summaryController, hintText: '레시피 요약', maxLines: 4),
           const SizedBox(height: 16),
-          _FieldLabel('나만의 팁'),
+          _FieldLabel('꿀팁'),
           const SizedBox(height: 6),
-          _EditField(controller: tipController, hintText: '개인 메모나 꿀팁을 입력하세요.', maxLines: 4),
+          _EditField(controller: overrideTipController, hintText: 'AI 추출 꿀팁을 수정하세요.', maxLines: 4),
+          const SizedBox(height: 16),
+          _FieldLabel('내 메모'),
+          const SizedBox(height: 6),
+          _EditField(controller: memoController, hintText: '나만의 메모를 입력하세요.', maxLines: 3),
         ],
       ),
     );

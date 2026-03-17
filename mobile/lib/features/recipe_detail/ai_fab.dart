@@ -129,13 +129,34 @@ class _AiFabState extends ConsumerState<AiFab>
               onClose: _toggleChat,
             ),
           ),
-        // FAB
+        // FAB (먹당이 캐릭터)
         if (!_isOpen)
-          FloatingActionButton(
-            onPressed: _toggleChat,
-            backgroundColor: primaryColor,
-            elevation: 4,
-            child: const Icon(Icons.auto_awesome, color: Colors.white),
+          GestureDetector(
+            onTap: _toggleChat,
+            child: Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withAlpha(50),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: ClipOval(
+                child: Image.asset(
+                  'assets/images/meokdang.png',
+                  fit: BoxFit.cover,
+                  errorBuilder: (ctx, e, st) => Container(
+                    color: primaryColor,
+                    child: const Icon(Icons.auto_awesome, color: Colors.white),
+                  ),
+                ),
+              ),
+            ),
           ),
         if (_isOpen)
           Padding(
@@ -199,10 +220,19 @@ class _ChatPanel extends StatelessWidget {
             ),
             child: Row(
               children: [
-                const Icon(Icons.auto_awesome, color: Colors.white, size: 18),
+                ClipOval(
+                  child: Image.asset(
+                    'assets/images/meokdang.png',
+                    width: 24,
+                    height: 24,
+                    fit: BoxFit.cover,
+                    errorBuilder: (ctx, e, st) =>
+                        const Icon(Icons.auto_awesome, color: Colors.white, size: 18),
+                  ),
+                ),
                 const SizedBox(width: 8),
                 const Text(
-                  'AI 요리 도우미',
+                  '먹당이 요리 도우미',
                   style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14),
                 ),
                 const Spacer(),
@@ -309,8 +339,16 @@ class _MessageBubble extends StatelessWidget {
             Container(
               width: 28, height: 28,
               margin: const EdgeInsets.only(right: 6, top: 2),
-              decoration: const BoxDecoration(color: primaryColor, shape: BoxShape.circle),
-              child: const Icon(Icons.auto_awesome, color: Colors.white, size: 14),
+              child: ClipOval(
+                child: Image.asset(
+                  'assets/images/meokdang.png',
+                  fit: BoxFit.cover,
+                  errorBuilder: (ctx, e, st) => Container(
+                    decoration: const BoxDecoration(color: primaryColor, shape: BoxShape.circle),
+                    child: const Icon(Icons.auto_awesome, color: Colors.white, size: 14),
+                  ),
+                ),
+              ),
             ),
           ],
           Flexible(
@@ -351,8 +389,16 @@ class _TypingIndicator extends StatelessWidget {
         Container(
           width: 28, height: 28,
           margin: const EdgeInsets.only(right: 6, top: 2),
-          decoration: const BoxDecoration(color: primaryColor, shape: BoxShape.circle),
-          child: const Icon(Icons.auto_awesome, color: Colors.white, size: 14),
+          child: ClipOval(
+            child: Image.asset(
+              'assets/images/meokdang.png',
+              fit: BoxFit.cover,
+              errorBuilder: (ctx, e, st) => Container(
+                decoration: const BoxDecoration(color: primaryColor, shape: BoxShape.circle),
+                child: const Icon(Icons.auto_awesome, color: Colors.white, size: 14),
+              ),
+            ),
+          ),
         ),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),

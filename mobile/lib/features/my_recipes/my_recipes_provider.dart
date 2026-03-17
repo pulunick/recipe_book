@@ -21,6 +21,22 @@ final myTagsProvider = FutureProvider<List<CollectionTag>>((ref) async {
       .toList();
 });
 
+// 카테고리 목록 추출용 — source+q 필터만 적용 (category/tag 제외)
+final myAllRecipesForCategoriesProvider = FutureProvider<List<CollectionListItem>>((ref) async {
+  final userAsync = ref.watch(currentUserProvider);
+  final user = userAsync.valueOrNull;
+  if (user == null) return [];
+
+  final source = ref.watch(myRecipesSourceProvider);
+  final q = ref.watch(myRecipesQueryProvider);
+
+  return ref.watch(apiServiceProvider).getMyCollections(
+    user.id,
+    source: source,
+    q: q,
+  );
+});
+
 final myRecipesProvider = FutureProvider<List<CollectionListItem>>((ref) async {
   final userAsync = ref.watch(currentUserProvider);
   final user = userAsync.valueOrNull;

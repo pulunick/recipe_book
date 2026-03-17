@@ -62,6 +62,7 @@ class _DetailView extends ConsumerStatefulWidget {
 
 class _DetailViewState extends ConsumerState<_DetailView> {
   bool _cookLoading = false;
+  final Set<int> _checkedIngredients = {};
 
   void _invalidate() {
     ref.invalidate(collectionItemProvider(widget.collectionId));
@@ -229,6 +230,48 @@ class _DetailViewState extends ConsumerState<_DetailView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // 수정된 버전 배너
+                  if (item.recipeOverride != null)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF3E0),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFFFCC80)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.edit_note, size: 16, color: Color(0xFFE65100)),
+                          const SizedBox(width: 6),
+                          const Expanded(
+                            child: Text(
+                              '수정된 버전을 보고 있어요',
+                              style: TextStyle(fontSize: 12, color: Color(0xFFE65100)),
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () async {
+                              await ref.read(apiServiceProvider).patchCollection(
+                                item.id,
+                                clearOverride: true,
+                              );
+                              _invalidate();
+                            },
+                            child: const Text(
+                              '원본으로 복원',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFFE65100),
+                                fontWeight: FontWeight.w600,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
                   // 소스 배지 — 웹 .text-badge 스타일 (초록)
                   if (!recipe.isYoutube)
                     Container(
@@ -318,7 +361,19 @@ class _DetailViewState extends ConsumerState<_DetailView> {
 
                   // 재료
                   if (recipe.ingredients.isNotEmpty) ...[
-                    _SectionTitle('재료'),
+                    Row(
+                      children: [
+                        Expanded(child: _SectionTitle('재료')),
+                        if (_checkedIngredients.isNotEmpty)
+                          GestureDetector(
+                            onTap: () => setState(() => _checkedIngredients.clear()),
+                            child: const Text(
+                              '체크 초기화',
+                              style: TextStyle(fontSize: 12, color: softBrownColor),
+                            ),
+                          ),
+                      ],
+                    ),
                     const SizedBox(height: 12),
                     ..._groupIngredients(recipe.ingredients).entries.map((e) => Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -330,21 +385,53 @@ class _DetailViewState extends ConsumerState<_DetailView> {
                                 style: const TextStyle(
                                     fontSize: 13, color: softBrownColor, fontWeight: FontWeight.w600)),
                           ),
-                        ...e.value.map((ing) => Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 5),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(ing.name,
-                                    style: const TextStyle(fontSize: 14, color: darkColor)),
+                        ...e.value.map((ing) {
+                          final idx = recipe.ingredients.indexOf(ing);
+                          final checked = _checkedIngredients.contains(idx);
+                          return GestureDetector(
+                            onTap: () => setState(() {
+                              if (checked) {
+                                _checkedIngredients.remove(idx);
+                              } else {
+                                _checkedIngredients.add(idx);
+                              }
+                            }),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 5),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    checked ? Icons.check_circle : Icons.radio_button_unchecked,
+                                    size: 18,
+                                    color: checked ? primaryColor : lightLineColor,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      ing.name,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: checked
+                                            ? softBrownColor.withAlpha(120)
+                                            : warmBrownColor,
+                                        decoration: checked ? TextDecoration.lineThrough : null,
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    [ing.amount, ing.unit].whereType<String>().join(' '),
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: checked
+                                          ? softBrownColor.withAlpha(120)
+                                          : softBrownColor,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              Text(
-                                [ing.amount, ing.unit].whereType<String>().join(' '),
-                                style: const TextStyle(fontSize: 14, color: softBrownColor),
-                              ),
-                            ],
-                          ),
-                        )),
+                            ),
+                          );
+                        }),
                         const SizedBox(height: 4),
                       ],
                     )),
@@ -359,9 +446,8 @@ class _DetailViewState extends ConsumerState<_DetailView> {
                     const Divider(height: 32),
                   ],
 
-                  // 꿀팁
-                  if ((item.customTip ?? recipe.tip) != null &&
-                      (item.customTip ?? recipe.tip)!.isNotEmpty) ...[
+                  // 꿀팁 (AI 추출, recipe_override.tip 반영됨)
+                  if (recipe.tip != null && recipe.tip!.isNotEmpty) ...[
                     _SectionTitle('꿀팁'),
                     const SizedBox(height: 10),
                     Container(
@@ -372,13 +458,34 @@ class _DetailViewState extends ConsumerState<_DetailView> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: MarkdownBody(
-                        data: item.customTip ?? recipe.tip ?? '',
+                        data: recipe.tip!,
                         styleSheet: MarkdownStyleSheet(
                           p: const TextStyle(fontSize: 14, height: 1.6, color: warmBrownColor),
                           strong: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: warmBrownColor),
                         ),
                       ),
                     ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // 내 메모 (custom_tip — 꿀팁과 완전히 별개)
+                  if (item.customTip != null && item.customTip!.isNotEmpty) ...[
+                    _SectionTitle('내 메모'),
+                    const SizedBox(height: 10),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0F4FF),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFD0DBF0)),
+                      ),
+                      child: Text(
+                        item.customTip!,
+                        style: const TextStyle(fontSize: 14, height: 1.6, color: warmBrownColor),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                   ],
 
                   // 원본 영상
