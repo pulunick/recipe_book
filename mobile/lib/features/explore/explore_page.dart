@@ -27,8 +27,6 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
   // 오늘 뭐먹지
   bool _randomLoading = false;
 
-  // 상황 태그
-  final Set<String> _selectedTags = {};
 
   @override
   void initState() {
@@ -219,23 +217,6 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
             // 카테고리 칩
             SliverToBoxAdapter(
               child: _CategoryChips(),
-            ),
-
-            // 빠른 접근 상황 태그 칩
-            SliverToBoxAdapter(
-              child: _TagChips(
-                selectedTags: _selectedTags,
-                onToggle: (tag) {
-                  setState(() {
-                    if (_selectedTags.contains(tag)) {
-                      _selectedTags.remove(tag);
-                    } else {
-                      _selectedTags.add(tag);
-                    }
-                  });
-                  // TODO: 태그 필터 API 연동 시 여기에 추가
-                },
-              ),
             ),
 
             // 오늘 뭐먹지 + 냉장고 파먹기 배너 (검색/필터 없을 때만)
@@ -882,56 +863,6 @@ class _ModalChip extends StatelessWidget {
           ],
           Text(label, style: TextStyle(fontSize: 12, color: color)),
         ],
-      ),
-    );
-  }
-}
-
-// ── 상황 태그 칩 ─────────────────────────────────────────
-class _TagChips extends StatelessWidget {
-  const _TagChips({required this.selectedTags, required this.onToggle});
-  final Set<String> selectedTags;
-  final ValueChanged<String> onToggle;
-
-  static const _quickTags = ['간편식', '특별한날', '야식', '다이어트', '해장'];
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 36,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: _quickTags.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 6),
-        itemBuilder: (_, i) {
-          final tag = _quickTags[i];
-          final isSelected = selectedTags.contains(tag);
-          return GestureDetector(
-            onTap: () => onToggle(tag),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              decoration: BoxDecoration(
-                color: isSelected ? primaryColor : Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: isSelected ? primaryColor : lightLineColor,
-                  width: 1.5,
-                ),
-              ),
-              child: Center(
-                child: Text(
-                  '#$tag',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                    color: isSelected ? Colors.white : softBrownColor,
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
       ),
     );
   }

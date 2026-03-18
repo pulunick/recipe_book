@@ -33,6 +33,7 @@ class ApiService {
     int? maxCalories,
     int? minCalories,
     bool hideCollected = false,
+    List<String> tags = const [],
   }) async {
     final resp = await _dio.get<Map<String, dynamic>>(
       '/recipes',
@@ -49,6 +50,7 @@ class ApiService {
         if (maxCalories != null) 'max_calories': maxCalories,
         if (minCalories != null) 'min_calories': minCalories,
         if (hideCollected) 'hide_collected': true,
+        if (tags.isNotEmpty) 'tags': tags,
       },
     );
     final data = resp.data!;

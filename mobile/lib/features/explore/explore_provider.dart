@@ -89,6 +89,7 @@ final exploreCategoryProvider = StateProvider<String?>((ref) => null);
 final exploreSourceProvider = StateProvider<String?>((ref) => null);
 final exploreQueryProvider = StateProvider<String?>((ref) => null);
 final exploreFilterProvider = StateProvider<ExploreFilter>((ref) => const ExploreFilter());
+final exploreTagsProvider = StateProvider<List<String>>((ref) => const []);
 
 // ── 카테고리 목록 ──────────────────────────────────────────
 final categoriesProvider = FutureProvider<List<String>>((ref) {
@@ -107,6 +108,7 @@ class ExploreNotifier extends AsyncNotifier<ExploreListState> {
     ref.watch(exploreSourceProvider);
     ref.watch(exploreQueryProvider);
     ref.watch(exploreFilterProvider);
+    ref.watch(exploreTagsProvider);
 
     return _fetchPage(1);
   }
@@ -116,6 +118,7 @@ class ExploreNotifier extends AsyncNotifier<ExploreListState> {
     final source = ref.read(exploreSourceProvider);
     final query = ref.read(exploreQueryProvider);
     final filter = ref.read(exploreFilterProvider);
+    final tags = ref.read(exploreTagsProvider);
 
     final maxTime = filter.cookingTime == '20'
         ? 20
@@ -146,6 +149,7 @@ class ExploreNotifier extends AsyncNotifier<ExploreListState> {
       maxCalories: maxCal,
       minCalories: minCal,
       hideCollected: filter.hideCollected,
+      tags: tags,
     );
 
     return ExploreListState(
