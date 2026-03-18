@@ -137,6 +137,7 @@ class _AiFabState extends ConsumerState<AiFab>
               width: 56,
               height: 56,
               decoration: BoxDecoration(
+                color: primaryColor,
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(

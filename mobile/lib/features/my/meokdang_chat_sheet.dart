@@ -132,8 +132,17 @@ class _MeokdangChatSheetState extends ConsumerState<MeokdangChatSheet> {
                   children: [
                     Container(
                       width: 36, height: 36,
-                      decoration: const BoxDecoration(color: primaryColor, shape: BoxShape.circle),
-                      child: const Icon(Icons.restaurant, color: Colors.white, size: 20),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF5E6C8),
+                        shape: BoxShape.circle,
+                      ),
+                      child: ClipOval(
+                        child: Image.asset(
+                          'assets/images/meokdang.png',
+                          fit: BoxFit.cover,
+                          errorBuilder: (ctx, e, st) => const Icon(Icons.restaurant, color: primaryColor, size: 20),
+                        ),
+                      ),
                     ),
                     const SizedBox(width: 10),
                     const Column(
@@ -182,8 +191,17 @@ class _MeokdangChatSheetState extends ConsumerState<MeokdangChatSheet> {
                         Container(
                           width: 30, height: 30,
                           margin: const EdgeInsets.only(right: 6),
-                          decoration: const BoxDecoration(color: primaryColor, shape: BoxShape.circle),
-                          child: const Icon(Icons.restaurant, color: Colors.white, size: 16),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFF5E6C8),
+                            shape: BoxShape.circle,
+                          ),
+                          child: ClipOval(
+                            child: Image.asset(
+                              'assets/images/meokdang.png',
+                              fit: BoxFit.cover,
+                              errorBuilder: (ctx, e, st) => const Icon(Icons.restaurant, color: primaryColor, size: 16),
+                            ),
+                          ),
                         ),
                       ],
                       Flexible(
@@ -272,8 +290,17 @@ class _MeokdangChatSheetState extends ConsumerState<MeokdangChatSheet> {
           Container(
             width: 30, height: 30,
             margin: const EdgeInsets.only(right: 6),
-            decoration: const BoxDecoration(color: primaryColor, shape: BoxShape.circle),
-            child: const Icon(Icons.restaurant, color: Colors.white, size: 16),
+            decoration: const BoxDecoration(
+              color: Color(0xFFF5E6C8),
+              shape: BoxShape.circle,
+            ),
+            child: ClipOval(
+              child: Image.asset(
+                'assets/images/meokdang.png',
+                fit: BoxFit.cover,
+                errorBuilder: (ctx, e, st) => const Icon(Icons.restaurant, color: primaryColor, size: 16),
+              ),
+            ),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

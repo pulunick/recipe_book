@@ -450,7 +450,7 @@ class _MeokdangCard extends StatelessWidget {
             ),
             child: ClipOval(
               child: Image.asset(
-                'assets/meokdang.png',
+                'assets/images/meokdang.png',
                 fit: BoxFit.cover,
                 errorBuilder: (ctx, e, st) => const Center(
                   child: Text('🥘', style: TextStyle(fontSize: 32)),
