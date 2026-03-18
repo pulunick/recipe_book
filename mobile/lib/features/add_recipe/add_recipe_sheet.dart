@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../core/api_service.dart';
 import '../../core/theme.dart';
 import '../../shared/models/recipe.dart';
+import '../../shared/providers/analysis_provider.dart';
 
 const _kDifficulties = ['쉬움', '보통', '어려움'];
 
@@ -42,74 +42,10 @@ class _AddRecipeSheetState extends ConsumerState<AddRecipeSheet>
       setState(() => _errorMsgYoutube = 'YouTube URL을 입력해주세요.');
       return;
     }
-    setState(() {
-      _isLoadingYoutube = true;
-      _errorMsgYoutube = null;
-    });
-    try {
-      final result = await ref.read(apiServiceProvider).extractFromYoutube(url);
-      if (!mounted) return;
-
-      final isRecipe = result['is_recipe'] as bool? ?? true;
-      if (!isRecipe) {
-        setState(() {
-          _isLoadingYoutube = false;
-          _errorMsgYoutube = result['non_recipe_reason'] as String? ?? '요리 레시피 영상이 아니에요.';
-        });
-        return;
-      }
-
-      final collectionId = result['collection_id'] as int?;
-      final recipeTitle = result['title'] as String?;
-      Navigator.of(context).pop();
-      if (collectionId != null) widget.onSaved?.call(collectionId);
-      _showPopup(success: true, title: recipeTitle, collectionId: collectionId);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _isLoadingYoutube = false;
-        _errorMsgYoutube = _parseError(e);
-      });
-    }
-  }
-
-  String _parseError(Object e) {
-    final msg = e.toString();
-    if (msg.contains('NOT_RECIPE')) return '요리 레시피 영상이 아니에요.';
-    if (msg.contains('INVALID_URL')) return '유효한 YouTube URL이 아니에요.';
-    if (msg.contains('ACCESS_DENIED')) return '영상에 접근할 수 없어요.';
-    if (msg.contains('SocketException') || msg.contains('connection')) return '네트워크 연결을 확인해주세요.';
-    if (msg.contains('TimeoutException')) return '분석 시간이 초과됐어요. 다시 시도해주세요.';
-    return '오류가 발생했어요. 다시 시도해주세요.';
-  }
-
-  void _showPopup({required bool success, String? title, int? collectionId}) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final overlay = Navigator.of(context, rootNavigator: true).overlay;
-      if (overlay == null) return;
-
-      late OverlayEntry entry;
-      entry = OverlayEntry(
-        builder: (ctx) => _AnalysisPopup(
-          success: success,
-          recipeTitle: title,
-          onDismiss: () => entry.remove(),
-          onGoTo: success && collectionId != null
-              ? () {
-                  entry.remove();
-                  ctx.push('/my-recipes/$collectionId');
-                }
-              : null,
-        ),
-      );
-      overlay.insert(entry);
-
-      // 5초 후 자동 닫기
-      Future.delayed(const Duration(seconds: 5), () {
-        if (entry.mounted) entry.remove();
-      });
-    });
+    // 즉시 시트 닫고 백그라운드에서 분석 (global analysisProvider)
+    setState(() => _isLoadingYoutube = true);
+    if (mounted) Navigator.of(context).pop();
+    ref.read(analysisProvider.notifier).startAnalysis(url);
   }
 
   @override
@@ -174,7 +110,11 @@ class _AddRecipeSheetState extends ConsumerState<AddRecipeSheet>
                   onSaved: (collectionId, title) {
                     Navigator.of(context).pop();
                     widget.onSaved?.call(collectionId);
-                    _showPopup(success: true, title: title, collectionId: collectionId);
+                    // 팝업은 main_shell의 analysisProvider 리스너에서 표시
+                    ref.read(analysisProvider.notifier).setDone(
+                      collectionId: collectionId,
+                      recipeTitle: title,
+                    );
                   },
                 ),
               ],
@@ -890,7 +830,7 @@ class _EditSection extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                     color: softBrownColor,
                     letterSpacing: 0.5)),
-            if (action != null) action!,
+            ?action,
           ],
         ),
         const SizedBox(height: 6),
@@ -944,153 +884,4 @@ class _MetaField extends StatelessWidget {
       ],
     );
   }
-}
-
-// ── 분석 완료 팝업 (Overlay) ─────────────────────────────────
-class _AnalysisPopup extends StatefulWidget {
-  const _AnalysisPopup({
-    required this.success,
-    this.recipeTitle,
-    required this.onDismiss,
-    this.onGoTo,
-  });
-  final bool success;
-  final String? recipeTitle;
-  final VoidCallback onDismiss;
-  final VoidCallback? onGoTo;
-
-  @override
-  State<_AnalysisPopup> createState() => _AnalysisPopupState();
-}
-
-class _AnalysisPopupState extends State<_AnalysisPopup>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late final Animation<double> _slide;
-  late final Animation<double> _fade;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 250));
-    _slide = Tween(begin: 12.0, end: 0.0)
-        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
-    _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
-    _ctrl.forward();
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).padding.bottom;
-    return Positioned(
-      bottom: 72 + bottomInset,
-      left: 16,
-      right: 16,
-      child: AnimatedBuilder(
-        animation: _ctrl,
-        builder: (_, child) => Opacity(
-          opacity: _fade.value,
-          child: Transform.translate(
-            offset: Offset(0, _slide.value),
-            child: child,
-          ),
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                    color: Colors.black.withAlpha(36),
-                    blurRadius: 32,
-                    offset: const Offset(0, 8)),
-              ],
-            ),
-            child: Row(
-              children: [
-                Text(widget.success ? '✅' : '❌',
-                    style: const TextStyle(fontSize: 22)),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        widget.success ? '레시피 분석 완료!' : '분석 실패',
-                        style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: warmBrownColor),
-                      ),
-                      if (widget.recipeTitle != null)
-                        Text(
-                          widget.recipeTitle!,
-                          style: const TextStyle(
-                              fontSize: 12, color: softBrownColor),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                if (widget.success && widget.onGoTo != null) ...[
-                  _popupBtn(
-                      label: '닫기',
-                      onTap: widget.onDismiss,
-                      isPrimary: false),
-                  const SizedBox(width: 6),
-                  _popupBtn(
-                      label: '보러 가기 →',
-                      onTap: widget.onGoTo!,
-                      isPrimary: true),
-                ] else
-                  _popupBtn(
-                      label: '닫기',
-                      onTap: widget.onDismiss,
-                      isPrimary: false),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _popupBtn(
-          {required String label,
-          required VoidCallback onTap,
-          required bool isPrimary}) =>
-      GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-          decoration: BoxDecoration(
-            color: isPrimary ? primaryColor : Colors.transparent,
-            border: isPrimary
-                ? null
-                : Border.all(color: lightLineColor, width: 1.5),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: isPrimary ? Colors.white : softBrownColor,
-            ),
-          ),
-        ),
-      );
 }
