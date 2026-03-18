@@ -67,9 +67,7 @@ class ApiService {
   // ── 카테고리 목록 ──────────────────────────────────────────
   Future<List<String>> getCategories() async {
     final resp = await _dio.get<List<dynamic>>('/recipes/categories');
-    return resp.data!
-        .map((e) => (e as Map<String, dynamic>)['category'] as String)
-        .toList();
+    return resp.data!.map((e) => e as String).toList();
   }
 
   // ── 내 레시피 목록 ─────────────────────────────────────────

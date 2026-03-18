@@ -545,7 +545,7 @@ class _RecipeGrid extends ConsumerWidget {
             crossAxisCount: 2,
             mainAxisSpacing: 12,
             crossAxisSpacing: 12,
-            childAspectRatio: 0.70,
+            childAspectRatio: 0.82,
           ),
         ),
       ),
@@ -613,7 +613,7 @@ class _RecipeGrid extends ConsumerWidget {
               crossAxisCount: 2,
               mainAxisSpacing: 12,
               crossAxisSpacing: 12,
-              childAspectRatio: 0.70,
+              childAspectRatio: 0.82,
             ),
           ),
         );
